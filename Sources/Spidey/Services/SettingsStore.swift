@@ -114,6 +114,9 @@ final class SettingsStore: ObservableObject {
     @Published var clipboardLimit: Int {
         didSet { defaults.set(clipboardLimit, forKey: "clipboardLimit") }
     }
+    @Published var screenshotsToClipboard: Bool {
+        didSet { defaults.set(screenshotsToClipboard, forKey: "screenshotsToClipboard") }
+    }
     @Published var hotKey: HotKeyCombo {
         didSet {
             if let data = try? JSONEncoder().encode(hotKey) {
@@ -149,6 +152,7 @@ final class SettingsStore: ObservableObject {
         claudeDirectory = claudeDir
         let limit = defaults.integer(forKey: "clipboardLimit")
         clipboardLimit = limit > 0 ? limit : 200
+        screenshotsToClipboard = defaults.object(forKey: "screenshotsToClipboard") as? Bool ?? true
         if let data = defaults.data(forKey: "hotKey"),
            let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) {
             hotKey = combo

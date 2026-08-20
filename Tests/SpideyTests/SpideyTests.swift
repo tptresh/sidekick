@@ -782,3 +782,20 @@ final class FindMyProviderTests: XCTestCase {
             .contains(FindMyProvider.normalized("tanush's iphone")))
     }
 }
+
+final class ClipEntryTests: XCTestCase {
+    func testHistorySavedBeforeScreenshotsStillDecodes() throws {
+        // Old entries have no isScreenshot key at all.
+        let old = #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","kind":"text","date":0,"value":"hello"}]"#
+        let decoded = try JSONDecoder().decode([ClipEntry].self, from: Data(old.utf8))
+        XCTAssertEqual(decoded.first?.value, "hello")
+        XCTAssertFalse(decoded.first?.fromScreenshot ?? true)
+    }
+
+    func testScreenshotFlagRoundTrips() throws {
+        let entry = ClipEntry(id: UUID(), kind: .file, date: Date(), value: "/tmp/shot.png", isScreenshot: true)
+        let data = try JSONEncoder().encode([entry])
+        let decoded = try JSONDecoder().decode([ClipEntry].self, from: data)
+        XCTAssertTrue(decoded.first?.fromScreenshot ?? false)
+    }
+}

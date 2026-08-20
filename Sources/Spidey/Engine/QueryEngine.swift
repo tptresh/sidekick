@@ -79,6 +79,14 @@ final class SpideyViewModel: ObservableObject {
             return
         }
 
+        if lowered == "ss" || lowered == "screenshot" || lowered == "screenshots" {
+            syncResults = screenshotResults()
+            fileResults = []
+            publish()
+            scheduleFileSearch(for: nil)
+            return
+        }
+
         if lowered == "find" || lowered.hasPrefix("find ") {
             let term = lowered.hasPrefix("find ")
                 ? String(trimmed.dropFirst("find ".count)).trimmingCharacters(in: .whitespaces)
@@ -184,6 +192,7 @@ final class SpideyViewModel: ObservableObject {
 
     private func clipboardResults(filter: String) -> [ResultItem] {
         let store = ClipboardStore.shared
+        store.pruneMissingScreenshots()
         var entries = store.entries
         if !filter.isEmpty {
             entries = entries.filter {
@@ -209,9 +218,15 @@ final class SpideyViewModel: ObservableObject {
             case .text:
                 icon = .symbol("doc.on.clipboard")
             case .file:
-                let image = NSWorkspace.shared.icon(forFile: entry.value)
-                image.size = NSSize(width: 32, height: 32)
-                icon = .appIcon(image)
+                // Screenshots get a real thumbnail so the right one is easy to pick.
+                if entry.fromScreenshot, let image = NSImage(contentsOfFile: entry.value) {
+                    image.size = NSSize(width: 32, height: 32)
+                    icon = .appIcon(image)
+                } else {
+                    let image = NSWorkspace.shared.icon(forFile: entry.value)
+                    image.size = NSSize(width: 32, height: 32)
+                    icon = .appIcon(image)
+                }
             case .image:
                 if let url = ClipboardStore.shared.imageURL(for: entry), let image = NSImage(contentsOf: url) {
                     image.size = NSSize(width: 32, height: 32)
@@ -220,12 +235,55 @@ final class SpideyViewModel: ObservableObject {
                     icon = .symbol("photo")
                 }
             }
+            let subtitle = entry.fromScreenshot
+                ? "Screenshot from \(age). Drag it into any app, or press Return to copy."
+                : "Copied \(age). Return copies it back to the clipboard."
             return ResultItem(
                 title: entry.displayTitle,
-                subtitle: "Copied \(age). Return copies it back to the clipboard.",
+                subtitle: subtitle,
                 icon: icon,
                 score: 500 - Double(index),
                 dragFileURL: entry.kind == .file ? URL(fileURLWithPath: entry.value) : nil,
+                action: { ClipboardStore.shared.copyToPasteboard(entry) }
+            )
+        }
+    }
+
+    // MARK: - Screenshots mode
+
+    private func screenshotResults() -> [ResultItem] {
+        let store = ClipboardStore.shared
+        store.pruneMissingScreenshots()
+        let shots = store.entries.filter(\.fromScreenshot)
+        if shots.isEmpty {
+            let subtitle = SettingsStore.shared.screenshotsToClipboard
+                ? "Take one and it will show up here automatically"
+                : "Turn on \"Keep recent screenshots\" in Settings to collect them here"
+            return [ResultItem(
+                title: "No recent screenshots",
+                subtitle: subtitle,
+                icon: .symbol("camera.viewfinder"),
+                score: 500,
+                action: {}
+            )]
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return shots.enumerated().map { index, entry in
+            let age = formatter.localizedString(for: entry.date, relativeTo: Date())
+            let icon: ResultIcon
+            if let image = NSImage(contentsOfFile: entry.value) {
+                image.size = NSSize(width: 32, height: 32)
+                icon = .appIcon(image)
+            } else {
+                icon = .symbol("photo")
+            }
+            return ResultItem(
+                title: entry.displayTitle,
+                subtitle: "Taken \(age). Drag it into any app, or press Return to copy.",
+                icon: icon,
+                score: 500 - Double(index),
+                dragFileURL: URL(fileURLWithPath: entry.value),
                 action: { ClipboardStore.shared.copyToPasteboard(entry) }
             )
         }

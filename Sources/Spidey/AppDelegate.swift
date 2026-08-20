@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setUpStatusItem()
         setUpPanel()
         ClipboardStore.shared.start()
+        ScreenshotWatcher.shared.start()
         registerHotKey()
         _ = AppProvider.shared
         FileProvider.warmUp()
