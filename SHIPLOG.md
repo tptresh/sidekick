@@ -11,3 +11,9 @@ newest at the bottom. Statuses:
 
 To trace a regression: read bottom-up, find the first ship after things
 last worked, and inspect its listed commit hashes with `git show`.
+
+## 2026-08-20 15:59 — OK — claude/spidey-local-dev-workflow-6bf8aa
+- "Add auto-ship workflow: ship.sh, Stop/SessionStart hooks, SHIPLOG ledger, CLAUDE.md rules"
+- merged commits:
+  - 2e4e4ca Add auto-ship workflow: ship.sh, Stop/SessionStart hooks, SHIPLOG ledger, CLAUDE.md rules
+- main is now at: bc1ba13 (build succeeded, app relaunched)
