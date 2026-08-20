@@ -11,11 +11,11 @@ func drawIcon(size: CGFloat) -> NSImage {
         // Rounded square background, deep navy.
         let bgRect = rect.insetBy(dx: 90 * scale, dy: 90 * scale)
         let bg = NSBezierPath(roundedRect: bgRect, xRadius: 190 * scale, yRadius: 190 * scale)
-        NSColor(red: 0.043, green: 0.106, blue: 0.290, alpha: 1).setFill()
+        NSColor(red: 0.035, green: 0.055, blue: 0.110, alpha: 1).setFill()
         bg.fill()
 
         // Web lines radiating from the top center.
-        NSColor(red: 0.878, green: 0.129, blue: 0.157, alpha: 0.28).setStroke()
+        NSColor(red: 0.690, green: 0.180, blue: 0.210, alpha: 0.16).setStroke()
         let origin = NSPoint(x: rect.midX, y: bgRect.maxY)
         for angleDegrees in stride(from: 210.0, through: 330.0, by: 24.0) {
             let angle = angleDegrees * .pi / 180
@@ -35,10 +35,10 @@ func drawIcon(size: CGFloat) -> NSImage {
             width: 600 * scale, height: 600 * scale
         )
         let head = NSBezierPath(ovalIn: headRect)
-        NSColor(red: 0.878, green: 0.129, blue: 0.157, alpha: 1).setFill()
+        NSColor(red: 0.690, green: 0.180, blue: 0.210, alpha: 1).setFill()
         head.fill()
-        NSColor.black.setStroke()
-        head.lineWidth = 22 * scale
+        NSColor(white: 0.05, alpha: 1).setStroke()
+        head.lineWidth = 16 * scale
         head.stroke()
 
         // Web on the mask.

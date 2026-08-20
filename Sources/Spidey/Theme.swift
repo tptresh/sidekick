@@ -17,33 +17,36 @@ enum HeroTheme: String, CaseIterable, Codable {
     var palette: ThemePalette {
         switch self {
         case .spiderman:
+            // Midnight navy with a muted crimson accent.
             return ThemePalette(
-                background: Color(red: 0.043, green: 0.106, blue: 0.290),
-                backgroundTop: Color(red: 0.075, green: 0.145, blue: 0.360),
-                accent: Color(red: 0.878, green: 0.129, blue: 0.157),
-                textPrimary: .white,
-                textSecondary: Color(red: 0.72, green: 0.79, blue: 0.95),
-                fieldOutline: Color(red: 0.878, green: 0.129, blue: 0.157),
+                background: Color(red: 0.035, green: 0.055, blue: 0.110),
+                backgroundTop: Color(red: 0.058, green: 0.086, blue: 0.165),
+                accent: Color(red: 0.690, green: 0.180, blue: 0.210),
+                textPrimary: Color(red: 0.949, green: 0.957, blue: 0.973),
+                textSecondary: Color(red: 0.545, green: 0.596, blue: 0.702),
+                fieldOutline: Color(red: 0.690, green: 0.180, blue: 0.210),
                 monospacedAccents: false
             )
         case .batman:
+            // Graphite black with antique gold.
             return ThemePalette(
-                background: Color(red: 0.039, green: 0.039, blue: 0.047),
-                backgroundTop: Color(red: 0.09, green: 0.09, blue: 0.11),
-                accent: Color(red: 0.961, green: 0.773, blue: 0.094),
-                textPrimary: .white,
-                textSecondary: Color(red: 0.65, green: 0.65, blue: 0.60),
-                fieldOutline: Color(red: 0.961, green: 0.773, blue: 0.094),
+                background: Color(red: 0.035, green: 0.035, blue: 0.043),
+                backgroundTop: Color(red: 0.075, green: 0.075, blue: 0.086),
+                accent: Color(red: 0.788, green: 0.635, blue: 0.212),
+                textPrimary: Color(red: 0.945, green: 0.937, blue: 0.914),
+                textSecondary: Color(red: 0.545, green: 0.529, blue: 0.478),
+                fieldOutline: Color(red: 0.788, green: 0.635, blue: 0.212),
                 monospacedAccents: false
             )
         case .ironman:
+            // Deep oxblood with champagne gold.
             return ThemePalette(
-                background: Color(red: 0.231, green: 0.039, blue: 0.055),
-                backgroundTop: Color(red: 0.32, green: 0.07, blue: 0.09),
-                accent: Color(red: 0.941, green: 0.702, blue: 0.161),
-                textPrimary: .white,
-                textSecondary: Color(red: 0.95, green: 0.82, blue: 0.60),
-                fieldOutline: Color(red: 0.941, green: 0.702, blue: 0.161),
+                background: Color(red: 0.098, green: 0.035, blue: 0.047),
+                backgroundTop: Color(red: 0.153, green: 0.059, blue: 0.075),
+                accent: Color(red: 0.804, green: 0.635, blue: 0.345),
+                textPrimary: Color(red: 0.965, green: 0.945, blue: 0.922),
+                textSecondary: Color(red: 0.702, green: 0.596, blue: 0.502),
+                fieldOutline: Color(red: 0.804, green: 0.635, blue: 0.345),
                 monospacedAccents: true
             )
         }

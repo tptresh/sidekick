@@ -22,7 +22,7 @@ struct SearchView: View {
             searchBar(palette: palette)
             if !viewModel.results.isEmpty {
                 Rectangle()
-                    .fill(palette.accent.opacity(0.35))
+                    .fill(palette.textPrimary.opacity(0.08))
                     .frame(height: 1)
                 resultsList(palette: palette)
             }
@@ -32,17 +32,17 @@ struct SearchView: View {
             ZStack {
                 VisualEffectBackground()
                 LinearGradient(
-                    colors: [palette.backgroundTop.opacity(0.92), palette.background.opacity(0.94)],
+                    colors: [palette.backgroundTop.opacity(0.96), palette.background.opacity(0.97)],
                     startPoint: .top, endPoint: .bottom
                 )
             }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
-                    isDropTargeted ? palette.accent : palette.accent.opacity(0.55),
-                    lineWidth: isDropTargeted ? 2.5 : 1.5
+                    isDropTargeted ? palette.accent.opacity(0.8) : palette.textPrimary.opacity(0.12),
+                    lineWidth: isDropTargeted ? 1.5 : 1
                 )
         )
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
@@ -53,9 +53,10 @@ struct SearchView: View {
     private func searchBar(palette: ThemePalette) -> some View {
         ZStack(alignment: .trailing) {
             HStack(spacing: 12) {
-                Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 30, color: NSColor(palette.accent)))
+                Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
                     .resizable()
-                    .frame(width: 30, height: 30)
+                    .frame(width: 26, height: 26)
+                    .opacity(0.85)
                 SearchField(
                     text: $viewModel.query,
                     placeholder: placeholder,
@@ -154,26 +155,30 @@ private struct ResultRow: View {
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundColor(palette.textPrimary)
                     .lineLimit(1)
                 Text(item.subtitle)
                     .font(.system(size: 11))
-                    .foregroundColor(isSelected ? palette.textPrimary.opacity(0.8) : palette.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .lineLimit(1)
             }
             Spacer()
             if isSelected {
                 Text("↩")
-                    .font(.system(size: 13))
-                    .foregroundColor(palette.textPrimary.opacity(0.6))
+                    .font(.system(size: 12))
+                    .foregroundColor(palette.textSecondary.opacity(0.8))
             }
         }
         .padding(.horizontal, 14)
         .frame(height: SearchView.rowHeight)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? palette.accent.opacity(0.85) : Color.clear)
+                .fill(isSelected ? palette.accent.opacity(0.18) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? palette.accent.opacity(0.4) : Color.clear, lineWidth: 1)
+                )
                 .padding(.horizontal, 6)
         )
         .contentShape(Rectangle())
@@ -189,8 +194,8 @@ private struct ResultRow: View {
                 .aspectRatio(contentMode: .fit)
         case .symbol(let name):
             Image(systemName: name)
-                .font(.system(size: 20))
-                .foregroundColor(isSelected ? palette.textPrimary : palette.accent)
+                .font(.system(size: 18, weight: .light))
+                .foregroundColor(palette.accent.opacity(isSelected ? 1.0 : 0.85))
         }
     }
 }
