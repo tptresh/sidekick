@@ -8,6 +8,8 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
     var id = UUID()
     var name = ""
     var urlString = ""
+    // Custom sites tick on and off just like the built-in services.
+    var enabled = true
 
     static let queryPlaceholder = "{query}"
 
@@ -42,6 +44,22 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
     var homepageURL: URL? {
         guard let host else { return nil }
         return URL(string: "https://\(host)")
+    }
+
+    // Sites saved before the enabled flag existed decode as enabled.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        urlString = try container.decode(String.self, forKey: .urlString)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+    }
+
+    init(id: UUID = UUID(), name: String = "", urlString: String = "", enabled: Bool = true) {
+        self.id = id
+        self.name = name
+        self.urlString = urlString
+        self.enabled = enabled
     }
 
     // encodedQuery must already be percent-encoded.

@@ -291,6 +291,22 @@ final class MediaOrderTests: XCTestCase {
         )
     }
 
+    func testUntickedCustomSitesSinkLikeServices() {
+        let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad", enabled: false)
+        let entries = SettingsStore.orderedMediaEntries(
+            order: [site.id.uuidString] + StreamingService.all.map(\.id),
+            services: StreamingService.all, customSites: [site],
+            enabledServices: allEnabled
+        )
+        XCTAssertEqual(entries.last?.id, site.id.uuidString)
+    }
+
+    func testSitesSavedBeforeEnabledFlagDecodeAsEnabled() throws {
+        let json = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Old","urlString":"https://old.example"}"#
+        let site = try JSONDecoder().decode(CustomMediaSite.self, from: Data(json.utf8))
+        XCTAssertTrue(site.enabled)
+    }
+
     func testDisabledServicesSinkBelowEnabledOnesAndCustomSites() {
         let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
         let order = ["netflix", "primevideo", "crunchyroll", site.id.uuidString, "disneyplus"]

@@ -27,7 +27,8 @@ enum StreamingProvider {
                     action: { BrowserLauncher.open(url) }
                 ))
             case .custom(let site):
-                guard site.isValid, let url = site.searchURL(encodedQuery: encoded) else { continue }
+                guard site.enabled, site.isValid,
+                      let url = site.searchURL(encodedQuery: encoded) else { continue }
                 let how = site.hasSearchTemplate
                     ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
                     : "Finds it on \(site.host ?? site.displayName) via Google, in \(BrowserLauncher.targetName)"
@@ -47,7 +48,7 @@ enum StreamingProvider {
 
         // A bare custom-site name opens its homepage, like the built-in media sites.
         let lowered = trimmed.lowercased()
-        for site in settings.validCustomMediaSites {
+        for site in settings.activeCustomMediaSites {
             guard let match = Fuzzy.score(query: lowered, candidate: site.displayName.lowercased()),
                   match >= 0.9, let url = site.homepageURL else { continue }
             items.append(ResultItem(

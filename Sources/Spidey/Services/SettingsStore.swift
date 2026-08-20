@@ -170,6 +170,12 @@ final class SettingsStore: ObservableObject {
         customMediaSites.filter(\.isValid)
     }
 
+    // Valid sites that are also ticked on — the custom-site counterpart of
+    // activeStreamingServices.
+    var activeCustomMediaSites: [CustomMediaSite] {
+        validCustomMediaSites.filter(\.enabled)
+    }
+
     var orderedMediaEntries: [MediaEntry] {
         Self.orderedMediaEntries(
             order: mediaOrder,
@@ -181,7 +187,7 @@ final class SettingsStore: ObservableObject {
 
     // Ids missing from the stored order (new rows, first launch) keep their
     // canonical position at the end; stale ids from removed rows are dropped.
-    // Unticked services sink below everything enabled, keeping their relative
+    // Unticked rows sink below everything enabled, keeping their relative
     // order, and float back to their stored slot when re-ticked.
     static func orderedMediaEntries(
         order: [String], services: [StreamingService], customSites: [CustomMediaSite],
@@ -199,8 +205,10 @@ final class SettingsStore: ObservableObject {
         }
         let entries = (order + canonical).compactMap { byID.removeValue(forKey: $0) }
         func isDisabled(_ entry: MediaEntry) -> Bool {
-            if case .service(let service) = entry { return !enabledServices.contains(service.id) }
-            return false
+            switch entry {
+            case .service(let service): return !enabledServices.contains(service.id)
+            case .custom(let site): return !site.enabled
+            }
         }
         return entries.filter { !isDisabled($0) } + entries.filter(isDisabled)
     }
