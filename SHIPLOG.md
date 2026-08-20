@@ -47,3 +47,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 22ac3ac Dragging a file/screenshot row out of the panel now works instead of moving the panel
 - main is now at: 10a068c (build succeeded, app relaunched)
+
+## 2026-08-20 16:39 - OK - claude/spidey-remove-em-dashes-a87dec
+- "No more em dashes anywhere in the app's text; ship now blocks any new ones from reaching the UI"
+- merged commits:
+  - 29107e2 No more em dashes anywhere in the app's text; ship now blocks any new ones from reaching the UI
+- main is now at: 4896413 (build succeeded, app relaunched)
