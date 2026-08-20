@@ -11,6 +11,10 @@ struct SettingsView: View {
     @State private var launchAtLoginError: String?
     // Which media row's ⓘ popover is open, by entry id.
     @State private var infoEntryID: String?
+    // Add Site form state — a row is only created once a link is entered.
+    @State private var showingAddSite = false
+    @State private var newSiteName = ""
+    @State private var newSiteURL = ""
 
     var body: some View {
         ScrollView {
@@ -92,15 +96,32 @@ struct SettingsView: View {
             .environment(\.defaultMinListRowHeight, 30)
             .frame(height: CGFloat(entries.count) * 30)
             HStack {
-                Button("Add Site") {
-                    let site = CustomMediaSite()
-                    settings.customMediaSites.append(site)
-                    // Open the new row's ⓘ popover so the name and link can be
-                    // typed straight away; deferred a tick so the row exists.
-                    DispatchQueue.main.async {
-                        infoEntryID = site.id.uuidString
+                Button("Add Site") { showingAddSite = true }
+                    .popover(isPresented: $showingAddSite, arrowEdge: .bottom) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("Name (optional)", text: $newSiteName)
+                            TextField("https://example.com", text: $newSiteURL)
+                            Text("A link is required. Sidekick then finds and verifies the site's own search page — full integration takes about 30 seconds.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            HStack {
+                                Spacer()
+                                Button("Add") {
+                                    settings.customMediaSites.append(CustomMediaSite(
+                                        name: newSiteName, urlString: newSiteURL
+                                    ))
+                                    newSiteName = ""
+                                    newSiteURL = ""
+                                    showingAddSite = false
+                                }
+                                .keyboardShortcut(.defaultAction)
+                                .disabled(!CustomMediaSite(urlString: newSiteURL).isValid)
+                            }
+                        }
+                        .textFieldStyle(.roundedBorder)
+                        .padding(12)
+                        .frame(width: 320)
                     }
-                }
                 Spacer()
                 if linkChecker.isRunning {
                     ProgressView()
@@ -164,7 +185,16 @@ struct SettingsView: View {
         .help("Show this site's link")
         .popover(isPresented: Binding(
             get: { infoEntryID == entry.id },
-            set: { shown in if !shown { infoEntryID = nil } }
+            set: { shown in
+                guard !shown else { return }
+                infoEntryID = nil
+                // A custom site cannot exist without a link: closing the
+                // editor with the URL blanked out removes the row.
+                if case .custom(let site) = entry,
+                   siteBinding(site).wrappedValue.normalizedURLString.isEmpty {
+                    settings.customMediaSites.removeAll { $0.id == site.id }
+                }
+            }
         ), arrowEdge: .trailing) {
             infoPopover(for: entry)
         }
