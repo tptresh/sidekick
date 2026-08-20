@@ -33,7 +33,7 @@ struct SettingsView: View {
 
     private var themeSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Hero Theme").font(.headline)
+            Text("Theme").font(.headline)
             HStack(spacing: 12) {
                 ForEach(HeroTheme.allCases, id: \.self) { theme in
                     ThemePreviewButton(
