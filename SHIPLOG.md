@@ -59,3 +59,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 11cf6fe Typing spidey or the bat now switches themes with a full screen entrance: the mask webslings in, the bat signal lights up
 - main is now at: d0e6877 (build succeeded, app relaunched)
+
+## 2026-08-20 16:49 - OK - claude/movie-search-visibility-311aed
+- "Custom media sites now appear in searches immediately (via a Google site search) instead of staying hidden until a search page is verified"
+- merged commits:
+  - e059fcc Custom media sites now appear in searches immediately (via a Google site search) instead of staying hidden until a search page is verified
+- main is now at: 8a1d415 (build succeeded, app relaunched)
