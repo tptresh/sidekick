@@ -366,6 +366,31 @@ final class SearchTemplateFinderTests: XCTestCase {
         )
     }
 
+    func testSearchActionMarkupInEscapedJSONWins() {
+        // Framework payloads ship the JSON-LD escaped, with a sloppy double
+        // slash in the path — as 1shows.org does.
+        let html = #"lAction\\\":[{\\\"@type\\\":\\\"SearchAction\\\",\\\"target\\\":{\\\"@type\\\":\\\"EntryPoint\\\",\\\"urlTemplate\\\":\\\"https://www.1shows.org//search?query={search_term_string}\\\"},\\\"query-input\\\":..."#
+        let template = SearchTemplateFinder.searchActionTemplate(
+            fromHTML: html, baseURL: URL(string: "https://www.1shows.org")!
+        )
+        XCTAssertEqual(template, "https://www.1shows.org/search?query={query}")
+    }
+
+    func testSearchActionWithRelativeTarget() {
+        let html = #"<script type="application/ld+json">{"@type":"WebSite","potentialAction":{"@type":"SearchAction","target":"/find?keyword={search_term_string}"}}</script>"#
+        let template = SearchTemplateFinder.searchActionTemplate(
+            fromHTML: html, baseURL: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(template, "https://example.com/find?keyword={query}")
+    }
+
+    func testNoSearchActionMarkupReturnsNil() {
+        XCTAssertNil(SearchTemplateFinder.searchActionTemplate(
+            fromHTML: "<p>just a page mentioning /search</p>",
+            baseURL: URL(string: "https://example.com")!
+        ))
+    }
+
     func testDiscoveredTemplateIsUsedForSearches() {
         let site = CustomMediaSite(
             name: "FD", urlString: "https://flickystream.dad",

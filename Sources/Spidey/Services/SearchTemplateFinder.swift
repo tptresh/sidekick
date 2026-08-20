@@ -12,6 +12,12 @@ enum SearchTemplateFinder {
     ) {
         fetch(homepage, session: session) { html in
             if let html {
+                // A schema.org SearchAction is the site's own declaration of
+                // its search URL, so it beats every heuristic.
+                if let template = searchActionTemplate(fromHTML: html, baseURL: homepage) {
+                    completion(template)
+                    return
+                }
                 if let template = template(fromHTML: html, baseURL: homepage) {
                     completion(template)
                     return
@@ -33,6 +39,66 @@ enum SearchTemplateFinder {
     }
 
     // MARK: - Pure helpers (unit tested)
+
+    // schema.org SearchAction markup spells out the search URL directly:
+    // "urlTemplate": "https://site/search?query={search_term_string}".
+    // The JSON-LD often ships escaped inside framework payloads, so the
+    // surrounding chunk is unescaped before the URL is pulled out.
+    static func searchActionTemplate(fromHTML html: String, baseURL: URL) -> String? {
+        let placeholder = "{search_term_string}"
+        var searchStart = html.startIndex
+        while let found = html.range(of: placeholder, range: searchStart..<html.endIndex) {
+            let chunkStart = html.index(
+                found.lowerBound, offsetBy: -400, limitedBy: html.startIndex
+            ) ?? html.startIndex
+            let chunkEnd = html.index(
+                found.upperBound, offsetBy: 100, limitedBy: html.endIndex
+            ) ?? html.endIndex
+            let chunk = String(html[chunkStart..<chunkEnd]).replacingOccurrences(of: "\\", with: "")
+            if let template = searchTarget(in: chunk, placeholder: placeholder, baseURL: baseURL) {
+                return template
+            }
+            searchStart = found.upperBound
+        }
+        return nil
+    }
+
+    // Expand outwards from the placeholder over URL characters to recover the
+    // full target, then normalise it into a {query} template.
+    private static func searchTarget(
+        in text: String, placeholder: String, baseURL: URL
+    ) -> String? {
+        guard let placeholderRange = text.range(of: placeholder) else { return nil }
+        let urlChars = CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            + "-._~:/?#[]@!$&()*+,;=%{}"
+        )
+        func isURLChar(_ character: Character) -> Bool {
+            character.unicodeScalars.count == 1 && urlChars.contains(character.unicodeScalars[
+                character.unicodeScalars.startIndex
+            ])
+        }
+        var start = placeholderRange.lowerBound
+        while start > text.startIndex, isURLChar(text[text.index(before: start)]) {
+            start = text.index(before: start)
+        }
+        var end = placeholderRange.upperBound
+        while end < text.endIndex, isURLChar(text[end]) {
+            end = text.index(after: end)
+        }
+        var candidate = String(text[start..<end])
+            .replacingOccurrences(of: placeholder, with: CustomMediaSite.queryPlaceholder)
+        // Some sites emit "https://host//search"; collapse the doubled slash.
+        if let schemeRange = candidate.range(of: "://") {
+            candidate = candidate[..<schemeRange.upperBound]
+                + candidate[schemeRange.upperBound...].replacingOccurrences(of: "//", with: "/")
+        }
+        if candidate.lowercased().hasPrefix("http") { return candidate }
+        if candidate.hasPrefix("/"), let host = baseURL.host {
+            return "https://\(host)\(candidate)"
+        }
+        return nil
+    }
 
     // Parse the first GET form that has a search-style text input, e.g.
     // WordPress's <form action="/"><input name="s"></form> becomes
