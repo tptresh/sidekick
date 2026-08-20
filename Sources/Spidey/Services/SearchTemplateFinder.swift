@@ -26,7 +26,14 @@ enum SearchTemplateFinder {
     ) -> [String] {
         var result: [String] = []
         func add(_ template: String?) {
-            if let template, !result.contains(template) { result.append(template) }
+            guard var template else { return }
+            // Mirror domains often declare their search URL on the canonical
+            // domain (67movies.nl's markup points at 67movies.net). A template
+            // on a foreign host can never be used - discovery only stays
+            // active while the template's host matches the entered link - so
+            // re-point such candidates at the host the user actually entered.
+            if let host = homepage.host { template = rehosted(template, to: host) }
+            if !result.contains(template) { result.append(template) }
         }
         if let html {
             // A schema.org SearchAction is the site's own declaration of its
@@ -50,6 +57,22 @@ enum SearchTemplateFinder {
     }
 
     // MARK: - Pure helpers (unit tested)
+
+    // Swap a template's host, leaving everything else (path, query, the
+    // {query} placeholder) untouched.
+    static func rehosted(_ template: String, to host: String) -> String {
+        // Braces are invalid in URLs; stand in a token while parsing.
+        let token = "SPIDEYQUERYTOKEN"
+        let parseable = template.replacingOccurrences(
+            of: CustomMediaSite.queryPlaceholder, with: token
+        )
+        guard var components = URLComponents(string: parseable),
+              components.host != nil, components.host != host
+        else { return template }
+        components.host = host
+        guard let rebuilt = components.string else { return template }
+        return rebuilt.replacingOccurrences(of: token, with: CustomMediaSite.queryPlaceholder)
+    }
 
     // schema.org SearchAction markup spells out the search URL directly:
     // "urlTemplate": "https://site/search?query={search_term_string}".
