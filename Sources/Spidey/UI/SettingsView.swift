@@ -9,6 +9,8 @@ struct SettingsView: View {
     @ObservedObject var linkChecker = LinkChecker.shared
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchAtLoginError: String?
+    // Which media row's ⓘ popover is open, by entry id.
+    @State private var infoEntryID: String?
 
     var body: some View {
         ScrollView {
@@ -69,7 +71,7 @@ struct SettingsView: View {
             Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Drag rows to set the order results appear in.")
+            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             let entries = settings.orderedMediaEntries
@@ -91,7 +93,13 @@ struct SettingsView: View {
             .frame(height: CGFloat(entries.count) * 30)
             HStack {
                 Button("Add Site") {
-                    settings.customMediaSites.append(CustomMediaSite())
+                    let site = CustomMediaSite()
+                    settings.customMediaSites.append(site)
+                    // Open the new row's ⓘ popover so the name and link can be
+                    // typed straight away; deferred a tick so the row exists.
+                    DispatchQueue.main.async {
+                        infoEntryID = site.id.uuidString
+                    }
                 }
                 Spacer()
                 if linkChecker.isRunning {
@@ -128,23 +136,72 @@ struct SettingsView: View {
                         }
                     }
                 ))
-                Spacer()
             case .custom(let site):
-                let binding = siteBinding(site)
-                statusDot(for: binding.wrappedValue)
-                TextField("Name", text: binding.name)
-                    .frame(width: 110)
-                TextField("https://example.com", text: binding.urlString)
-                Button {
-                    settings.customMediaSites.removeAll { $0.id == site.id }
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+                let current = siteBinding(site).wrappedValue
+                Text(current.displayName)
+                deadLinkWarning(for: current)
             }
+            Spacer()
+            infoButton(for: entry)
         }
-        .textFieldStyle(.roundedBorder)
+    }
+
+    private func infoButton(for entry: MediaEntry) -> some View {
+        Button {
+            infoEntryID = entry.id
+        } label: {
+            Image(systemName: "info.circle")
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.plain)
+        .help("Show this site's link")
+        .popover(isPresented: Binding(
+            get: { infoEntryID == entry.id },
+            set: { shown in if !shown { infoEntryID = nil } }
+        ), arrowEdge: .trailing) {
+            infoPopover(for: entry)
+        }
+    }
+
+    // Built-in services show where searches go; custom sites are edited here,
+    // keeping the list itself as clean as the built-in rows.
+    @ViewBuilder
+    private func infoPopover(for entry: MediaEntry) -> some View {
+        switch entry {
+        case .service(let service):
+            VStack(alignment: .leading, spacing: 6) {
+                Text(service.name).font(.headline)
+                Text("Searches go to:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(service.searchURL("query").absoluteString)
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
+            .padding(12)
+            .frame(width: 320, alignment: .leading)
+        case .custom(let site):
+            let binding = siteBinding(site)
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Name", text: binding.name)
+                TextField("https://example.com", text: binding.urlString)
+                Text("Use \(CustomMediaSite.queryPlaceholder) in the link for the site's own search; plain links are searched via Google.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                HStack {
+                    Button(role: .destructive) {
+                        infoEntryID = nil
+                        settings.customMediaSites.removeAll { $0.id == site.id }
+                    } label: {
+                        Text("Remove Site")
+                    }
+                    Spacer()
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .padding(12)
+            .frame(width: 320)
+        }
     }
 
     // Rows are rendered from the ordered entry list, so field edits route
@@ -173,18 +230,17 @@ struct SettingsView: View {
         return "Links checked \(formatter.localizedString(for: lastRun, relativeTo: Date()))."
     }
 
+    // Healthy rows stay clean; only a failed link check earns a marker.
     @ViewBuilder
-    private func statusDot(for site: CustomMediaSite) -> some View {
-        let status = linkChecker.status(forKey: site.id.uuidString)
-        let color: Color = {
-            guard site.isValid else { return .gray }
-            guard let status else { return .gray }
-            return status.ok ? .green : .red
-        }()
-        Circle()
-            .fill(color)
-            .frame(width: 8, height: 8)
-            .help(site.isValid ? (status?.detail ?? "Not checked yet") : "Enter a full site address")
+    private func deadLinkWarning(for site: CustomMediaSite) -> some View {
+        if site.isValid,
+           let status = linkChecker.status(forKey: site.id.uuidString),
+           !status.ok {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundColor(.orange)
+                .help(status.detail)
+        }
     }
 
     private var claudeSection: some View {
