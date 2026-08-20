@@ -35,6 +35,12 @@ final class SpideyViewModel: ObservableObject {
         ) { [weak self] _ in
             self?.refresh()
         }
+        // Same again when the day's exchange rates arrive.
+        NotificationCenter.default.addObserver(
+            forName: .spideyRatesLoaded, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refresh()
+        }
     }
 
     func reset() {
@@ -97,6 +103,15 @@ final class SpideyViewModel: ObservableObject {
 
         var commandItems: [ResultItem] = []
         commandItems += CalculatorProvider.results(for: trimmed)
+        commandItems += ConvertProvider.results(for: trimmed)
+        commandItems += TimeProvider.results(for: trimmed)
+        commandItems += EmojiProvider.results(for: trimmed)
+        commandItems += ColorProvider.results(for: trimmed)
+        commandItems += PasswordProvider.results(for: trimmed)
+        commandItems += TimerProvider.results(for: trimmed)
+        commandItems += ProcessProvider.results(for: trimmed)
+        commandItems += WindowProvider.results(for: trimmed)
+        commandItems += ToggleProvider.results(for: trimmed)
         commandItems += ClaudeProvider.results(for: trimmed)
         commandItems += DictionaryProvider.results(for: trimmed)
         commandItems += WebSearchProvider.results(for: trimmed)

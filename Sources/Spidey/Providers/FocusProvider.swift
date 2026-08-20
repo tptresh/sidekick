@@ -1,18 +1,58 @@
 import AppKit
 
 // Focus mode switching. macOS has no public API for changing Focus (the database
-// under ~/Library/DoNotDisturb is TCC-protected), so Spidey drives Apple Shortcuts:
-// any shortcut named "Focus: <Mode>" (for example "Focus: Do Not Disturb",
-// "Focus: Work", "Focus: Off") becomes a command. The shortcut itself holds a
-// single "Set Focus" action; Spidey just runs it by name.
+// under ~/Library/DoNotDisturb is TCC-protected), so everything goes through
+// Apple Shortcuts and the `shortcuts` CLI.
+//
+// Do Not Disturb works with zero setup: typing "dnd" or "do not disturb" offers
+// built-in on and off commands. The first use generates the needed shortcut
+// (a single "Set Focus" action), signs it locally with `shortcuts sign`, and
+// opens it so macOS shows its one-click "Add Shortcut" confirmation; the moment
+// it is added, the command runs. Every later use just runs the shortcut.
+//
+// Custom Focus modes still work by convention: any shortcut named
+// "Focus: <Mode>" (for example "Focus: Work") shows up as a command.
 enum FocusProvider {
     static let shortcutPrefix = "focus:"
 
-    // Cached names from `shortcuts list`, refreshed in the background so the
-    // synchronous per-keystroke query path never shells out.
+    struct BuiltInCommand {
+        let shortcutName: String
+        let title: String
+        let subtitle: String
+        // Slightly different bases so "dnd" ranks the on command above off.
+        let baseScore: Double
+        let symbol: String
+        let matchNames: [String]
+        let enabled: Bool
+    }
+
+    static let builtIns: [BuiltInCommand] = [
+        BuiltInCommand(
+            shortcutName: "Focus: Do Not Disturb",
+            title: "Turn On Do Not Disturb",
+            subtitle: "Silence notifications until turned off",
+            baseScore: 852,
+            symbol: "moon.fill",
+            matchNames: ["do not disturb", "dnd", "focus", "do not disturb on", "dnd on"],
+            enabled: true
+        ),
+        BuiltInCommand(
+            shortcutName: "Focus: Do Not Disturb Off",
+            title: "Turn Off Do Not Disturb",
+            subtitle: "Allow notifications again",
+            baseScore: 848,
+            symbol: "slash.circle.fill",
+            matchNames: ["do not disturb off", "dnd off", "focus off", "do not disturb", "dnd", "focus"],
+            enabled: false
+        ),
+    ]
+
+    // Cached mode names parsed from `shortcuts list`, refreshed in the
+    // background so the synchronous per-keystroke query path never shells out.
     private static var cachedModes: [String] = []
     private static var lastRefresh = Date.distantPast
     private static var refreshInFlight = false
+    private static var installsInFlight: Set<String> = []
 
     static func results(for query: String) -> [ResultItem] {
         refreshIfStale()
@@ -20,12 +60,24 @@ enum FocusProvider {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard !lowered.isEmpty else { return [] }
 
-        guard !cachedModes.isEmpty else {
-            return setupResults(for: lowered)
+        var items: [ResultItem] = []
+        for command in builtIns {
+            let best = command.matchNames.compactMap { Fuzzy.score(query: lowered, candidate: $0) }.max()
+            guard let match = best, match >= 0.65 else { continue }
+            let ready = isInstalled(command)
+            items.append(ResultItem(
+                title: command.title,
+                subtitle: ready ? command.subtitle : command.subtitle + " (first use adds a one-click Shortcut)",
+                icon: .symbol(command.symbol),
+                score: command.baseScore + match * 60,
+                action: { runOrInstall(command) }
+            ))
         }
 
-        var items: [ResultItem] = []
+        // User-created "Focus: <Mode>" shortcuts, minus the built-in ones.
+        let builtInNames = Set(builtIns.map { $0.shortcutName.lowercased() })
         for mode in cachedModes {
+            guard !builtInNames.contains("\(shortcutPrefix) \(mode.lowercased())") else { continue }
             let best = candidates(for: mode).compactMap { Fuzzy.score(query: lowered, candidate: $0) }.max()
             guard let match = best, match >= 0.65 else { continue }
             let turnsOff = mode.lowercased() == "off"
@@ -77,38 +129,118 @@ enum FocusProvider {
         return "moon.fill"
     }
 
-    // MARK: - First-run setup
+    // MARK: - Shortcut generation
 
-    private static func setupResults(for lowered: String) -> [ResultItem] {
-        let triggers = ["focus", "dnd", "do not disturb"]
-        let best = triggers.compactMap { Fuzzy.score(query: lowered, candidate: $0) }.max()
-        guard let match = best, match >= 0.65 else { return [] }
-        return [ResultItem(
-            title: "Set Up Focus Switching",
-            subtitle: "Spidey switches Focus through Shortcuts named \"Focus: ...\"",
-            icon: .symbol("moon.fill"),
-            score: 850 + match * 60,
-            action: { showSetupInstructions() }
-        )]
+    // The .shortcut plist for a single "Set Focus" action targeting the
+    // built-in Do Not Disturb mode. Its identifier is stable across machines;
+    // custom modes use per-user identifiers hidden behind TCC, which is why
+    // only DND can be generated.
+    static func workflowData(enabled: Bool) throws -> Data {
+        let action: [String: Any] = [
+            "WFWorkflowActionIdentifier": "is.workflow.actions.dnd.set",
+            "WFWorkflowActionParameters": [
+                "Enabled": enabled ? 1 : 0,
+                "FocusModes": [
+                    "Identifier": "com.apple.donotdisturb.mode.default",
+                    "DisplayString": "Do Not Disturb",
+                ],
+            ] as [String: Any],
+        ]
+        let workflow: [String: Any] = [
+            "WFQuickActionSurfaces": [] as [Any],
+            "WFWorkflowActions": [action],
+            "WFWorkflowIcon": [
+                "WFWorkflowIconGlyphNumber": 59511,
+                "WFWorkflowIconStartColor": 2071128575,
+            ] as [String: Any],
+            "WFWorkflowImportQuestions": [] as [Any],
+            "WFWorkflowInputContentItemClasses": [] as [Any],
+            "WFWorkflowMinimumClientVersion": 900,
+            "WFWorkflowMinimumClientVersionString": "900",
+            "WFWorkflowOutputContentItemClasses": [] as [Any],
+            "WFWorkflowTypes": [] as [Any],
+        ]
+        return try PropertyListSerialization.data(fromPropertyList: workflow, format: .xml, options: 0)
     }
 
-    private static func showSetupInstructions() {
-        let alert = NSAlert()
-        alert.messageText = "Set up Focus switching"
-        alert.informativeText = """
-        macOS only lets apps change Focus through Apple Shortcuts, so Spidey runs shortcuts by name.
+    private static func isInstalled(_ command: BuiltInCommand) -> Bool {
+        cachedModes.contains { "\(shortcutPrefix) \($0.lowercased())" == command.shortcutName.lowercased() }
+    }
 
-        In the Shortcuts app, create a shortcut named "Focus: Do Not Disturb" containing the single action "Set Focus", set to turn Do Not Disturb on until turned off.
-
-        Add one shortcut per mode you use, such as "Focus: Work" or "Focus: Sleep", plus one named "Focus: Off" whose action turns the Focus off. They appear in Spidey automatically.
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Open Shortcuts")
-        alert.addButton(withTitle: "Not Now")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: "shortcuts://create-shortcut") {
-            NSWorkspace.shared.open(url)
+    private static func runOrInstall(_ command: BuiltInCommand) {
+        if isInstalled(command) {
+            run(shortcut: command.shortcutName)
+        } else {
+            install(command)
         }
+    }
+
+    // Writes the shortcut, signs it locally, and opens it so macOS shows the
+    // "Add Shortcut" confirmation. As soon as the user adds it, run it, so the
+    // very first "dnd" still ends with the Focus actually changing.
+    private static func install(_ command: BuiltInCommand) {
+        // Actions run on the main thread, so this check-and-insert is safe.
+        guard !installsInFlight.contains(command.shortcutName) else { return }
+        installsInFlight.insert(command.shortcutName)
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer {
+                DispatchQueue.main.async { _ = installsInFlight.remove(command.shortcutName) }
+            }
+            do {
+                let dir = try shortcutsDirectory()
+                let unsignedDir = dir.appendingPathComponent("unsigned", isDirectory: true)
+                try FileManager.default.createDirectory(at: unsignedDir, withIntermediateDirectories: true)
+                // The signed file's basename becomes the imported shortcut's name.
+                let unsigned = unsignedDir.appendingPathComponent("\(command.shortcutName).shortcut")
+                let signed = dir.appendingPathComponent("\(command.shortcutName).shortcut")
+                try workflowData(enabled: command.enabled).write(to: unsigned)
+                try? FileManager.default.removeItem(at: signed)
+
+                let sign = Process()
+                sign.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+                sign.arguments = ["sign", "--mode", "anyone", "--input", unsigned.path, "--output", signed.path]
+                let stderrPipe = Pipe()
+                sign.standardError = stderrPipe
+                try sign.run()
+                sign.waitUntilExit()
+                guard sign.terminationStatus == 0 else {
+                    let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    NSLog("Spidey: shortcuts sign failed: \(String(data: data, encoding: .utf8) ?? "")")
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.open(signed)
+                }
+                // Poll until the user clicks Add (or give up after a minute).
+                for _ in 0..<30 {
+                    Thread.sleep(forTimeInterval: 2)
+                    let modes = listFocusModes()
+                    let added = modes.contains { "\(shortcutPrefix) \($0.lowercased())" == command.shortcutName.lowercased() }
+                    if added {
+                        DispatchQueue.main.async {
+                            cachedModes = modes
+                            lastRefresh = Date()
+                            NotificationCenter.default.post(name: .spideyFocusShortcutsChanged, object: nil)
+                        }
+                        run(shortcut: command.shortcutName)
+                        return
+                    }
+                }
+                NSLog("Spidey: \(command.shortcutName) was not added to Shortcuts; giving up")
+            } catch {
+                NSLog("Spidey: could not install \(command.shortcutName): \(error)")
+            }
+        }
+    }
+
+    private static func shortcutsDirectory() throws -> URL {
+        let base = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        )
+        let dir = base.appendingPathComponent("Spidey/Shortcuts", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     // MARK: - Shortcuts CLI
@@ -134,27 +266,31 @@ enum FocusProvider {
         }
     }
 
+    // Synchronous; call from a background queue only.
+    private static func listFocusModes() -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        process.arguments = ["list"]
+        let stdoutPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard let output = String(data: data, encoding: .utf8) else { return [] }
+            return output.split(separator: "\n").compactMap { modeName(fromShortcut: String($0)) }
+        } catch {
+            NSLog("Spidey: could not list shortcuts: \(error)")
+            return []
+        }
+    }
+
     private static func refreshIfStale() {
         guard !refreshInFlight, Date().timeIntervalSince(lastRefresh) > 30 else { return }
         refreshInFlight = true
         DispatchQueue.global(qos: .utility).async {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
-            process.arguments = ["list"]
-            let stdoutPipe = Pipe()
-            process.standardOutput = stdoutPipe
-            process.standardError = Pipe()
-            var modes: [String] = []
-            do {
-                try process.run()
-                let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                if let output = String(data: data, encoding: .utf8) {
-                    modes = output.split(separator: "\n").compactMap { modeName(fromShortcut: String($0)) }
-                }
-            } catch {
-                NSLog("Spidey: could not list shortcuts: \(error)")
-            }
+            let modes = listFocusModes()
             DispatchQueue.main.async {
                 let changed = modes != cachedModes
                 cachedModes = modes

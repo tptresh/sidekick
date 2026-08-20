@@ -12,6 +12,13 @@ enum HeroTheme: String, CaseIterable, Codable {
         }
     }
 
+    var searchPlaceholder: String {
+        switch self {
+        case .spiderman: return "Spidey Search"
+        case .batman: return "Explore the Cave"
+        }
+    }
+
     var palette: ThemePalette {
         switch self {
         case .spiderman:

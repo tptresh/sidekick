@@ -52,7 +52,7 @@ struct SettingsView: View {
                 }
             }
             if settings.hotKey == .commandSpace {
-                Text("For ⌘Space to reach Spidey, turn off Spotlight's shortcut first: System Settings > Keyboard > Keyboard Shortcuts > Spotlight > untick \"Show Spotlight search\".")
+                Text("For ⌘Space to reach Sidekick, turn off Spotlight's shortcut first: System Settings > Keyboard > Keyboard Shortcuts > Spotlight > untick \"Show Spotlight search\".")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -108,7 +108,7 @@ struct SettingsView: View {
     private var clipboardSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Clipboard History").font(.headline)
-            Text("Type \"clip\" in Spidey to browse. Currently holding \(clipboard.entries.count) item\(clipboard.entries.count == 1 ? "" : "s").")
+            Text("Type \"clip\" in Sidekick to browse. Currently holding \(clipboard.entries.count) item\(clipboard.entries.count == 1 ? "" : "s").")
                 .font(.caption)
                 .foregroundColor(.secondary)
             HStack {
@@ -126,7 +126,7 @@ struct SettingsView: View {
     private var loginSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("General").font(.headline)
-            Toggle("Launch Spidey at login", isOn: $launchAtLogin)
+            Toggle("Launch Sidekick at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { enabled in
                     do {
                         if enabled {

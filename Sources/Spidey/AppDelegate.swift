@@ -62,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let cases: [(query: String, theme: HeroTheme, file: String)] = [
             ("", .spiderman, "empty.png"),
+            ("", .batman, "empty-batman.png"),
             ("saf", .spiderman, "apps.png"),
             ("youtube lofi beats", .spiderman, "youtube.png"),
             ("death note", .spiderman, "streaming.png"),
@@ -71,8 +72,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ("vinted", .spiderman, "sites.png"),
             ("netflix", .spiderman, "netflix.png"),
             ("grand seiko", .batman, "batman.png"),
+            ("100 usd to gbp", .spiderman, "convert.png"),
+            ("5km in miles", .spiderman, "units.png"),
+            ("time in tokyo", .spiderman, "worldclock.png"),
+            ("emoji fire", .spiderman, "emoji.png"),
+            ("#e02128", .spiderman, "color.png"),
+            ("pw 24", .spiderman, "password.png"),
+            ("timer 10m tea", .spiderman, "timer.png"),
+            ("quit safari", .spiderman, "quit.png"),
+            ("left half", .spiderman, "window.png"),
+            ("wifi", .spiderman, "toggles.png"),
         ]
         showPanel()
+        let originalTheme = settings.theme
         var delay = 0.5
         for item in cases {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -86,7 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             delay += 1.0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.5) { [weak self] in
+            self?.settings.theme = originalTheme
             NSApp.terminate(nil)
         }
     }
@@ -233,12 +246,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Sidekick is using ⌥Space for now"
         alert.informativeText = """
-        Spotlight still owns ⌘Space, so Spidey registered ⌥Space instead.
+        Spotlight still owns ⌘Space, so Sidekick registered ⌥Space instead.
 
-        To use ⌘Space: System Settings > Keyboard > Keyboard Shortcuts > Spotlight, untick "Show Spotlight search", then reopen Spidey or re-pick the hotkey in Preferences.
+        To use ⌘Space: System Settings > Keyboard > Keyboard Shortcuts > Spotlight, untick "Show Spotlight search", then reopen Sidekick or re-pick the hotkey in Preferences.
         """
         alert.alertStyle = .informational
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // The caffeinate child process would otherwise outlive the app.
+        CaffeinateManager.shared.stop()
     }
 }

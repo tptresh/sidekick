@@ -80,7 +80,7 @@ struct SearchView: View {
     }
 
     private var placeholder: String {
-        viewModel.droppedFiles.isEmpty ? "Sidekick Search and explore the bat" : "Choose an action for the dropped files"
+        viewModel.droppedFiles.isEmpty ? settings.theme.searchPlaceholder : "Choose an action for the dropped files"
     }
 
     private func resultsList(palette: ThemePalette) -> some View {
