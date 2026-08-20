@@ -799,3 +799,32 @@ final class ClipEntryTests: XCTestCase {
         XCTAssertTrue(decoded.first?.fromScreenshot ?? false)
     }
 }
+
+final class ThemeProviderTests: XCTestCase {
+    func testSpideyTriggersSpiderManTheme() {
+        for query in ["spidey", "spider", "spiderman", "Spider-Man", "spi"] {
+            XCTAssertTrue(
+                ThemeProvider.results(for: query).contains { $0.title.contains("Spider-Man") },
+                "expected a Spider-Man theme row for \(query)"
+            )
+        }
+    }
+
+    func testBatTriggersBatmanTheme() {
+        for query in ["the bat", "batman", "bat", "gotham", "dark knight"] {
+            XCTAssertTrue(
+                ThemeProvider.results(for: query).contains { $0.title.contains("Batman") },
+                "expected a Batman theme row for \(query)"
+            )
+        }
+    }
+
+    func testOrdinaryQueriesDoNotOfferThemes() {
+        for query in ["the", "the weeknd", "battery", "batman movie", "spider solitaire", "sp"] {
+            XCTAssertTrue(
+                ThemeProvider.results(for: query).isEmpty,
+                "did not expect a theme row for \(query)"
+            )
+        }
+    }
+}

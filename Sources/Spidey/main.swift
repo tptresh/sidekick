@@ -44,6 +44,14 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--filesearch"),
     DispatchQueue.main.asyncAfter(deadline: .now() + 15) { exit(1) }
     RunLoop.main.run()
 }
+// Dev helper: `Spidey --entrance <spiderman|batman> <dir>` plays that theme's
+// full screen entrance, captures frames of the overlay to PNGs, and exits.
+if let flagIndex = CommandLine.arguments.firstIndex(of: "--entrance"),
+   CommandLine.arguments.count > flagIndex + 2,
+   let theme = HeroTheme(rawValue: CommandLine.arguments[flagIndex + 1]) {
+    delegate.entranceTheme = theme
+    delegate.entranceDirectory = CommandLine.arguments[flagIndex + 2]
+}
 // Dev helper: `Spidey --snapshot <dir>` renders the panel for sample queries to PNGs and exits.
 if let flagIndex = CommandLine.arguments.firstIndex(of: "--snapshot"),
    CommandLine.arguments.count > flagIndex + 1 {

@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     var showOnLaunchQuery: String?
     var snapshotDirectory: String?
+    var entranceTheme: HeroTheme?
+    var entranceDirectory: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpMainMenu()
@@ -67,6 +69,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let directory = snapshotDirectory {
             runSnapshots(into: directory)
+        }
+
+        if let theme = entranceTheme, let directory = entranceDirectory {
+            runEntranceCapture(theme, into: directory)
+        }
+    }
+
+    // MARK: - Entrance capture (dev only)
+
+    private func runEntranceCapture(_ theme: HeroTheme, into directory: String) {
+        try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let originalTheme = settings.theme
+        ThemeAnimator.shared.play(theme)
+        for (index, delay) in [0.35, 0.75, 1.1, 1.5, 1.9, 2.3].enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                ThemeAnimator.shared.captureFrame(to: directory + "/\(theme.rawValue)-\(index).png")
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+            self?.settings.theme = originalTheme
+            NSApp.terminate(nil)
         }
     }
 
