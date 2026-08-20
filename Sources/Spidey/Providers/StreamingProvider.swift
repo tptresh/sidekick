@@ -12,33 +12,36 @@ enum StreamingProvider {
         var items: [ResultItem] = []
         var score = 200.0
 
-        for service in settings.activeStreamingServices {
-            let url = service.searchURL(encoded)
-            items.append(ResultItem(
-                title: "Watch \"\(trimmed)\" on \(service.name)",
-                subtitle: subtitle("Opens the \(service.name) search in \(BrowserLauncher.targetName)", statusKey: service.id),
-                icon: FaviconStore.shared.resultIcon(for: url.absoluteString, fallbackSymbol: "play.tv.fill"),
-                score: score,
-                action: { BrowserLauncher.open(url) }
-            ))
-            score -= 1
-        }
-
-        for site in settings.validCustomMediaSites {
-            guard let url = site.searchURL(encodedQuery: encoded) else { continue }
-            let how = site.hasSearchTemplate
-                ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
-                : "Finds it on \(site.host ?? site.displayName) via Google, in \(BrowserLauncher.targetName)"
-            items.append(ResultItem(
-                title: "Watch \"\(trimmed)\" on \(site.displayName)",
-                subtitle: subtitle(how, statusKey: site.id.uuidString),
-                icon: FaviconStore.shared.resultIcon(
-                    for: site.homepageURL?.absoluteString ?? url.absoluteString,
-                    fallbackSymbol: "play.tv.fill"
-                ),
-                score: score,
-                action: { BrowserLauncher.open(url) }
-            ))
+        // Walk the unified media list so results come out in the order the
+        // user arranged in Preferences.
+        for entry in settings.orderedMediaEntries {
+            switch entry {
+            case .service(let service):
+                guard settings.enabledServices.contains(service.id) else { continue }
+                let url = service.searchURL(encoded)
+                items.append(ResultItem(
+                    title: "Watch \"\(trimmed)\" on \(service.name)",
+                    subtitle: subtitle("Opens the \(service.name) search in \(BrowserLauncher.targetName)", statusKey: service.id),
+                    icon: FaviconStore.shared.resultIcon(for: url.absoluteString, fallbackSymbol: "play.tv.fill"),
+                    score: score,
+                    action: { BrowserLauncher.open(url) }
+                ))
+            case .custom(let site):
+                guard site.isValid, let url = site.searchURL(encodedQuery: encoded) else { continue }
+                let how = site.hasSearchTemplate
+                    ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
+                    : "Finds it on \(site.host ?? site.displayName) via Google, in \(BrowserLauncher.targetName)"
+                items.append(ResultItem(
+                    title: "Watch \"\(trimmed)\" on \(site.displayName)",
+                    subtitle: subtitle(how, statusKey: site.id.uuidString),
+                    icon: FaviconStore.shared.resultIcon(
+                        for: site.homepageURL?.absoluteString ?? url.absoluteString,
+                        fallbackSymbol: "play.tv.fill"
+                    ),
+                    score: score,
+                    action: { BrowserLauncher.open(url) }
+                ))
+            }
             score -= 1
         }
 

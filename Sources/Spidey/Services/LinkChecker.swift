@@ -11,8 +11,8 @@ final class LinkChecker: ObservableObject {
         var date: Date
     }
 
-    // "Every couple of days" per the feature request.
-    static let checkInterval: TimeInterval = 3 * 24 * 60 * 60
+    // Every 2 days, as promised in Preferences (which derives its copy from this).
+    static let checkInterval: TimeInterval = 2 * 24 * 60 * 60
     private static let pollInterval: TimeInterval = 6 * 60 * 60
 
     @Published private(set) var statuses: [String: Status]
