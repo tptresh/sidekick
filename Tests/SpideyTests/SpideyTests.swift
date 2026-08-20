@@ -463,6 +463,43 @@ final class SearchTemplateFinderTests: XCTestCase {
     }
 }
 
+final class SearchTemplateVerifierTests: XCTestCase {
+    private let chrome = "Home Movies TV Shows Trending My List Login Terms Privacy DMCA Footer"
+
+    func testEchoOfNonsenseQueryPassesEvenWithoutTheProbeFilm() {
+        // A niche site without the probe film still passes because it echoes
+        // whatever was searched.
+        let probe = "\(chrome) No results found for Interstellar"
+        let control = "\(chrome) No results found for \(SearchTemplateVerifier.controlQuery)"
+        XCTAssertTrue(SearchTemplateVerifier.searchWorks(probeText: probe, controlText: control))
+    }
+
+    func testProbeFilmRenderingOnlyForRealSearchPasses() {
+        let probe = "\(chrome) Interstellar 2014 Sci-Fi"
+        let control = "\(chrome) Nothing matched your search"
+        XCTAssertTrue(SearchTemplateVerifier.searchWorks(probeText: probe, controlText: control))
+    }
+
+    func testIdenticalDefaultContentForBothQueriesFails() {
+        // The 1shows ?q= bug: parameter ignored, same default page each time.
+        let junk = "\(chrome) Trending Now Breaking Bad Interstellar Wednesday The Boys"
+        XCTAssertFalse(SearchTemplateVerifier.searchWorks(probeText: junk, controlText: junk))
+    }
+
+    func testSubstantiallyDifferentPagesPassWithoutEchoOrFilm() {
+        // Site with neither the film nor an echo: a real search still swaps
+        // most of the page content compared to a no-results page.
+        let probe = "\(chrome) Space Odyssey Gravity Moon Sunshine Arrival Contact Apollo Thirteen First Man Ad Astra Proxima Stowaway"
+        let control = "\(chrome) Nothing here"
+        XCTAssertTrue(SearchTemplateVerifier.searchWorks(probeText: probe, controlText: control))
+        XCTAssertTrue(SearchTemplateVerifier.substantiallyDifferent(probe, control))
+    }
+
+    func testEmptyPagesFail() {
+        XCTAssertFalse(SearchTemplateVerifier.searchWorks(probeText: "", controlText: ""))
+    }
+}
+
 final class LinkCheckerTests: XCTestCase {
     func testChecksRunEveryTwoDaysAsAdvertised() {
         XCTAssertEqual(LinkChecker.checkInterval, 2 * 24 * 60 * 60)
