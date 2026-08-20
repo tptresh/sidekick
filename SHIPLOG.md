@@ -53,3 +53,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 29107e2 No more em dashes anywhere in the app's text; ship now blocks any new ones from reaching the UI
 - main is now at: 4896413 (build succeeded, app relaunched)
+
+## 2026-08-20 16:48 - OK - claude/theme-change-animations-c6bdfd
+- "Typing spidey or the bat now switches themes with a full screen entrance: the mask webslings in, the bat signal lights up"
+- merged commits:
+  - 11cf6fe Typing spidey or the bat now switches themes with a full screen entrance: the mask webslings in, the bat signal lights up
+- main is now at: d0e6877 (build succeeded, app relaunched)
