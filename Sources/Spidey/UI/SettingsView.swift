@@ -71,7 +71,7 @@ struct SettingsView: View {
             Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link.")
+            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link takes about 30 seconds to fully integrate before it appears in searches.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             let entries = settings.orderedMediaEntries
@@ -139,6 +139,13 @@ struct SettingsView: View {
             case .custom(let site):
                 let binding = siteBinding(site)
                 Toggle(binding.wrappedValue.displayName, isOn: binding.enabled)
+                if let host = binding.wrappedValue.host,
+                   linkChecker.discoveringHosts.contains(host) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.6)
+                        .help("Setting up this site's search — about half a minute")
+                }
                 deadLinkWarning(for: binding.wrappedValue)
             }
             Spacer()
@@ -195,12 +202,12 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Setting up this site's search — checking that searches really work there. Takes about half a minute.")
+                        Text("Setting up this site's search — checking that searches really work there. Takes about half a minute; the site joins search results once it's done.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Sidekick finds and verifies the site's own search page automatically when it can; add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself. Until then, searches go via Google.")
+                    Text("Sidekick finds and verifies the site's own search page automatically — full integration takes about 30 seconds, and the site only appears in searches once it's ready. Add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
