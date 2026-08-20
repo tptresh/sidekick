@@ -24,6 +24,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Web search keywords**: `google`, `amazon`, `wiki`, `imdb`, `gh`, `maps`. `amazon death note manga` opens the Amazon results directly
 - **YouTube and media**: `youtube lofi beats` opens the YouTube search in Brave; bare `youtube`, `netflix`, or `crunchyroll` open the homepage in Brave
 - **Show search**: type any show name and Spidey offers to open it on Netflix, Crunchyroll, Prime Video, or Disney+ (toggle each in Preferences)
+- **Custom media sites**: add any streaming site's homepage URL in Preferences and show searches include it too (Spidey finds the show there with a site-scoped Google search). A background check runs every few days and flags sites that stop resolving
 - **Website directory**: type a mainstream site or brand name (`vinted`, `rimowa`, `grand seiko`, ...) and its homepage opens in Brave; unknown names get a homepage guess
 - **Claude Code**: `claude fix the spelling issue on my web page` starts a Claude Code session with that prompt in your chosen folder, in the Claude desktop app when installed, otherwise in Terminal
 - **Clipboard history**: everything you copy (text, files, images) is kept; type `clip` to browse and search it, Return copies an item back
@@ -63,6 +64,7 @@ Click the mask icon in the menu bar > Preferences:
 - Hero theme (Spider-Man, Batman)
 - The hotkey that opens Spidey
 - Which streaming services appear for show searches
+- Custom media sites, with a per-site link health dot and a Check Now button
 - The folder Claude Code sessions start in
 - Clipboard history size, and clearing it
 - Launch at login

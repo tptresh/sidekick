@@ -6,6 +6,7 @@ import Carbon.HIToolbox
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var clipboard = ClipboardStore.shared
+    @ObservedObject var linkChecker = LinkChecker.shared
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchAtLoginError: String?
 
@@ -15,6 +16,7 @@ struct SettingsView: View {
                 themeSection
                 hotkeySection
                 streamingSection
+                customMediaSection
                 claudeSection
                 clipboardSection
                 loginSection
@@ -81,6 +83,72 @@ struct SettingsView: View {
                 ))
             }
         }
+    }
+
+    private var customMediaSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Custom Media Sites").font(.headline)
+            Text("Favourite streaming site not here? Add a link below and we can search directly there!")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            ForEach($settings.customMediaSites) { $site in
+                HStack(spacing: 8) {
+                    statusDot(for: site)
+                    TextField("Name", text: $site.name)
+                        .frame(width: 110)
+                    TextField("https://example.com", text: $site.urlString)
+                    Button {
+                        settings.customMediaSites.removeAll { $0.id == site.id }
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .textFieldStyle(.roundedBorder)
+            }
+            HStack {
+                Button("Add Site") {
+                    settings.customMediaSites.append(CustomMediaSite())
+                }
+                Spacer()
+                if linkChecker.isRunning {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Checking links…")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(lastCheckDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Button("Check Now") { linkChecker.checkNow() }
+                }
+            }
+        }
+    }
+
+    private var lastCheckDescription: String {
+        guard let lastRun = linkChecker.lastRun else {
+            return "Links are checked automatically every few days."
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Links checked \(formatter.localizedString(for: lastRun, relativeTo: Date()))."
+    }
+
+    @ViewBuilder
+    private func statusDot(for site: CustomMediaSite) -> some View {
+        let status = linkChecker.status(forKey: site.id.uuidString)
+        let color: Color = {
+            guard site.isValid else { return .gray }
+            guard let status else { return .gray }
+            return status.ok ? .green : .red
+        }()
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .help(site.isValid ? (status?.detail ?? "Not checked yet") : "Enter a full site address")
     }
 
     private var claudeSection: some View {

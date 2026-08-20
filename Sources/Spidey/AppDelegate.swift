@@ -14,12 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var snapshotDirectory: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setUpMainMenu()
         setUpStatusItem()
         setUpPanel()
         ClipboardStore.shared.start()
         registerHotKey()
         _ = AppProvider.shared
         FileProvider.warmUp()
+        LinkChecker.shared.startAutomaticChecks()
 
         viewModel.onHide = { [weak self] in self?.hidePanel() }
 
@@ -110,6 +112,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         view.cacheDisplay(in: view.bounds, to: rep)
         guard let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+
+    // MARK: - Main menu
+
+    // An accessory app shows no menu bar, but key equivalents still dispatch
+    // through the main menu; without an Edit menu, Cmd+C/V/X/A do nothing in
+    // any text field (Preferences, the search bar).
+    private func setUpMainMenu() {
+        let mainMenu = NSMenu()
+
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(
+            withTitle: "Quit Sidekick",
+            action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"
+        )
+        appMenuItem.submenu = appMenu
+
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(
+            withTitle: "Select All",
+            action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"
+        )
+        editMenuItem.submenu = editMenu
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: - Status item

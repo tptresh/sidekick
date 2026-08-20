@@ -215,6 +215,73 @@ final class URLBuildingTests: XCTestCase {
     }
 }
 
+final class CustomMediaSiteTests: XCTestCase {
+    func testPlainAddressUsesSiteScopedGoogleSearch() {
+        let site = CustomMediaSite(name: "", urlString: "https://flickystream.dad/")
+        XCTAssertEqual(
+            site.searchURL(encodedQuery: "big%20bang%20theory")?.absoluteString,
+            "https://www.google.com/search?q=site:flickystream.dad+big%20bang%20theory"
+        )
+    }
+
+    func testTemplateSubstitution() {
+        let braces = CustomMediaSite(name: "Example", urlString: "https://example.com/search?q={query}")
+        XCTAssertEqual(
+            braces.searchURL(encodedQuery: "death%20note")?.absoluteString,
+            "https://example.com/search?q=death%20note"
+        )
+        let percent = CustomMediaSite(name: "Example", urlString: "https://example.com/?s=%s")
+        XCTAssertEqual(
+            percent.searchURL(encodedQuery: "death%20note")?.absoluteString,
+            "https://example.com/?s=death%20note"
+        )
+    }
+
+    func testSchemeIsAddedWhenMissing() {
+        let site = CustomMediaSite(name: "", urlString: "flickystream.dad")
+        XCTAssertEqual(site.normalizedURLString, "https://flickystream.dad")
+        XCTAssertEqual(site.homepageURL?.absoluteString, "https://flickystream.dad")
+        XCTAssertTrue(site.isValid)
+    }
+
+    func testDisplayNameFallsBackToHostWithoutWWW() {
+        XCTAssertEqual(
+            CustomMediaSite(name: "", urlString: "https://www.paramountplus.com").displayName,
+            "paramountplus.com"
+        )
+        XCTAssertEqual(
+            CustomMediaSite(name: "Paramount+", urlString: "https://www.paramountplus.com").displayName,
+            "Paramount+"
+        )
+    }
+
+    func testEmptyOrBrokenEntriesAreInvalid() {
+        XCTAssertFalse(CustomMediaSite(name: "", urlString: "").isValid)
+        XCTAssertFalse(CustomMediaSite(name: "x", urlString: "   ").isValid)
+    }
+}
+
+final class LinkCheckerTests: XCTestCase {
+    func testReachabilityClassification() {
+        XCTAssertTrue(LinkChecker.isReachable(statusCode: 200))
+        XCTAssertTrue(LinkChecker.isReachable(statusCode: 301))
+        // Auth walls and bot blockers still prove the site is alive.
+        XCTAssertTrue(LinkChecker.isReachable(statusCode: 403))
+        XCTAssertTrue(LinkChecker.isReachable(statusCode: 429))
+        XCTAssertFalse(LinkChecker.isReachable(statusCode: 404))
+        XCTAssertFalse(LinkChecker.isReachable(statusCode: 410))
+        XCTAssertFalse(LinkChecker.isReachable(statusCode: 503))
+    }
+
+    func testTargetsCoverServicesAndCustomSites() {
+        let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
+        let targets = LinkChecker.targets(services: StreamingService.all, customSites: [site])
+        XCTAssertEqual(targets.count, StreamingService.all.count + 1)
+        XCTAssertTrue(targets.contains { $0.url.absoluteString == "https://www.netflix.com" })
+        XCTAssertTrue(targets.contains { $0.key == site.id.uuidString && $0.url.absoluteString == "https://flickystream.dad" })
+    }
+}
+
 final class FocusProviderTests: XCTestCase {
     func testModeNameParsing() {
         XCTAssertEqual(FocusProvider.modeName(fromShortcut: "Focus: Do Not Disturb"), "Do Not Disturb")

@@ -83,6 +83,13 @@ final class SettingsStore: ObservableObject {
     @Published var enabledServices: Set<String> {
         didSet { defaults.set(Array(enabledServices), forKey: "enabledServices") }
     }
+    @Published var customMediaSites: [CustomMediaSite] {
+        didSet {
+            if let data = try? JSONEncoder().encode(customMediaSites) {
+                defaults.set(data, forKey: "customMediaSites")
+            }
+        }
+    }
     @Published var claudeDirectory: String {
         didSet { defaults.set(claudeDirectory, forKey: "claudeDirectory") }
     }
@@ -105,6 +112,12 @@ final class SettingsStore: ObservableObject {
             enabledServices = Set(stored)
         } else {
             enabledServices = Set(StreamingService.all.map(\.id))
+        }
+        if let data = defaults.data(forKey: "customMediaSites"),
+           let sites = try? JSONDecoder().decode([CustomMediaSite].self, from: data) {
+            customMediaSites = sites
+        } else {
+            customMediaSites = []
         }
         // The Claude app refuses to remember trust for the home directory, so a
         // home-dir default makes every deep-link launch re-show the trust prompt.
@@ -131,5 +144,10 @@ final class SettingsStore: ObservableObject {
 
     var activeStreamingServices: [StreamingService] {
         StreamingService.all.filter { enabledServices.contains($0.id) }
+    }
+
+    // Entries whose URL parses to a real host; half-typed rows are ignored.
+    var validCustomMediaSites: [CustomMediaSite] {
+        customMediaSites.filter(\.isValid)
     }
 }
