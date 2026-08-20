@@ -262,10 +262,13 @@ final class CustomMediaSiteTests: XCTestCase {
 }
 
 final class MediaOrderTests: XCTestCase {
+    private let allEnabled = Set(StreamingService.all.map(\.id))
+
     func testDefaultOrderKeepsServicesFirstThenCustomSites() {
         let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
         let entries = SettingsStore.orderedMediaEntries(
-            order: [], services: StreamingService.all, customSites: [site]
+            order: [], services: StreamingService.all, customSites: [site],
+            enabledServices: allEnabled
         )
         XCTAssertEqual(entries.map(\.id), StreamingService.all.map(\.id) + [site.id.uuidString])
     }
@@ -274,7 +277,8 @@ final class MediaOrderTests: XCTestCase {
         let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
         let order = [site.id.uuidString, "disneyplus", "removed-long-ago", "netflix"]
         let entries = SettingsStore.orderedMediaEntries(
-            order: order, services: StreamingService.all, customSites: [site]
+            order: order, services: StreamingService.all, customSites: [site],
+            enabledServices: allEnabled
         )
         XCTAssertEqual(
             Array(entries.map(\.id).prefix(3)),
@@ -285,6 +289,27 @@ final class MediaOrderTests: XCTestCase {
             Set(entries.map(\.id)),
             Set(StreamingService.all.map(\.id) + [site.id.uuidString])
         )
+    }
+
+    func testDisabledServicesSinkBelowEnabledOnesAndCustomSites() {
+        let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
+        let order = ["netflix", "primevideo", "crunchyroll", site.id.uuidString, "disneyplus"]
+        let entries = SettingsStore.orderedMediaEntries(
+            order: order, services: StreamingService.all, customSites: [site],
+            enabledServices: ["netflix", "crunchyroll", "disneyplus"]
+        )
+        // Prime Video is unticked, so it drops to the bottom; everything else
+        // keeps its stored order.
+        XCTAssertEqual(
+            entries.map(\.id),
+            ["netflix", "crunchyroll", site.id.uuidString, "disneyplus", "primevideo"]
+        )
+        // Re-ticking it restores the stored slot.
+        let restored = SettingsStore.orderedMediaEntries(
+            order: order, services: StreamingService.all, customSites: [site],
+            enabledServices: allEnabled
+        )
+        XCTAssertEqual(restored.map(\.id), order)
     }
 }
 
