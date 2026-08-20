@@ -176,7 +176,7 @@ final class SettingsStore: ObservableObject {
         customMediaSites.filter(\.isValid)
     }
 
-    // Valid sites that are also ticked on — the custom-site counterpart of
+    // Valid sites that are also ticked on - the custom-site counterpart of
     // activeStreamingServices.
     var activeCustomMediaSites: [CustomMediaSite] {
         validCustomMediaSites.filter(\.enabled)

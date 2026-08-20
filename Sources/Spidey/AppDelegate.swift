@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // If we fell back (e.g. Spotlight owned Cmd+Space at launch), retry the
-        // preferred combo whenever the app is brought forward — the user may
+        // preferred combo whenever the app is brought forward - the user may
         // have freed it up in System Settings since.
         NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main

@@ -1,10 +1,10 @@
 #!/bin/bash
-# sync-hook.sh — Claude Code "SessionStart" hook.
+# sync-hook.sh - Claude Code "SessionStart" hook.
 #
 # When a session starts (or resumes) in a worktree whose branch has fallen
 # behind main, fast-forward it so new work always starts from the latest
 # shipped code. Only touches a clean tree; never rewrites anything
-# (--ff-only cannot lose or merge changes — it either advances or does nothing).
+# (--ff-only cannot lose or merge changes - it either advances or does nothing).
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 cat >/dev/null

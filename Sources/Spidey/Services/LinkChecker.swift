@@ -23,7 +23,7 @@ final class LinkChecker: ObservableObject {
     private let defaults = UserDefaults.standard
     private var timer: Timer?
     private var sitesSubscription: AnyCancellable?
-    // Hosts currently being probed and verified — published so Preferences
+    // Hosts currently being probed and verified - published so Preferences
     // can show that the site's search is still being set up.
     @Published private(set) var discoveringHosts: Set<String> = []
     // Hosts where no candidate survived verification, so edits don't hammer

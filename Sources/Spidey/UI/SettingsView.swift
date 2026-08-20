@@ -11,7 +11,7 @@ struct SettingsView: View {
     @State private var launchAtLoginError: String?
     // Which media row's ⓘ popover is open, by entry id.
     @State private var infoEntryID: String?
-    // Add Site form state — a row is only created once a link is entered.
+    // Add Site form state - a row is only created once a link is entered.
     @State private var showingAddSite = false
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
@@ -75,7 +75,7 @@ struct SettingsView: View {
             Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link usually integrates within a minute — up to a few minutes for some sites — before it appears in searches.")
+            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link usually integrates within a minute - up to a few minutes for some sites - before it appears in searches.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             let entries = settings.orderedMediaEntries
@@ -101,7 +101,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             TextField("Name (optional)", text: $newSiteName)
                             TextField("https://example.com", text: $newSiteURL)
-                            Text("A link is required. Sidekick then finds and verifies the site's own search page — usually under a minute, up to a few minutes for some sites.")
+                            Text("A link is required. Sidekick then finds and verifies the site's own search page - usually under a minute, up to a few minutes for some sites.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             HStack {
@@ -165,7 +165,7 @@ struct SettingsView: View {
                     ProgressView()
                         .controlSize(.small)
                         .scaleEffect(0.6)
-                        .help("Setting up this site's search — can take a few minutes")
+                        .help("Setting up this site's search - can take a few minutes")
                 }
                 deadLinkWarning(for: binding.wrappedValue)
             }
@@ -232,12 +232,12 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Setting up this site's search — trying the site's possible search pages and checking that searches really work there. Usually under a minute, but a stubborn site can take a few minutes; it joins search results once it's done.")
+                        Text("Setting up this site's search - trying the site's possible search pages and checking that searches really work there. Usually under a minute, but a stubborn site can take a few minutes; it joins search results once it's done.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Sidekick finds and verifies the site's own search page automatically — usually under a minute, up to a few minutes for some sites — and it only appears in searches once it's ready. Add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself.")
+                    Text("Sidekick finds and verifies the site's own search page automatically - usually under a minute, up to a few minutes for some sites - and it only appears in searches once it's ready. Add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -334,7 +334,7 @@ struct SettingsView: View {
                 Button("Clear History") { clipboard.clear() }
             }
             Toggle(
-                "Keep recent screenshots — the last \(ClipboardStore.screenshotKeepCount) land here automatically (type \"ss\")",
+                "Keep recent screenshots - the last \(ClipboardStore.screenshotKeepCount) land here automatically (type \"ss\")",
                 isOn: $settings.screenshotsToClipboard
             )
         }

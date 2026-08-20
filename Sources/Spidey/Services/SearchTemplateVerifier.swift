@@ -4,7 +4,7 @@ import WebKit
 // Proves a candidate search template actually works on the live site before
 // Spidey trusts it. Each candidate is loaded in a hidden web view (so
 // JavaScript-rendered sites count too): a search for a well-known film must
-// render its title, and a nonsense search must not — which catches sites
+// render its title, and a nonsense search must not - which catches sites
 // that ignore the parameter and show the same default content for any URL.
 // A verification takes roughly half a minute per candidate; it runs in the
 // background after a link is added.
@@ -74,11 +74,11 @@ final class SearchTemplateVerifier: NSObject {
 
     // The decision is deliberately independent of any one site's catalogue,
     // so it holds even when the probe film isn't stocked:
-    // 1. Echo — the page displaying the nonsense query proves it reads the
+    // 1. Echo - the page displaying the nonsense query proves it reads the
     //    query parameter ("No results for qzvxkwjqzz").
-    // 2. Title — the probe film renders for the real search but not the
+    // 2. Title - the probe film renders for the real search but not the
     //    nonsense one.
-    // 3. Difference — failing both, the two result pages must at least
+    // 3. Difference - failing both, the two result pages must at least
     //    differ substantially; identical content means the query was
     //    ignored and the page shows the same default for any URL.
     static func searchWorks(probeText: String, controlText: String) -> Bool {
@@ -121,7 +121,7 @@ final class SearchTemplateVerifier: NSObject {
         currentWebView = webView
         webView.load(URLRequest(url: url, timeoutInterval: 20))
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.renderWait) { [weak self] in
-            // Include the tab title too — some sites echo the query there.
+            // Include the tab title too - some sites echo the query there.
             webView.evaluateJavaScript(
                 "document.title + '\\n' + (document.body ? document.body.innerText : '')"
             ) { value, _ in
