@@ -83,8 +83,10 @@ final class SpideyViewModel: ObservableObject {
             let term = lowered.hasPrefix("find ")
                 ? String(trimmed.dropFirst("find ".count)).trimmingCharacters(in: .whitespaces)
                 : ""
+            // "find my iphone" should ping the device, not only search files.
+            let pingItems = FindMyProvider.results(for: trimmed)
             if term.count < 2 {
-                syncResults = [ResultItem(
+                syncResults = pingItems + [ResultItem(
                     title: "Find files",
                     subtitle: "Keep typing to search every indexed file, e.g. find tax return",
                     icon: .symbol("doc.text.magnifyingglass"),
@@ -94,7 +96,7 @@ final class SpideyViewModel: ObservableObject {
                 publish()
                 scheduleFileSearch(for: nil)
             } else {
-                syncResults = []
+                syncResults = pingItems
                 publish()
                 scheduleFileSearch(for: term, mode: .dedicated)
             }
@@ -112,6 +114,7 @@ final class SpideyViewModel: ObservableObject {
         commandItems += ProcessProvider.results(for: trimmed)
         commandItems += WindowProvider.results(for: trimmed)
         commandItems += ToggleProvider.results(for: trimmed)
+        commandItems += FindMyProvider.results(for: trimmed)
         commandItems += ClaudeProvider.results(for: trimmed)
         commandItems += DictionaryProvider.results(for: trimmed)
         commandItems += WebSearchProvider.results(for: trimmed)
