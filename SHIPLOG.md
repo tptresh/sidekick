@@ -17,3 +17,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 2e4e4ca Add auto-ship workflow: ship.sh, Stop/SessionStart hooks, SHIPLOG ledger, CLAUDE.md rules
 - main is now at: bc1ba13 (build succeeded, app relaunched)
+
+## 2026-08-20 16:32 — OK — claude/option-space-usage-ad5dac
+- "Hotkey change takes effect on first press; app retries preferred hotkey when brought forward"
+- merged commits:
+  - 0a63575 Hotkey change takes effect on first press; app retries preferred hotkey when brought forward
+- main is now at: 41c3348 (build succeeded, app relaunched)
