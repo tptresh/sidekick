@@ -185,9 +185,16 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 TextField("Name", text: binding.name)
                 TextField("https://example.com", text: binding.urlString)
-                Text("Use \(CustomMediaSite.queryPlaceholder) in the link for the site's own search; plain links are searched via Google.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let template = binding.wrappedValue.activeDiscoveredTemplate {
+                    Text("Searches go to: \(template)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
+                } else {
+                    Text("Sidekick finds the site's own search page automatically when it can; add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself. Until then, searches go via Google.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 HStack {
                     Button(role: .destructive) {
                         infoEntryID = nil

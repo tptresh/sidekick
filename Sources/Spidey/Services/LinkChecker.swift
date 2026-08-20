@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // Periodically verifies that the streaming services and custom media sites
 // still resolve, so dead domains get flagged in results and Preferences.
@@ -21,6 +22,11 @@ final class LinkChecker: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private var timer: Timer?
+    private var sitesSubscription: AnyCancellable?
+    // Hosts we are probing or have already failed to find a search page for,
+    // so edits don't hammer the same site.
+    private var discoveringHosts: Set<String> = []
+    private var undiscoverableHosts: Set<String> = []
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -50,6 +56,37 @@ final class LinkChecker: ObservableObject {
         runIfDue()
         timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
             self?.runIfDue()
+        }
+        // Whenever a plain custom link is added or edited (debounced past the
+        // keystrokes), try to find the site's own search page for it.
+        sitesSubscription = SettingsStore.shared.$customMediaSites
+            .debounce(for: .seconds(1.5), scheduler: DispatchQueue.main)
+            .sink { [weak self] sites in
+                self?.discoverSearchTemplates(for: sites)
+            }
+    }
+
+    func discoverSearchTemplates(for sites: [CustomMediaSite]) {
+        for site in sites {
+            guard site.isValid, !site.hasSearchTemplate, site.activeDiscoveredTemplate == nil,
+                  let homepage = site.homepageURL, let host = site.host,
+                  !discoveringHosts.contains(host), !undiscoverableHosts.contains(host)
+            else { continue }
+            discoveringHosts.insert(host)
+            SearchTemplateFinder.discover(homepage: homepage, session: session) { template in
+                DispatchQueue.main.async {
+                    self.discoveringHosts.remove(host)
+                    guard let template else {
+                        self.undiscoverableHosts.insert(host)
+                        return
+                    }
+                    let store = SettingsStore.shared
+                    guard let index = store.customMediaSites.firstIndex(where: {
+                        $0.id == site.id && $0.host == host
+                    }) else { return }
+                    store.customMediaSites[index].discoveredTemplate = template
+                }
+            }
         }
     }
 

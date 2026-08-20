@@ -29,7 +29,7 @@ enum StreamingProvider {
             case .custom(let site):
                 guard site.enabled, site.isValid,
                       let url = site.searchURL(encodedQuery: encoded) else { continue }
-                let how = site.hasSearchTemplate
+                let how = site.searchesDirectly
                     ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
                     : "Finds it on \(site.host ?? site.displayName) via Google, in \(BrowserLauncher.targetName)"
                 items.append(ResultItem(
