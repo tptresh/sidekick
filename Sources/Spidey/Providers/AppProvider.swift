@@ -6,13 +6,23 @@ final class AppProvider {
     struct AppEntry {
         let name: String
         let url: URL
+        let bundleID: String?
         // Other names people type for this app, e.g. "Apple TV" for TV.app.
         let aliases: [String]
+
+        // Stable identity for learned ranking; bundle id survives the app
+        // moving, the path is the fallback for bundle-less apps.
+        var rankingKey: String { "app:" + (bundleID ?? url.path) }
     }
 
     private var apps: [AppEntry] = []
     private var iconCache: [URL: NSImage] = [:]
     private let scanQueue = DispatchQueue(label: "spidey.appscan", qos: .utility)
+
+    // User-defined launch aliases from Application Support/Spidey/aliases.json,
+    // e.g. {"ps": "Photoshop"}. Keys are stored lowercased.
+    private var userAliases: [String: String] = [:]
+    private var userAliasesMTime: Date?
 
     private init() {
         rescan()
@@ -62,8 +72,44 @@ final class AppProvider {
         return AppEntry(
             name: name,
             url: url,
+            bundleID: bundle?.bundleIdentifier,
             aliases: aliases(name: name, displayName: display, bundleIdentifier: bundle?.bundleIdentifier)
         )
+    }
+
+    // MARK: - User aliases (aliases.json)
+
+    static var userAliasesURL: URL {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Spidey/aliases.json")
+    }
+
+    // {"ps": "Photoshop", "vs": "Visual Studio Code"} -> lowercased alias map.
+    static func parseUserAliases(_ data: Data) -> [String: String] {
+        guard let raw = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+        var result: [String: String] = [:]
+        for (alias, target) in raw {
+            let key = alias.lowercased().trimmingCharacters(in: .whitespaces)
+            let value = target.trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty, !value.isEmpty else { continue }
+            result[key] = value
+        }
+        return result
+    }
+
+    // Re-reads aliases.json only when its modification date changes (a stat
+    // per keystroke, a read only on edits). A deleted file clears the map.
+    private func reloadUserAliasesIfNeeded() {
+        let url = Self.userAliasesURL
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+        guard mtime != userAliasesMTime else { return }
+        userAliasesMTime = mtime
+        if mtime != nil, let data = try? Data(contentsOf: url) {
+            userAliases = Self.parseUserAliases(data)
+        } else {
+            userAliases = [:]
+        }
     }
 
     static func aliases(name: String, displayName: String?, bundleIdentifier: String?) -> [String] {
@@ -91,17 +137,40 @@ final class AppProvider {
         return best
     }
 
+    // When the query (or its first word) is a user alias, the app the alias
+    // points at is scored as an exact match. The target only has to match the
+    // app reasonably well ("Photoshop" vs "Adobe Photoshop 2024" is a
+    // word-boundary match at 0.82), so the threshold sits just under that.
+    static func effectiveMatch(
+        query: String, aliasTarget: String?, name: String, aliases: [String]
+    ) -> Double? {
+        let direct = matchScore(query: query, name: name, aliases: aliases)
+        if let target = aliasTarget,
+           let targetScore = matchScore(query: target, name: name, aliases: aliases),
+           targetScore >= 0.8 {
+            return 1.0
+        }
+        return direct
+    }
+
     func results(for query: String) -> [ResultItem] {
         guard !query.isEmpty else { return [] }
+        reloadUserAliasesIfNeeded()
+        let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
+        let firstWord = lowered.split(separator: " ").first.map(String.init) ?? lowered
+        let aliasTarget = userAliases[lowered] ?? userAliases[firstWord]
         var items: [ResultItem] = []
         for app in apps {
-            guard let match = Self.matchScore(query: query, name: app.name, aliases: app.aliases) else { continue }
+            guard let match = Self.effectiveMatch(
+                query: query, aliasTarget: aliasTarget, name: app.name, aliases: app.aliases
+            ) else { continue }
             let url = app.url
             items.append(ResultItem(
                 title: app.name,
                 subtitle: "Open application",
                 icon: .appIcon(icon(for: url)),
                 score: 600 + match * 300,
+                rankingKey: app.rankingKey,
                 dragFileURL: url,
                 secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
                 action: { NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) }

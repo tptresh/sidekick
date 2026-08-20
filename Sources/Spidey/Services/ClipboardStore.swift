@@ -13,6 +13,26 @@ struct ClipEntry: Codable, Identifiable, Equatable {
     var date: Date
     // text: the string. file: the path. image: filename of a PNG in the images folder.
     var value: String
+    // Pinned entries sort first and never age out of the history cap.
+    var pinned: Bool
+
+    init(id: UUID, kind: Kind, date: Date, value: String, pinned: Bool = false) {
+        self.id = id
+        self.kind = kind
+        self.date = date
+        self.value = value
+        self.pinned = pinned
+    }
+
+    // Histories written before pinning existed lack the "pinned" key.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        date = try container.decode(Date.self, forKey: .date)
+        value = try container.decode(String.self, forKey: .value)
+        pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+    }
 
     var displayTitle: String {
         switch kind {
@@ -30,6 +50,7 @@ struct ClipEntry: Codable, Identifiable, Equatable {
 final class ClipboardStore: ObservableObject {
     static let shared = ClipboardStore()
 
+    // Always sorted pinned-first; newest-first within each group.
     @Published private(set) var entries: [ClipEntry] = []
 
     private var timer: Timer?
@@ -37,14 +58,21 @@ final class ClipboardStore: ObservableObject {
     // Set while Spidey itself writes to the pasteboard, so we do not re-record it.
     private var ignoreNextChange = false
 
-    private let directory: URL = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("Spidey", isDirectory: true)
-    }()
+    private let directory: URL
+    // Tests inject a fixed cap so they do not depend on SettingsStore.
+    private let limitOverride: Int?
+
     private var historyFile: URL { directory.appendingPathComponent("clipboard.json") }
     private var imagesDirectory: URL { directory.appendingPathComponent("images", isDirectory: true) }
 
-    private init() {
+    private convenience init() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        self.init(directory: base.appendingPathComponent("Spidey", isDirectory: true))
+    }
+
+    init(directory: URL, limitOverride: Int? = nil) {
+        self.directory = directory
+        self.limitOverride = limitOverride
         try? FileManager.default.createDirectory(at: imagesDirectory, withIntermediateDirectories: true)
         load()
     }
@@ -88,21 +116,27 @@ final class ClipboardStore: ObservableObject {
     }
 
     func record(_ entry: ClipEntry) {
+        // Copying a value that is already pinned just refreshes it in place.
+        if let index = entries.firstIndex(where: { $0.kind == entry.kind && $0.value == entry.value && $0.pinned }) {
+            entries[index].date = entry.date
+            trimAndSort()
+            return
+        }
         // De-duplicate consecutive copies of the same value.
         entries.removeAll { $0.kind == entry.kind && $0.value == entry.value }
         entries.insert(entry, at: 0)
-        let limit = max(10, SettingsStore.shared.clipboardLimit)
-        if entries.count > limit {
-            for removed in entries[limit...] where removed.kind == .image {
-                try? FileManager.default.removeItem(at: imagesDirectory.appendingPathComponent(removed.value))
-            }
-            entries = Array(entries.prefix(limit))
-        }
-        save()
+        trimAndSort()
     }
 
     func recordDroppedFile(_ url: URL) {
         record(ClipEntry(id: UUID(), kind: .file, date: Date(), value: url.path))
+    }
+
+    // Toggles the pinned flag on the entry with the same id.
+    func togglePin(_ entry: ClipEntry) {
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        entries[index].pinned.toggle()
+        trimAndSort()
     }
 
     // Puts an entry back on the system pasteboard.
@@ -122,6 +156,12 @@ final class ClipboardStore: ObservableObject {
         }
     }
 
+    // Call just before Spidey itself rewrites the pasteboard (e.g. plain-text
+    // conversion), so the change is not re-recorded into history.
+    func ignoreNextPasteboardChange() {
+        ignoreNextChange = true
+    }
+
     func imageURL(for entry: ClipEntry) -> URL? {
         guard entry.kind == .image else { return nil }
         return imagesDirectory.appendingPathComponent(entry.value)
@@ -135,10 +175,30 @@ final class ClipboardStore: ObservableObject {
         save()
     }
 
+    // Caps unpinned entries at the history limit (pinned entries are exempt),
+    // keeps pinned entries above unpinned ones, and persists the result.
+    private func trimAndSort() {
+        let limit = max(10, limitOverride ?? SettingsStore.shared.clipboardLimit)
+        var pinned = entries.filter(\.pinned)
+        var unpinned = entries.filter { !$0.pinned }
+        // Newest-first within each group, so an unpinned entry falls back to
+        // its date slot and refreshed pins bubble up.
+        pinned.sort { $0.date > $1.date }
+        unpinned.sort { $0.date > $1.date }
+        if unpinned.count > limit {
+            for removed in unpinned[limit...] where removed.kind == .image {
+                try? FileManager.default.removeItem(at: imagesDirectory.appendingPathComponent(removed.value))
+            }
+            unpinned = Array(unpinned.prefix(limit))
+        }
+        entries = pinned + unpinned
+        save()
+    }
+
     private func load() {
         guard let data = try? Data(contentsOf: historyFile),
               let decoded = try? JSONDecoder().decode([ClipEntry].self, from: data) else { return }
-        entries = decoded
+        entries = decoded.filter(\.pinned) + decoded.filter { !$0.pinned }
     }
 
     private func save() {

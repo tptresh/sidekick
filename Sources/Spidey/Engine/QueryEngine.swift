@@ -97,8 +97,32 @@ final class SpideyViewModel: ObservableObject {
                 scheduleFileSearch(for: nil)
             } else {
                 syncResults = pingItems
+                fileResults = []
                 publish()
                 scheduleFileSearch(for: term, mode: .dedicated)
+            }
+            return
+        }
+
+        if lowered == "in" || lowered.hasPrefix("in ") {
+            let phrase = lowered.hasPrefix("in ")
+                ? String(trimmed.dropFirst("in ".count)).trimmingCharacters(in: .whitespaces)
+                : ""
+            if phrase.count < 3 {
+                syncResults = [ResultItem(
+                    title: "Search inside files",
+                    subtitle: "Keep typing to search file contents, e.g. in quarterly forecast",
+                    icon: .symbol("doc.text.magnifyingglass"),
+                    score: 500,
+                    action: {}
+                )]
+                publish()
+                scheduleFileSearch(for: nil)
+            } else {
+                syncResults = []
+                fileResults = []
+                publish()
+                scheduleFileSearch(for: phrase, mode: .content)
             }
             return
         }
@@ -111,25 +135,54 @@ final class SpideyViewModel: ObservableObject {
         commandItems += ColorProvider.results(for: trimmed)
         commandItems += PasswordProvider.results(for: trimmed)
         commandItems += TimerProvider.results(for: trimmed)
+        commandItems += SnippetProvider.results(for: trimmed)
         commandItems += ProcessProvider.results(for: trimmed)
+        commandItems += MusicProvider.results(for: trimmed)
+        commandItems += ScriptCommandsProvider.results(for: trimmed)
         commandItems += WindowProvider.results(for: trimmed)
+        commandItems += MenuItemsProvider.results(for: trimmed)
+        commandItems += TabsProvider.results(for: trimmed)
         commandItems += ToggleProvider.results(for: trimmed)
+        commandItems += DevToolsProvider.results(for: trimmed)
+        commandItems += SystemInfoProvider.results(for: trimmed)
+        commandItems += VolumeProvider.results(for: trimmed)
+        commandItems += QRProvider.results(for: trimmed)
+        commandItems += LargeTypeProvider.results(for: trimmed)
         commandItems += FindMyProvider.results(for: trimmed)
+        commandItems += CalendarProvider.results(for: trimmed)
         commandItems += ClaudeProvider.results(for: trimmed)
         commandItems += DictionaryProvider.results(for: trimmed)
+        commandItems += CustomSearchProvider.results(for: trimmed)
         commandItems += WebSearchProvider.results(for: trimmed)
         commandItems += MediaProvider.results(for: trimmed)
         commandItems += FocusProvider.results(for: trimmed)
-        commandItems += SystemProvider.results(for: trimmed, armedCommand: armedCommand) { [weak self] title in
-            self?.armedCommand = title
-            self?.refresh()
+        commandItems += PasteboardToolsProvider.results(for: trimmed)
+        let systemItems = SystemProvider.results(for: trimmed, armedCommand: armedCommand) { [weak self] title in
+            guard let self else { return }
+            self.armedCommand = title
+            self.refresh()
+            // Arming disables boosts, which can re-sort the list; keep the
+            // confirmation row under the highlight for the second Return.
+            if let index = self.results.firstIndex(where: { $0.title.hasPrefix("\(title):") }) {
+                self.selectedIndex = index
+            }
         }
+        // Editing to an unrelated query drops the armed row; disarm so
+        // learned boosts come back instead of staying silently disabled.
+        if let armed = armedCommand,
+           !systemItems.contains(where: { $0.title.hasPrefix(armed) }) {
+            armedCommand = nil
+        }
+        commandItems += systemItems
         // A recognized command makes the generic "watch this" and "guess the URL" rows noise.
         let isCommand = !commandItems.isEmpty
 
         var items = commandItems
         items += AppProvider.shared.results(for: trimmed)
+        items += ContactsProvider.results(for: trimmed)
+        items += WindowSwitcherProvider.results(for: trimmed)
         items += SiteDirectoryProvider.results(for: trimmed, includeGuess: !isCommand)
+        items += BookmarksProvider.results(for: trimmed)
         if !isCommand {
             items += StreamingProvider.results(for: trimmed)
         }
@@ -145,7 +198,7 @@ final class SpideyViewModel: ObservableObject {
         fileSearchDebounce?.cancel()
         fileSearchGeneration += 1
         let generation = fileSearchGeneration
-        let minLength = mode == .dedicated ? 2 : 3
+        let minLength = mode == .ambient ? 3 : 2
         guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
             fileResults = []
             publish()
@@ -154,7 +207,7 @@ final class SpideyViewModel: ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             FileProvider.search(query, mode: mode) { items in
                 guard let self, self.fileSearchGeneration == generation else { return }
-                if mode == .dedicated, items.isEmpty {
+                if mode != .ambient, items.isEmpty {
                     self.fileResults = [ResultItem(
                         title: "No files found",
                         subtitle: "Nothing in the Spotlight index matches \"\(query)\"",
@@ -174,7 +227,24 @@ final class SpideyViewModel: ObservableObject {
     }
 
     private func publish() {
-        results = (syncResults + fileResults).sorted { $0.score > $1.score }
+        var combined = syncResults + fileResults
+        // Learned ranking: lift results the user previously picked for this
+        // (or a prefix-compatible) query. Skipped while a destructive command
+        // is armed so a boosted row can never displace the confirmation row.
+        if armedCommand == nil, droppedFiles.isEmpty {
+            let trimmed = query.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                let boosts = UsageStore.shared.boosts(for: trimmed)
+                if !boosts.isEmpty {
+                    for index in combined.indices {
+                        guard let key = combined[index].rankingKey,
+                              let boost = boosts[key] else { continue }
+                        combined[index].score += boost
+                    }
+                }
+            }
+        }
+        results = combined.sorted { $0.score > $1.score }
         if selectedIndex >= results.count {
             selectedIndex = 0
         }
@@ -184,7 +254,7 @@ final class SpideyViewModel: ObservableObject {
 
     private func clipboardResults(filter: String) -> [ResultItem] {
         let store = ClipboardStore.shared
-        var entries = store.entries
+        var entries = store.entries // already sorted pinned-first, newest-first within each group
         if !filter.isEmpty {
             entries = entries.filter {
                 $0.value.localizedCaseInsensitiveContains(filter)
@@ -207,7 +277,7 @@ final class SpideyViewModel: ObservableObject {
             let icon: ResultIcon
             switch entry.kind {
             case .text:
-                icon = .symbol("doc.on.clipboard")
+                icon = .symbol(entry.pinned ? "pin.fill" : "doc.on.clipboard")
             case .file:
                 let image = NSWorkspace.shared.icon(forFile: entry.value)
                 image.size = NSSize(width: 32, height: 32)
@@ -217,15 +287,23 @@ final class SpideyViewModel: ObservableObject {
                     image.size = NSSize(width: 32, height: 32)
                     icon = .appIcon(image)
                 } else {
-                    icon = .symbol("photo")
+                    icon = .symbol(entry.pinned ? "pin.fill" : "photo")
                 }
             }
+            let subtitle = entry.pinned
+                ? "Pinned · Copied \(age). Return copies it, ⌘⏎ unpins."
+                : "Copied \(age). Return copies it, ⌘⏎ pins."
             return ResultItem(
                 title: entry.displayTitle,
-                subtitle: "Copied \(age). Return copies it back to the clipboard.",
+                subtitle: subtitle,
                 icon: icon,
                 score: 500 - Double(index),
                 dragFileURL: entry.kind == .file ? URL(fileURLWithPath: entry.value) : nil,
+                secondaryAction: { [weak self] in
+                    ClipboardStore.shared.togglePin(entry)
+                    self?.refresh()
+                },
+                secondaryKeepsPanel: true,
                 action: { ClipboardStore.shared.copyToPasteboard(entry) }
             )
         }
@@ -311,11 +389,21 @@ final class SpideyViewModel: ObservableObject {
         guard results.indices.contains(selectedIndex) else { return }
         let item = results[selectedIndex]
         let wasArmed = armedCommand
+        var ranSecondary = false
         if commandModifier, let secondary = item.secondaryAction {
             secondary()
+            ranSecondary = true
         } else {
             item.action()
         }
+        // Learn from the pick: rows without a rankingKey opted out.
+        if let key = item.rankingKey {
+            UsageStore.shared.recordSelection(
+                query: query.trimmingCharacters(in: .whitespaces), rankingKey: key
+            )
+        }
+        // A pin toggle resorts the list in place; the panel stays up.
+        if ranSecondary, item.secondaryKeepsPanel { return }
         // Arming a destructive command keeps the panel open for the confirm press.
         let armedNow = armedCommand
         if wasArmed == armedNow || armedNow == nil {

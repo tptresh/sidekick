@@ -30,7 +30,7 @@ struct SearchView: View {
         .frame(width: Self.panelWidth)
         .background(
             ZStack {
-                VisualEffectBackground()
+                VisualEffectBackground(isLight: settings.theme.isLight)
                 LinearGradient(
                     colors: [palette.backgroundTop.opacity(0.96), palette.background.opacity(0.97)],
                     startPoint: .top, endPoint: .bottom
@@ -48,6 +48,18 @@ struct SearchView: View {
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDrop(providers)
         }
+        .onAppear {
+            QuickLookController.shared.viewModel = viewModel
+        }
+        // Results can change under a fixed selection index (e.g. file results
+        // arriving late), so keep any open Quick Look preview in sync. The
+        // publisher fires on willSet, so hop to the next runloop tick to read
+        // the settled values.
+        .onReceive(viewModel.$results) { _ in
+            DispatchQueue.main.async {
+                QuickLookController.shared.selectionChanged()
+            }
+        }
     }
 
     private func searchBar(palette: ThemePalette) -> some View {
@@ -60,6 +72,7 @@ struct SearchView: View {
                 SearchField(
                     text: $viewModel.query,
                     placeholder: placeholder,
+                    palette: palette,
                     font: NSFont.systemFont(ofSize: 24, weight: .light),
                     onMove: { viewModel.moveSelection(by: $0) },
                     onEnter: { viewModel.runSelected(commandModifier: $0) },
@@ -107,6 +120,7 @@ struct SearchView: View {
                 withAnimation(.easeOut(duration: 0.1)) {
                     proxy.scrollTo(index, anchor: nil)
                 }
+                QuickLookController.shared.selectionChanged()
             }
         }
     }
@@ -212,6 +226,8 @@ private struct DragModifier: ViewModifier {
 }
 
 private struct VisualEffectBackground: NSViewRepresentable {
+    let isLight: Bool
+
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = .hudWindow
@@ -220,13 +236,16 @@ private struct VisualEffectBackground: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.appearance = NSAppearance(named: isLight ? .aqua : .darkAqua)
+    }
 }
 
 // NSTextField wrapper so arrows, Return, and Esc can be intercepted cleanly.
 private struct SearchField: NSViewRepresentable {
     @Binding var text: String
     let placeholder: String
+    let palette: ThemePalette
     let font: NSFont
     let onMove: (Int) -> Void
     let onEnter: (Bool) -> Void
@@ -239,11 +258,11 @@ private struct SearchField: NSViewRepresentable {
         field.drawsBackground = false
         field.focusRingType = .none
         field.font = font
-        field.textColor = .white
+        field.textColor = NSColor(palette.textPrimary)
         field.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor.white.withAlphaComponent(0.35),
+                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.35),
                 .font: font,
             ]
         )
@@ -254,14 +273,17 @@ private struct SearchField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
+        // Keep the coordinator's copy fresh so callbacks capture current state.
+        context.coordinator.parent = self
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
         nsView.font = font
+        nsView.textColor = NSColor(palette.textPrimary)
         nsView.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor.white.withAlphaComponent(0.35),
+                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.35),
                 .font: font,
             ]
         )
@@ -274,13 +296,23 @@ private struct SearchField: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: SearchField
         weak var field: NSTextField?
+        private var focusObserver: NSObjectProtocol?
 
         init(_ parent: SearchField) {
             self.parent = parent
         }
 
+        deinit {
+            if let focusObserver {
+                NotificationCenter.default.removeObserver(focusObserver)
+            }
+        }
+
         func observeFocusRequests() {
-            NotificationCenter.default.addObserver(
+            if let focusObserver {
+                NotificationCenter.default.removeObserver(focusObserver)
+            }
+            focusObserver = NotificationCenter.default.addObserver(
                 forName: .spideyFocusSearch, object: nil, queue: .main
             ) { [weak self] _ in
                 guard let field = self?.field else { return }

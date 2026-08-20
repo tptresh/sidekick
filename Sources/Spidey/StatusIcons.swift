@@ -34,7 +34,41 @@ enum StatusIcons {
             drawSpideyMask(color: color)
         case .batman:
             batSymbolPath().fill()
+        case .fantasticFour:
+            drawFourEmblem(color: color)
         }
+    }
+
+    // Classic FF badge: a circle rim with a bold numeral 4, its triangular
+    // counter punched out so it stays crisp at menu bar size.
+    private static func drawFourEmblem(color: NSColor) {
+        color.setStroke()
+        let rim = NSBezierPath(ovalIn: NSRect(x: 1, y: 1, width: 16, height: 16))
+        rim.lineWidth = 1.0
+        rim.stroke()
+        fourGlyphPath().fill()
+    }
+
+    // Block "4" in the 18x18 unit space, y pointing up. The outer outline and
+    // the counter triangle are one path filled with the even-odd rule.
+    private static func fourGlyphPath() -> NSBezierPath {
+        let path = NSBezierPath()
+        path.windingRule = .evenOdd
+        // Outer outline: tip, stem, foot, crossbar, then the diagonal back up.
+        path.move(to: NSPoint(x: 9.4, y: 13.6))
+        path.line(to: NSPoint(x: 11.9, y: 13.6))
+        path.line(to: NSPoint(x: 11.9, y: 4.4))
+        path.line(to: NSPoint(x: 9.8, y: 4.4))
+        path.line(to: NSPoint(x: 9.8, y: 6.4))
+        path.line(to: NSPoint(x: 4.9, y: 6.4))
+        path.line(to: NSPoint(x: 4.9, y: 8.3))
+        path.close()
+        // Counter: the open triangle between the diagonal, stem, and crossbar.
+        path.move(to: NSPoint(x: 6.8, y: 8.3))
+        path.line(to: NSPoint(x: 9.8, y: 8.3))
+        path.line(to: NSPoint(x: 9.8, y: 11.6))
+        path.close()
+        return path
     }
 
     // Line-art mask like the classic emblem: stroked rim, thin web, solid eyes.

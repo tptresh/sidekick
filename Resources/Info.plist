@@ -26,6 +26,16 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Sidekick uses Apple Events to run system commands and to open Claude Code sessions in Terminal.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Sidekick searches your contacts so typing a name can copy a phone number or email address.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Sidekick reads your calendar to show today's remaining events and your next event.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Sidekick reads your calendar to show today's remaining events and your next event.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Sidekick creates reminders when you type commands like "remind me to buy milk at 5pm".</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Sidekick creates reminders when you type commands like "remind me to buy milk at 5pm".</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 </dict>
