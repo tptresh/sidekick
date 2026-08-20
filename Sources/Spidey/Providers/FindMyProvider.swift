@@ -4,10 +4,10 @@ import ApplicationServices
 // "ping my iphone", "ping airpods", "find my keys": plays a sound on an Apple
 // device through the Find My app. macOS has no public Find My API and the
 // on-disk cache is TCC-protected, so the only door is the app itself: the
-// action launches Find My and drives it with accessibility scripting (switch
-// to the right tab, select the device row whose label contains the typed name,
+// action launches Find My and drives it with the Accessibility API (switch to
+// the right tab, select the device row whose label contains the typed name,
 // press Play Sound). Needs the same one-time Accessibility permission as
-// window snapping. If any step fails, Find My is left open on the device so
+// window snapping. If a step fails, Find My is left open on the device so
 // finishing by hand is one click.
 enum FindMyProvider {
     struct Kind {
@@ -146,17 +146,15 @@ enum FindMyProvider {
 
     // MARK: - Driving the Find My app
 
+    // Serial so a second Return cannot race a ping already in flight.
+    private static let pingQueue = DispatchQueue(label: "dev.opensource.spidey.findmy-ping", qos: .userInitiated)
+
     static func ping(searchTerm: String) {
         openFindMy()
-        let script = pingScript(searchTerm: searchTerm, itemsFirst: itemsFirst(searchTerm))
-        DispatchQueue.global(qos: .userInitiated).async {
-            let output = Shell.run("/usr/bin/osascript", ["-e", script])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if output != "OK" {
-                // Find My stays open (usually on the device), so the user can
-                // finish with one click even when the script could not.
-                NSLog("Spidey Find My ping (\(searchTerm)): \(output)")
-            }
+        let itemsTabFirst = itemsFirst(searchTerm)
+        pingQueue.async {
+            let outcome = runPing(term: normalized(searchTerm), itemsFirst: itemsTabFirst)
+            NSLog("Spidey Find My ping (\(searchTerm)): \(outcome)")
         }
     }
 
@@ -165,175 +163,119 @@ enum FindMyProvider {
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    static func escapeForAppleScript(_ text: String) -> String {
-        text
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+    // Find My renders row labels with curly apostrophes ("Tanush’s Keys"), so
+    // fold those before the case-insensitive contains check.
+    static func normalized(_ text: String) -> String {
+        text.lowercased()
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
     }
 
-    // Find My's UI is a Catalyst tree with no stable element paths across
-    // macOS versions, so the script searches by accessibility label instead:
-    // switch tab (View menu first, sidebar buttons as fallback), find the row
-    // containing the device name, press it, then press Play Sound (context
-    // menu as fallback). AppleScript's `contains` ignores case by default,
-    // which is exactly the matching we want.
-    static func pingScript(searchTerm: String, itemsFirst: Bool) -> String {
-        let term = escapeForAppleScript(searchTerm)
-        let firstTab = itemsFirst ? "Items" : "Devices"
-        let secondTab = itemsFirst ? "Devices" : "Items"
-        return """
-        on labelOf(el)
-            set out to ""
-            tell application "System Events"
-                try
-                    set d to description of el
-                    if d is not missing value then set out to out & d & " "
-                end try
-                try
-                    set n to name of el
-                    if n is not missing value then set out to out & n
-                end try
-            end tell
-            return out
-        end labelOf
+    // The observed structure (macOS 15/26, English): sidebar tabs are
+    // AXRadioButtons labeled People/Devices/Items, each device or item row is
+    // a single AXStaticText ("Tanush’s Keys, Home, 9 min ago"), and pressing a
+    // row shows either the full detail (with a "Play Sound,Off" button) or a
+    // compact card whose "More Info" button leads to it.
+    private static func runPing(term: String, itemsFirst: Bool) -> String {
+        guard let window = poll(seconds: 15, { findMyWindow() }) else { return "no-window" }
+        // Give a fresh launch a beat to build the sidebar.
+        Thread.sleep(forTimeInterval: 0.5)
 
-        on findFirst(el, target, roleList, depth)
-            if depth < 1 then return missing value
-            set kids to {}
-            try
-                tell application "System Events" to set kids to UI elements of el
-            end try
-            repeat with k in kids
-                set r to ""
-                try
-                    tell application "System Events" to set r to role of k
-                end try
-                if ((count of roleList) is 0) or (roleList contains r) then
-                    if (my labelOf(k)) contains target then return (contents of k)
-                end if
-                set hit to my findFirst(k, target, roleList, depth - 1)
-                if hit is not missing value then return hit
-            end repeat
-            return missing value
-        end findFirst
+        let tabs = itemsFirst ? ["items", "devices"] : ["devices", "items"]
+        for tab in tabs {
+            if let radio = search(window, { role, label in
+                role == "AXRadioButton" && normalized(label) == tab
+            }) {
+                _ = press(radio)
+            }
+            guard let row = poll(seconds: 4, { search(window, { role, label in
+                (role == "AXStaticText" || role == "AXCell") && normalized(label).contains(term)
+            }) }) else { continue }
+            guard press(row) else { return "row-press-failed" }
 
-        on climbToRow(el)
-            tell application "System Events"
-                set cur to el
-                repeat 6 times
-                    try
-                        set p to value of attribute "AXParent" of cur
-                        set r to role of p
-                        if r is "AXCell" or r is "AXRow" then return (contents of p)
-                        set cur to p
-                    on error
-                        exit repeat
-                    end try
-                end repeat
-            end tell
-            return el
-        end climbToRow
+            guard let control = poll(seconds: 8, { search(window, { role, label in
+                let lowered = normalized(label)
+                return role == "AXButton" && (lowered.contains("play sound") || lowered.contains("more info"))
+            }) }) else { return "no-detail-controls" }
 
-        on clickEl(el)
-            tell application "System Events"
-                try
-                    perform action "AXPress" of el
-                    return true
-                end try
-                try
-                    click el
-                    return true
-                end try
-                try
-                    set p to position of el
-                    set s to size of el
-                    set cx to (item 1 of p) + ((item 1 of s) div 2)
-                    set cy to (item 2 of p) + ((item 2 of s) div 2)
-                    tell process "FindMy" to click at {cx, cy}
-                    return true
-                end try
-            end tell
-            return false
-        end clickEl
+            var play = control
+            if normalized(label(of: control)).contains("more info") {
+                guard press(control) else { return "more-info-press-failed" }
+                guard let found = poll(seconds: 8, { search(window, { role, label in
+                    role == "AXButton" && normalized(label).contains("play sound")
+                }) }) else { return "no-play-button" }
+                play = found
+            }
+            // The button label carries the state ("Play Sound,On" while
+            // playing); pressing again would stop the sound.
+            if normalized(label(of: play)).hasSuffix(",on") { return "already-playing" }
+            return press(play) ? "ok" : "play-press-failed"
+        }
+        return "device-not-found"
+    }
 
-        on switchTab(tabName)
-            tell application "System Events"
-                tell process "FindMy"
-                    try
-                        click menu item tabName of menu 1 of menu bar item "View" of menu bar 1
-                        return true
-                    end try
-                end tell
-                set w to window 1 of process "FindMy"
-            end tell
-            set tabEl to my findFirst(w, tabName, {"AXRadioButton", "AXButton", "AXTabButton"}, 10)
-            if tabEl is not missing value then return my clickEl(tabEl)
-            return false
-        end switchTab
+    // MARK: - Accessibility helpers
 
-        on findDeviceRow(target)
-            tell application "System Events" to set w to window 1 of process "FindMy"
-            set rowEl to my findFirst(w, target, {"AXCell", "AXRow"}, 16)
-            if rowEl is missing value then
-                set txt to my findFirst(w, target, {"AXStaticText"}, 16)
-                if txt is not missing value then set rowEl to my climbToRow(txt)
-            end if
-            return rowEl
-        end findDeviceRow
+    private static func axString(_ element: AXUIElement, _ attribute: String) -> String? {
+        var ref: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, attribute as CFString, &ref)
+        return ref as? String
+    }
 
-        on findPlayControl(scope)
-            set el to my findFirst(scope, "Play Sound", {"AXButton", "AXMenuItem", "AXCell", "AXMenuButton"}, 16)
-            if el is missing value then set el to my findFirst(scope, "Play Sound", {"AXStaticText"}, 16)
-            return el
-        end findPlayControl
+    private static func axChildren(_ element: AXUIElement) -> [AXUIElement] {
+        var ref: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &ref)
+        return (ref as? [AXUIElement]) ?? []
+    }
 
-        set target to "\(term)"
-        set firstTab to "\(firstTab)"
-        set secondTab to "\(secondTab)"
+    private static func label(of element: AXUIElement) -> String {
+        [axString(element, kAXDescriptionAttribute), axString(element, kAXTitleAttribute)]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
 
-        set deadline to (current date) + 20
-        tell application "System Events"
-            repeat until (exists process "FindMy")
-                if (current date) > deadline then return "ERR|not-running"
-                delay 0.2
-            end repeat
-            tell process "FindMy"
-                set frontmost to true
-                repeat until (exists window 1)
-                    if (current date) > deadline then return "ERR|no-window"
-                    delay 0.2
-                end repeat
-            end tell
-        end tell
-        delay 1
+    private static func press(_ element: AXUIElement) -> Bool {
+        AXUIElementPerformAction(element, kAXPressAction as CFString) == .success
+    }
 
-        my switchTab(firstTab)
-        delay 0.7
-        set rowEl to my findDeviceRow(target)
-        if rowEl is missing value then
-            if my switchTab(secondTab) then
-                delay 0.7
-                set rowEl to my findDeviceRow(target)
-            end if
-        end if
-        if rowEl is missing value then return "ERR|no-device"
+    private static func findMyWindow() -> AXUIElement? {
+        guard let app = NSWorkspace.shared.runningApplications
+            .first(where: { $0.bundleIdentifier == "com.apple.findmy" }) else { return nil }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var ref: CFTypeRef?
+        AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref)
+        return (ref as? [AXUIElement])?.first
+    }
 
-        my clickEl(rowEl)
-        delay 1
+    // Depth-first search over the whole window; the budget bounds the walk on
+    // pathological trees (the map alone holds hundreds of labeled places).
+    private static func search(
+        _ root: AXUIElement, budget: Int = 8000, _ predicate: (String, String) -> Bool
+    ) -> AXUIElement? {
+        var remaining = budget
+        return deepFind(root, &remaining, predicate)
+    }
 
-        tell application "System Events" to set w to window 1 of process "FindMy"
-        set playEl to my findPlayControl(w)
-        if playEl is missing value then
-            try
-                tell application "System Events" to perform action "AXShowMenu" of rowEl
-                delay 0.5
-                set playEl to my findPlayControl(rowEl)
-            end try
-            if playEl is missing value then set playEl to my findPlayControl(w)
-        end if
-        if playEl is missing value then return "SELECTED|no-play-control"
-        if my clickEl(playEl) then return "OK"
-        return "SELECTED|click-failed"
-        """
+    private static func deepFind(
+        _ root: AXUIElement, _ budget: inout Int, _ predicate: (String, String) -> Bool
+    ) -> AXUIElement? {
+        guard budget > 0 else { return nil }
+        budget -= 1
+        let role = axString(root, kAXRoleAttribute) ?? ""
+        if predicate(role, label(of: root)) { return root }
+        for child in axChildren(root) {
+            if let hit = deepFind(child, &budget, predicate) { return hit }
+        }
+        return nil
+    }
+
+    private static func poll(seconds: TimeInterval, _ find: () -> AXUIElement?) -> AXUIElement? {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if let element = find() { return element }
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        return nil
     }
 }

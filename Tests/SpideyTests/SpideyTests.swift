@@ -464,10 +464,11 @@ final class FindMyProviderTests: XCTestCase {
         XCTAssertFalse(FindMyProvider.itemsFirst("iphone"))
     }
 
-    func testScriptEscapingAndTabs() {
-        XCTAssertEqual(FindMyProvider.escapeForAppleScript("bob's \"keys\""), "bob's \\\"keys\\\"")
-        let script = FindMyProvider.pingScript(searchTerm: "keys", itemsFirst: true)
-        XCTAssertTrue(script.contains("set firstTab to \"Items\""))
-        XCTAssertTrue(script.contains("set target to \"keys\""))
+    func testNormalization() {
+        // Find My row labels use curly apostrophes; typed queries use straight ones.
+        XCTAssertEqual(FindMyProvider.normalized("Tanush\u{2019}s Keys, Home , 9 min ago"),
+                       "tanush's keys, home , 9 min ago")
+        XCTAssertTrue(FindMyProvider.normalized("Tanush\u{2019}s iPhone")
+            .contains(FindMyProvider.normalized("tanush's iphone")))
     }
 }
