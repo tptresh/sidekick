@@ -112,6 +112,7 @@ final class SpideyViewModel: ObservableObject {
         }
 
         var commandItems: [ResultItem] = []
+        commandItems += ThemeProvider.results(for: trimmed)
         commandItems += CalculatorProvider.results(for: trimmed)
         commandItems += ConvertProvider.results(for: trimmed)
         commandItems += TimeProvider.results(for: trimmed)
