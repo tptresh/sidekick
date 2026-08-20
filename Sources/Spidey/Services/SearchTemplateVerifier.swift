@@ -57,9 +57,8 @@ final class SearchTemplateVerifier: NSObject {
     }
 
     private func verify(template: String, completion: @escaping (Bool) -> Void) {
-        let marker = Self.probeTitle.lowercased()
         renderedText(template: template, query: Self.probeTitle) { [weak self] probeText in
-            guard let self, let probeText, probeText.lowercased().contains(marker) else {
+            guard let self, let probeText else {
                 completion(false)
                 return
             }
@@ -68,9 +67,39 @@ final class SearchTemplateVerifier: NSObject {
                     completion(false)
                     return
                 }
-                completion(!controlText.lowercased().contains(marker))
+                completion(Self.searchWorks(probeText: probeText, controlText: controlText))
             }
         }
+    }
+
+    // The decision is deliberately independent of any one site's catalogue,
+    // so it holds even when the probe film isn't stocked:
+    // 1. Echo — the page displaying the nonsense query proves it reads the
+    //    query parameter ("No results for qzvxkwjqzz").
+    // 2. Title — the probe film renders for the real search but not the
+    //    nonsense one.
+    // 3. Difference — failing both, the two result pages must at least
+    //    differ substantially; identical content means the query was
+    //    ignored and the page shows the same default for any URL.
+    static func searchWorks(probeText: String, controlText: String) -> Bool {
+        let probe = probeText.lowercased()
+        let control = controlText.lowercased()
+        if control.contains(controlQuery.lowercased()) { return true }
+        let marker = probeTitle.lowercased()
+        if probe.contains(marker), !control.contains(marker) { return true }
+        return substantiallyDifferent(probe, control)
+    }
+
+    // Word-set overlap below 60% counts as reacting to the query. Shared
+    // page chrome (menus, footers) keeps ignored-parameter pages well above
+    // this, while results-versus-no-results pages fall far below it.
+    static func substantiallyDifferent(_ a: String, _ b: String) -> Bool {
+        let wordsA = Set(a.split { !$0.isLetter && !$0.isNumber })
+        let wordsB = Set(b.split { !$0.isLetter && !$0.isNumber })
+        guard !wordsA.isEmpty, !wordsB.isEmpty else { return false }
+        let overlap = Double(wordsA.intersection(wordsB).count)
+            / Double(wordsA.union(wordsB).count)
+        return overlap < 0.6
     }
 
     // Load the filled template off-screen, give scripts time to render, then
@@ -92,7 +121,10 @@ final class SearchTemplateVerifier: NSObject {
         currentWebView = webView
         webView.load(URLRequest(url: url, timeoutInterval: 20))
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.renderWait) { [weak self] in
-            webView.evaluateJavaScript("document.body ? document.body.innerText : ''") { value, _ in
+            // Include the tab title too — some sites echo the query there.
+            webView.evaluateJavaScript(
+                "document.title + '\\n' + (document.body ? document.body.innerText : '')"
+            ) { value, _ in
                 self?.currentWebView = nil
                 webView.stopLoading()
                 completion(value as? String)
