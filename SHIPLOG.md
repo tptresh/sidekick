@@ -35,3 +35,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 43c5837 Screenshots auto-land in clipboard history: last 5 kept, type ss to grab and drag them into any app
 - main is now at: 5f32df2 (build succeeded, app relaunched)
+
+## 2026-08-20 16:34 — OK — claude/process-timing-wording-f26921
+- "Site-setup wording now says up to a few minutes instead of half a minute"
+- merged commits:
+  - 9b8b8c9 Site-setup wording now says up to a few minutes instead of half a minute
+- main is now at: 90f504e (build succeeded, app relaunched)
