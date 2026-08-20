@@ -174,14 +174,18 @@ final class SettingsStore: ObservableObject {
         Self.orderedMediaEntries(
             order: mediaOrder,
             services: StreamingService.all,
-            customSites: customMediaSites
+            customSites: customMediaSites,
+            enabledServices: enabledServices
         )
     }
 
     // Ids missing from the stored order (new rows, first launch) keep their
     // canonical position at the end; stale ids from removed rows are dropped.
+    // Unticked services sink below everything enabled, keeping their relative
+    // order, and float back to their stored slot when re-ticked.
     static func orderedMediaEntries(
-        order: [String], services: [StreamingService], customSites: [CustomMediaSite]
+        order: [String], services: [StreamingService], customSites: [CustomMediaSite],
+        enabledServices: Set<String>
     ) -> [MediaEntry] {
         var byID: [String: MediaEntry] = [:]
         var canonical: [String] = []
@@ -193,7 +197,12 @@ final class SettingsStore: ObservableObject {
             byID[site.id.uuidString] = .custom(site)
             canonical.append(site.id.uuidString)
         }
-        return (order + canonical).compactMap { byID.removeValue(forKey: $0) }
+        let entries = (order + canonical).compactMap { byID.removeValue(forKey: $0) }
+        func isDisabled(_ entry: MediaEntry) -> Bool {
+            if case .service(let service) = entry { return !enabledServices.contains(service.id) }
+            return false
+        }
+        return entries.filter { !isDisabled($0) } + entries.filter(isDisabled)
     }
 
     func moveMediaEntries(fromOffsets source: IndexSet, toOffset destination: Int) {
