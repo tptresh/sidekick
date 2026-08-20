@@ -62,6 +62,18 @@ enum SiteDirectoryProvider {
         "chatgpt": "https://chatgpt.com",
         "openai": "https://openai.com",
         "microsoft": "https://www.microsoft.com",
+        "outlook": "https://outlook.live.com",
+        "hotmail": "https://outlook.live.com",
+        "office": "https://www.office.com",
+        "microsoft teams": "https://teams.microsoft.com",
+        "onedrive": "https://onedrive.live.com",
+        "yahoo": "https://www.yahoo.com",
+        "yahoo mail": "https://mail.yahoo.com",
+        "bing": "https://www.bing.com",
+        "paypal": "https://www.paypal.com",
+        "whatsapp": "https://web.whatsapp.com",
+        "telegram": "https://web.telegram.org",
+        "proton mail": "https://mail.proton.me",
         "figma": "https://www.figma.com",
         "notion": "https://www.notion.so",
         "slack": "https://slack.com",
@@ -165,7 +177,7 @@ enum SiteDirectoryProvider {
             items.append(ResultItem(
                 title: "Open \(name.capitalized)",
                 subtitle: "\(host) in \(BrowserLauncher.targetName)",
-                icon: .symbol("globe"),
+                icon: FaviconStore.shared.resultIcon(for: urlString, fallbackSymbol: "globe"),
                 score: 500 + match * 240,
                 action: { BrowserLauncher.open(url) }
             ))
@@ -175,11 +187,15 @@ enum SiteDirectoryProvider {
         // Unknown name: offer a homepage guess like grandseiko.com.
         if includeGuess, !hadStrongMatch, trimmed.count >= 3, trimmed.rangeOfCharacter(from: .letters) != nil,
            let guess = guessURL(for: trimmed) {
+            // A single word reads as a site name, so it outranks the streaming
+            // suggestions (score 200); multi-word queries read as show titles
+            // and stay below them.
+            let looksLikeSiteName = !trimmed.contains(" ")
             items.append(ResultItem(
                 title: "Open \(guess.host ?? trimmed)",
                 subtitle: "Guess the homepage in \(BrowserLauncher.targetName)",
                 icon: .symbol("globe"),
-                score: 150,
+                score: looksLikeSiteName ? 220 : 150,
                 action: { BrowserLauncher.open(guess) }
             ))
         }

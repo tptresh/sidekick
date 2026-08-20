@@ -1,45 +1,178 @@
 import AppKit
 
-// Spotlight-backed file search via mdfind, restricted to the home folder.
+// File search: Spotlight (mdfind) across every indexed volume, merged with a
+// direct index of Documents, Downloads, and Desktop. The direct index exists
+// because macOS hides those folders from Spotlight results until the user
+// grants Spidey folder access, and reading them is what triggers the one-time
+// permission prompts.
 enum FileProvider {
+    enum Mode {
+        // Mixed into the normal result list alongside apps and sites.
+        case ambient
+        // The "find" keyword: files are the only results, so dig deeper.
+        case dedicated
+    }
+
     private static var currentProcess: Process?
 
-    static func search(_ query: String, completion: @escaping ([ResultItem]) -> Void) {
+    // MARK: - Direct index of the classic user folders
+
+    static let indexedFolders = ["Documents", "Downloads", "Desktop"]
+
+    private static let indexLock = NSLock()
+    private static var indexedPaths: [String] = []
+    private static var indexBuiltAt: Date?
+    private static var indexBuilding = false
+
+    // Kick off the first index build (and the macOS folder permission prompts)
+    // without waiting for the first search.
+    static func warmUp() {
+        DispatchQueue.global(qos: .utility).async { refreshIndexIfStale() }
+    }
+
+    private static func refreshIndexIfStale() {
+        indexLock.lock()
+        let stale = indexBuiltAt.map { Date().timeIntervalSince($0) > 300 } ?? true
+        let shouldBuild = stale && !indexBuilding
+        if shouldBuild { indexBuilding = true }
+        indexLock.unlock()
+        guard shouldBuild else { return }
+
+        let fm = FileManager.default
+        var found: [String] = []
+        for folder in indexedFolders {
+            let root = URL(fileURLWithPath: NSHomeDirectory() + "/" + folder)
+            guard let enumerator = fm.enumerator(
+                at: root,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { continue }
+            for case let url as URL in enumerator {
+                let path = url.path
+                if path.hasSuffix("/node_modules") || path.hasSuffix("/Library") {
+                    enumerator.skipDescendants()
+                    continue
+                }
+                found.append(path)
+                if found.count >= 50_000 { break }
+            }
+        }
+        indexLock.lock()
+        indexedPaths = found
+        indexBuiltAt = Date()
+        indexBuilding = false
+        indexLock.unlock()
+    }
+
+    private static func indexMatches(for query: String) -> [String] {
+        let tokens = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !tokens.isEmpty else { return [] }
+        indexLock.lock()
+        let paths = indexedPaths
+        indexLock.unlock()
+        return paths.filter { path in
+            let name = (path as NSString).lastPathComponent.lowercased()
+            return tokens.allSatisfy { name.contains($0) }
+        }
+    }
+
+    // MARK: - Query building and ranking
+
+    // Builds a raw Spotlight query where every whitespace-separated word must
+    // appear in the file name, so "auracare deck" finds "auracare-deck.pdf".
+    static func spotlightQuery(for query: String) -> String? {
+        let clauses = query.split(whereSeparator: \.isWhitespace).compactMap { token -> String? in
+            let escaped = token
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+                .replacingOccurrences(of: "*", with: "")
+            guard !escaped.isEmpty else { return nil }
+            return "kMDItemFSName = \"*\(escaped)*\"cd"
+        }
+        guard !clauses.isEmpty else { return nil }
+        return clauses.joined(separator: " && ")
+    }
+
+    // Paths that are technically files but never what a person is looking for.
+    static func isNoise(_ path: String) -> Bool {
+        if path.contains("/Library/") || path.contains("/.") || path.contains("/node_modules/") {
+            return true
+        }
+        // Apps and their bundle contents are AppProvider territory.
+        if path.hasSuffix(".app") || path.contains(".app/") {
+            return true
+        }
+        let systemRoots = ["/System/", "/private/", "/usr/", "/bin/", "/sbin/", "/opt/", "/etc/", "/Applications/", "/cores/"]
+        return systemRoots.contains { path.hasPrefix($0) }
+    }
+
+    // 0...1 relevance of a path for the query, judged on the file name with a
+    // tiny penalty for deeply buried paths so shallow files win ties.
+    static func matchScore(query: String, path: String) -> Double {
+        let name = (path as NSString).lastPathComponent
+        let stem = (name as NSString).deletingPathExtension
+        let lowered = query.lowercased()
+        if stem.lowercased() == lowered || name.lowercased() == lowered {
+            return 1.0
+        }
+        let tokens = lowered.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !tokens.isEmpty else { return 0 }
+        // Sources already matched the name, but diacritic folding can hide the
+        // match from Fuzzy, so unmatched tokens still get a floor score.
+        let total = tokens.reduce(0.0) { sum, token in
+            sum + (Fuzzy.score(query: token, candidate: name) ?? 0.15)
+        }
+        return max(0, total / Double(tokens.count) - Double(path.count) * 0.0002)
+    }
+
+    // MARK: - Search
+
+    static func search(_ query: String, mode: Mode = .ambient, completion: @escaping ([ResultItem]) -> Void) {
         currentProcess?.terminate()
-        guard query.count >= 3 else {
+        guard query.count >= 2, let spotlight = spotlightQuery(for: query) else {
             completion([])
             return
         }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
-        process.arguments = ["-onlyin", NSHomeDirectory(), "-name", query]
+        process.arguments = [spotlight]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
         currentProcess = process
 
+        let limit = mode == .dedicated ? 40 : 10
+        let baseScore = mode == .dedicated ? 500.0 : 320.0
+        let spread = mode == .dedicated ? 400.0 : 140.0
+
         DispatchQueue.global(qos: .userInitiated).async {
+            var paths: [String] = []
             do {
                 try process.run()
+                // Give slow queries a hard stop.
+                DispatchQueue.global().asyncAfter(deadline: .now() + 2.5) {
+                    if process.isRunning { process.terminate() }
+                }
+                refreshIndexIfStale()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                paths = String(decoding: data, as: UTF8.self)
+                    .split(separator: "\n")
+                    .map(String.init)
             } catch {
-                DispatchQueue.main.async { completion([]) }
-                return
+                paths = []
             }
-            // Give slow queries a hard stop.
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-                if process.isRunning { process.terminate() }
-            }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            let paths = String(decoding: data, as: UTF8.self)
-                .split(separator: "\n")
-                .map(String.init)
-                .filter { !$0.contains("/Library/") }
-                .sorted { $0.count < $1.count }
-                .prefix(12)
+            paths += indexMatches(for: query)
 
-            let items: [ResultItem] = paths.map { path in
+            var seen = Set<String>()
+            let ranked = paths
+                .filter { !isNoise($0) && seen.insert($0).inserted }
+                .map { (path: $0, match: matchScore(query: query, path: $0)) }
+                .sorted { $0.match > $1.match }
+                .prefix(limit)
+
+            let items: [ResultItem] = ranked.map { path, match in
                 let url = URL(fileURLWithPath: path)
                 let icon = NSWorkspace.shared.icon(forFile: path)
                 icon.size = NSSize(width: 32, height: 32)
@@ -48,7 +181,7 @@ enum FileProvider {
                     title: url.lastPathComponent,
                     subtitle: shortPath + "  (⌘↩ reveals in Finder)",
                     icon: .appIcon(icon),
-                    score: 400 - Double(path.count) * 0.01,
+                    score: baseScore + match * spread,
                     dragFileURL: url,
                     secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
                     action: { NSWorkspace.shared.open(url) }

@@ -11,7 +11,7 @@ enum StreamingProvider {
             return ResultItem(
                 title: "Watch \"\(trimmed)\" on \(service.name)",
                 subtitle: "Opens the \(service.name) search in \(BrowserLauncher.targetName)",
-                icon: .symbol("play.tv.fill"),
+                icon: FaviconStore.shared.resultIcon(for: url.absoluteString, fallbackSymbol: "play.tv.fill"),
                 score: 200 - Double(index),
                 action: { BrowserLauncher.open(url) }
             )

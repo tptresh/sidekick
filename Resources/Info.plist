@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Spidey</string>
+	<string>Sidekick</string>
 	<key>CFBundleDisplayName</key>
-	<string>Spidey</string>
+	<string>Sidekick</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.opensource.spidey</string>
 	<key>CFBundleExecutable</key>
-	<string>Spidey</string>
+	<string>Sidekick</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,7 +25,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Spidey uses Apple Events to run system commands and to open Claude Code sessions in Terminal.</string>
+	<string>Sidekick uses Apple Events to run system commands and to open Claude Code sessions in Terminal.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 </dict>

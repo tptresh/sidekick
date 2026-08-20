@@ -7,18 +7,20 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 ## Features
 
 - **App launcher**: fuzzy search across /Applications, /System/Applications, and ~/Applications
-- **File search**: Spotlight-backed search of your home folder; Return opens, Cmd+Return reveals in Finder, and results can be dragged out of the panel
+- **File search**: just type a file name and matching files appear alongside other results; Spotlight search of every indexed file merged with Spidey's own index of Documents, Downloads, and Desktop, ranked so exact and close name matches come first; multi-word queries work (`pitch deck` finds `Pitch Deck Final.pptx`); `find <name>` runs a files-only deep search with more results; Return opens, Cmd+Return reveals in Finder, and results can be dragged out of the panel
 - **Calculator**: type `2+2*5` and Return copies the result
 - **Dictionary**: `define word` and `spell word`
 - **System commands**: sleep, lock, restart, shut down, log out, empty trash, screen saver, eject (destructive ones ask for a confirming second Return)
+- **Focus modes**: type `dnd`, `focus`, or a mode name to switch Focus (Do Not Disturb, Work, Sleep, ...) or turn it off. macOS only exposes Focus switching through Apple Shortcuts, so Spidey runs any shortcut you name `Focus: <Mode>`; each one holds a single "Set Focus" action. Create `Focus: Do Not Disturb`, `Focus: Work`, `Focus: Off`, and so on, and they appear as commands automatically (typing `focus` with none set up walks you through it)
 - **Web search keywords**: `google`, `amazon`, `wiki`, `imdb`, `gh`, `maps`. `amazon death note manga` opens the Amazon results directly
 - **YouTube and media**: `youtube lofi beats` opens the YouTube search in Brave; bare `youtube`, `netflix`, or `crunchyroll` open the homepage in Brave
 - **Show search**: type any show name and Spidey offers to open it on Netflix, Crunchyroll, Prime Video, or Disney+ (toggle each in Preferences)
 - **Website directory**: type a mainstream site or brand name (`vinted`, `rimowa`, `grand seiko`, ...) and its homepage opens in Brave; unknown names get a homepage guess
-- **Claude Code**: `claude fix the spelling issue on my web page` opens Terminal in your chosen folder and starts a Claude Code session with that prompt
+- **Claude Code**: `claude fix the spelling issue on my web page` starts a Claude Code session with that prompt in your chosen folder, in the Claude desktop app when installed, otherwise in Terminal
 - **Clipboard history**: everything you copy (text, files, images) is kept; type `clip` to browse and search it, Return copies an item back
 - **Drag and drop**: drop files onto the panel to open them, reveal them, copy them, or copy their paths; dropped files are also recorded into clipboard history
-- **Hero themes**: Spider-Man (navy and red), Batman (black and yellow), Iron Man (red and gold), switchable in Preferences along with the menu bar icon
+- **Site logos**: web rows show the real favicon of the site (Netflix, Crunchyroll, Disney+, ...), fetched once and cached locally
+- **Hero themes**: Spider-Man (black and deep red) and Batman (black and silver grey), switchable in Preferences along with the menu bar emblem
 
 Everything that opens a website prefers [Brave](https://brave.com/); if Brave is not installed, your default browser is used.
 
@@ -49,7 +51,7 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 
 Click the mask icon in the menu bar > Preferences:
 
-- Hero theme (Spider-Man, Batman, Iron Man)
+- Hero theme (Spider-Man, Batman)
 - The hotkey that opens Spidey
 - Which streaming services appear for show searches
 - The folder Claude Code sessions start in
@@ -71,7 +73,9 @@ User entries override the built-in list. To extend the built-in list for everyon
 
 ## Permissions
 
-- **Automation**: the first system command or Claude Code launch asks for permission to control System Events, Finder, or Terminal. This is standard macOS behavior for launchers.
+- **Automation**: the first system command asks for permission to control System Events or Finder. This is standard macOS behavior for launchers.
+- **Files**: on first launch macOS asks for access to Documents, Downloads, and Desktop. Click Allow on each, or file search cannot see those folders (macOS also hides them from Spidey's Spotlight queries until then). Optionally grant Spidey Full Disk Access in System Settings > Privacy & Security for the widest Spotlight coverage.
+- **Shortcuts**: Focus switching runs your `Focus: <Mode>` shortcuts through the `shortcuts` command line tool. No extra permission is needed; the shortcuts themselves are ordinary ones you create in the Shortcuts app.
 - Spidey needs no accessibility permission for its hotkey.
 
 ## Development

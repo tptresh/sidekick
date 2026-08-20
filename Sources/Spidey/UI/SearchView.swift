@@ -60,9 +60,7 @@ struct SearchView: View {
                 SearchField(
                     text: $viewModel.query,
                     placeholder: placeholder,
-                    font: palette.monospacedAccents
-                        ? NSFont.monospacedSystemFont(ofSize: 24, weight: .regular)
-                        : NSFont.systemFont(ofSize: 24, weight: .light),
+                    font: NSFont.systemFont(ofSize: 24, weight: .light),
                     onMove: { viewModel.moveSelection(by: $0) },
                     onEnter: { viewModel.runSelected(commandModifier: $0) },
                     onEscape: { viewModel.escapePressed() }
@@ -82,7 +80,7 @@ struct SearchView: View {
     }
 
     private var placeholder: String {
-        viewModel.droppedFiles.isEmpty ? "Spidey Search" : "Choose an action for the dropped files"
+        viewModel.droppedFiles.isEmpty ? "Sidekick Search and explore the bat" : "Choose an action for the dropped files"
     }
 
     private func resultsList(palette: ThemePalette) -> some View {

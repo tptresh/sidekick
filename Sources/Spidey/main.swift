@@ -30,6 +30,20 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--icons"),
     }
     exit(0)
 }
+// Dev helper: `Spidey --filesearch "query" <outfile>` writes file search results and exits.
+// Run via `open -n` so the results reflect the app's own folder permissions.
+if let flagIndex = CommandLine.arguments.firstIndex(of: "--filesearch"),
+   CommandLine.arguments.count > flagIndex + 2 {
+    let query = CommandLine.arguments[flagIndex + 1]
+    let outfile = CommandLine.arguments[flagIndex + 2]
+    FileProvider.search(query, mode: .dedicated) { items in
+        let lines = items.map(\.subtitle).joined(separator: "\n")
+        try? (lines + "\n[\(items.count) results]\n").write(toFile: outfile, atomically: true, encoding: .utf8)
+        exit(0)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 15) { exit(1) }
+    RunLoop.main.run()
+}
 // Dev helper: `Spidey --snapshot <dir>` renders the panel for sample queries to PNGs and exits.
 if let flagIndex = CommandLine.arguments.firstIndex(of: "--snapshot"),
    CommandLine.arguments.count > flagIndex + 1 {

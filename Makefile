@@ -1,4 +1,5 @@
-APP_NAME = Spidey
+APP_NAME = Sidekick
+BIN_NAME = Spidey
 BUILD_DIR = .build/release
 APP_DIR = build/$(APP_NAME).app
 
@@ -13,7 +14,7 @@ test:
 app: build
 	rm -rf $(APP_DIR)
 	mkdir -p $(APP_DIR)/Contents/MacOS $(APP_DIR)/Contents/Resources
-	cp $(BUILD_DIR)/$(APP_NAME) $(APP_DIR)/Contents/MacOS/
+	cp $(BUILD_DIR)/$(BIN_NAME) $(APP_DIR)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(APP_DIR)/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(APP_DIR)/Contents/Resources/; fi
 	codesign --force --sign - $(APP_DIR)

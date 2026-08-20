@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClipboardStore.shared.start()
         registerHotKey()
         _ = AppProvider.shared
+        FileProvider.warmUp()
 
         viewModel.onHide = { [weak self] in self?.hidePanel() }
 
@@ -68,8 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ("claude fix the spelling issue on my web page", .spiderman, "claude.png"),
             ("clip", .spiderman, "clipboard.png"),
             ("vinted", .spiderman, "sites.png"),
+            ("netflix", .spiderman, "netflix.png"),
             ("grand seiko", .batman, "batman.png"),
-            ("restart", .ironman, "ironman.png"),
         ]
         showPanel()
         var delay = 0.5
@@ -105,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusIcon(settings.theme)
 
         let menu = NSMenu()
-        let openItem = NSMenuItem(title: "Open Spidey", action: #selector(togglePanelFromMenu), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open Sidekick", action: #selector(togglePanelFromMenu), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
         menu.addItem(.separator())
@@ -113,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesItem.target = self
         menu.addItem(preferencesItem)
         menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit Spidey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Sidekick", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
         statusItem.menu = menu
     }
@@ -212,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Spidey Preferences"
+            window.title = "Sidekick Preferences"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(settings: settings))
             window.center()
@@ -230,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.set(true, forKey: key)
         guard settings.activeHotKey != settings.hotKey else { return }
         let alert = NSAlert()
-        alert.messageText = "Spidey is using ⌥Space for now"
+        alert.messageText = "Sidekick is using ⌥Space for now"
         alert.informativeText = """
         Spotlight still owns ⌘Space, so Spidey registered ⌥Space instead.
 

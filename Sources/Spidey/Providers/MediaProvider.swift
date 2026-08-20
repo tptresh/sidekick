@@ -25,7 +25,7 @@ enum MediaProvider {
                 items.append(ResultItem(
                     title: "Search YouTube for \"\(term)\"",
                     subtitle: "Opens in \(BrowserLauncher.targetName)",
-                    icon: .symbol("play.rectangle.fill"),
+                    icon: FaviconStore.shared.resultIcon(for: "https://www.youtube.com", fallbackSymbol: "play.rectangle.fill"),
                     score: 960,
                     action: { BrowserLauncher.open(url) }
                 ))
@@ -39,7 +39,7 @@ enum MediaProvider {
             items.append(ResultItem(
                 title: "Open \(site.title)",
                 subtitle: "Opens \(site.url) in \(BrowserLauncher.targetName)",
-                icon: .symbol(site.symbol),
+                icon: FaviconStore.shared.resultIcon(for: site.url, fallbackSymbol: site.symbol),
                 score: 870 + match * 20,
                 action: { BrowserLauncher.open(url) }
             ))

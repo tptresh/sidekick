@@ -46,7 +46,7 @@ enum WebSearchProvider {
         return [ResultItem(
             title: "Search \(keyword.name) for \"\(term)\"",
             subtitle: "Opens in \(BrowserLauncher.targetName)",
-            icon: .symbol(keyword.symbol),
+            icon: FaviconStore.shared.resultIcon(for: url.absoluteString, fallbackSymbol: keyword.symbol),
             score: 950,
             action: { BrowserLauncher.open(url) }
         )]
@@ -60,7 +60,7 @@ enum WebSearchProvider {
         return ResultItem(
             title: "Search Google for \"\(trimmed)\"",
             subtitle: "Opens in \(BrowserLauncher.targetName)",
-            icon: .symbol("magnifyingglass"),
+            icon: FaviconStore.shared.resultIcon(for: "https://www.google.com", fallbackSymbol: "magnifyingglass"),
             score: 100,
             action: { BrowserLauncher.open(url) }
         )

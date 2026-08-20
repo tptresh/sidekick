@@ -22,10 +22,10 @@ func drawIcon(size: CGFloat) -> NSImage {
     NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
         let scale = size / 1024.0
 
-        // Rounded square background, deep navy.
+        // Rounded square background, near-black with a warm cast.
         let bgRect = rect.insetBy(dx: 90 * scale, dy: 90 * scale)
         let bg = NSBezierPath(roundedRect: bgRect, xRadius: 190 * scale, yRadius: 190 * scale)
-        NSColor(red: 0.035, green: 0.055, blue: 0.110, alpha: 1).setFill()
+        NSColor(red: 0.047, green: 0.039, blue: 0.043, alpha: 1).setFill()
         bg.fill()
 
         // Mask disk in muted crimson with a black outline.

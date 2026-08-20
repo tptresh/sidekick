@@ -41,7 +41,7 @@ struct SettingsView: View {
 
     private var hotkeySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Open Spidey With").font(.headline)
+            Text("Open Sidekick With").font(.headline)
             HStack(spacing: 12) {
                 HotKeyRecorder(combo: $settings.hotKey)
                     .frame(width: 160, height: 28)
@@ -86,7 +86,7 @@ struct SettingsView: View {
     private var claudeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Claude Code").font(.headline)
-            Text("Typing \"claude <task>\" opens a Terminal window in this folder and starts a Claude Code session.")
+            Text("Typing \"claude <task>\" starts a Claude Code session in the Claude Code app, using this folder.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             HStack {

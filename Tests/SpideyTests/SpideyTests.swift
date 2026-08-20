@@ -54,22 +54,117 @@ final class FuzzyTests: XCTestCase {
     }
 }
 
-final class ClaudeProviderTests: XCTestCase {
-    func testShellEscaping() {
-        XCTAssertEqual(ClaudeProvider.shellEscape("simple"), "'simple'")
-        XCTAssertEqual(ClaudeProvider.shellEscape("it's here"), "'it'\\''s here'")
+final class AppProviderTests: XCTestCase {
+    func testAppleAliasForFirstPartyApps() {
+        XCTAssertEqual(
+            AppProvider.aliases(name: "TV", displayName: "TV", bundleIdentifier: "com.apple.TV"),
+            ["Apple TV"]
+        )
+        XCTAssertEqual(
+            AppProvider.aliases(name: "Music", displayName: nil, bundleIdentifier: "com.apple.Music"),
+            ["Apple Music"]
+        )
     }
 
-    func testShellCommand() {
-        let command = ClaudeProvider.shellCommand(
+    func testNoAppleAliasForThirdPartyOrAlreadyApple() {
+        XCTAssertEqual(
+            AppProvider.aliases(name: "Slack", displayName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap"),
+            []
+        )
+        XCTAssertEqual(
+            AppProvider.aliases(name: "AppleScript Editor", displayName: nil, bundleIdentifier: "com.apple.ScriptEditor2"),
+            []
+        )
+    }
+
+    func testDisplayNameBecomesAlias() {
+        XCTAssertEqual(
+            AppProvider.aliases(name: "zoom.us", displayName: "Zoom", bundleIdentifier: "us.zoom.xos"),
+            ["Zoom"]
+        )
+    }
+
+    func testAppleTVQueryMatchesTVApp() {
+        let score = AppProvider.matchScore(query: "apple tv", name: "TV", aliases: ["Apple TV"])
+        XCTAssertNotNil(score)
+        XCTAssertGreaterThan(score!, 0.9)
+        XCTAssertNil(AppProvider.matchScore(query: "apple tv", name: "TV", aliases: []))
+    }
+
+    func testRealNameStillWinsExactTies() {
+        let direct = AppProvider.matchScore(query: "tv", name: "TV", aliases: ["Apple TV"])!
+        let viaAlias = AppProvider.matchScore(query: "apple tv", name: "TV", aliases: ["Apple TV"])!
+        XCTAssertGreaterThan(direct, viaAlias)
+    }
+}
+
+final class FileProviderTests: XCTestCase {
+    func testSpotlightQuerySingleWord() {
+        XCTAssertEqual(FileProvider.spotlightQuery(for: "invoice"), "kMDItemFSName = \"*invoice*\"cd")
+    }
+
+    func testSpotlightQueryMultiWord() {
+        XCTAssertEqual(
+            FileProvider.spotlightQuery(for: "auracare deck"),
+            "kMDItemFSName = \"*auracare*\"cd && kMDItemFSName = \"*deck*\"cd"
+        )
+    }
+
+    func testSpotlightQueryEscapesQuotesAndStripsWildcards() {
+        XCTAssertEqual(FileProvider.spotlightQuery(for: "a\"b"), "kMDItemFSName = \"*a\\\"b*\"cd")
+        XCTAssertEqual(FileProvider.spotlightQuery(for: "inv*"), "kMDItemFSName = \"*inv*\"cd")
+        XCTAssertNil(FileProvider.spotlightQuery(for: "*"))
+        XCTAssertNil(FileProvider.spotlightQuery(for: "   "))
+    }
+
+    func testNoiseFilter() {
+        XCTAssertTrue(FileProvider.isNoise("/Users/me/Library/Caches/thing.db"))
+        XCTAssertTrue(FileProvider.isNoise("/System/Volumes/Data/foo"))
+        XCTAssertTrue(FileProvider.isNoise("/Applications/Safari.app"))
+        XCTAssertTrue(FileProvider.isNoise("/Users/me/proj/node_modules/pkg/index.js"))
+        XCTAssertTrue(FileProvider.isNoise("/Users/me/.config/settings.json"))
+        XCTAssertFalse(FileProvider.isNoise("/Users/me/Documents/invoice.pdf"))
+        XCTAssertFalse(FileProvider.isNoise("/Volumes/Backup/photos/trip.jpg"))
+    }
+
+    func testExactNameBeatsPartial() {
+        let exact = FileProvider.matchScore(query: "invoice", path: "/Users/me/Documents/invoice.pdf")
+        let partial = FileProvider.matchScore(query: "invoice", path: "/Users/me/Documents/old-invoices-2019.pdf")
+        XCTAssertEqual(exact, 1.0)
+        XCTAssertGreaterThan(exact, partial)
+    }
+
+    func testMultiWordScoring() {
+        let both = FileProvider.matchScore(query: "auracare deck", path: "/Users/me/Documents/auracare-deck.pdf")
+        let one = FileProvider.matchScore(query: "auracare deck", path: "/Users/me/deck/auracare-notes.txt")
+        XCTAssertGreaterThan(both, one)
+    }
+
+    func testShallowPathWinsTies() {
+        let shallow = FileProvider.matchScore(query: "notes", path: "/Users/me/notes.md")
+        let deep = FileProvider.matchScore(query: "notes", path: "/Users/me/archive/2019/projects/misc/notes copy 3.md")
+        XCTAssertGreaterThan(shallow, deep)
+    }
+}
+
+final class ClaudeProviderTests: XCTestCase {
+    func testDeepLinkURL() {
+        let url = ClaudeProvider.deepLinkURL(
             prompt: "fix the spelling issue", directory: "/Users/me/project"
         )
-        XCTAssertEqual(command, "cd '/Users/me/project' && claude 'fix the spelling issue'")
+        XCTAssertEqual(
+            url?.absoluteString,
+            "claude://code/new?q=fix%20the%20spelling%20issue&folder=/Users/me/project"
+        )
     }
 
-    func testAppleScriptEscaping() {
-        XCTAssertEqual(ClaudeProvider.appleScriptEscape("say \"hi\""), "say \\\"hi\\\"")
-        XCTAssertEqual(ClaudeProvider.appleScriptEscape("back\\slash"), "back\\\\slash")
+    func testDeepLinkURLEscapesSpecialCharacters() throws {
+        let url = try XCTUnwrap(ClaudeProvider.deepLinkURL(
+            prompt: "what does a & b = c mean?", directory: "/Users/me/my project"
+        ))
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        XCTAssertEqual(components?.queryItems?.first { $0.name == "q" }?.value, "what does a & b = c mean?")
+        XCTAssertEqual(components?.queryItems?.first { $0.name == "folder" }?.value, "/Users/me/my project")
     }
 }
 
@@ -93,6 +188,23 @@ final class URLBuildingTests: XCTestCase {
         XCTAssertNotNil(SiteDirectoryProvider.builtIn["vinted"])
         XCTAssertNotNil(SiteDirectoryProvider.builtIn["rimowa"])
         XCTAssertNotNil(SiteDirectoryProvider.builtIn["grand seiko"])
+        XCTAssertNotNil(SiteDirectoryProvider.builtIn["outlook"])
+    }
+
+    func testMainSiteRanksAboveStreamingSuggestions() {
+        // A known site name must sort above the "Watch on ..." rows (score 200).
+        let outlook = SiteDirectoryProvider.results(for: "outlook")
+        XCTAssertEqual(outlook.first?.title, "Open Outlook")
+        XCTAssertGreaterThan(outlook.first?.score ?? 0, 200)
+
+        // A single-word unknown name reads as a site, so its homepage guess
+        // also outranks streaming; multi-word queries read as show titles.
+        let single = SiteDirectoryProvider.results(for: "kagi")
+        XCTAssertGreaterThan(single.first?.score ?? 0, 200)
+        let multi = SiteDirectoryProvider.results(for: "the last of us")
+        if let guess = multi.first(where: { $0.title.hasPrefix("Open www.") }) {
+            XCTAssertLessThan(guess.score, 200)
+        }
     }
 
     func testNoEmDashInBuiltInSites() {
@@ -100,5 +212,38 @@ final class URLBuildingTests: XCTestCase {
             XCTAssertFalse(name.contains("\u{2014}"))
             XCTAssertFalse(url.contains("\u{2014}"))
         }
+    }
+}
+
+final class FocusProviderTests: XCTestCase {
+    func testModeNameParsing() {
+        XCTAssertEqual(FocusProvider.modeName(fromShortcut: "Focus: Do Not Disturb"), "Do Not Disturb")
+        XCTAssertEqual(FocusProvider.modeName(fromShortcut: "focus: work"), "work")
+        XCTAssertEqual(FocusProvider.modeName(fromShortcut: "  Focus: Off  "), "Off")
+        XCTAssertNil(FocusProvider.modeName(fromShortcut: "Focus:"))
+        XCTAssertNil(FocusProvider.modeName(fromShortcut: "Weather"))
+        XCTAssertNil(FocusProvider.modeName(fromShortcut: "My Focus: Work"))
+    }
+
+    func testDNDAliasMatches() {
+        let candidates = FocusProvider.candidates(for: "Do Not Disturb")
+        let best = candidates.compactMap { Fuzzy.score(query: "dnd", candidate: $0) }.max()
+        XCTAssertNotNil(best)
+        XCTAssertGreaterThanOrEqual(best ?? 0, 0.65)
+    }
+
+    func testGenericFocusQueryMatchesEveryMode() {
+        for mode in ["Work", "Sleep", "Off"] {
+            let best = FocusProvider.candidates(for: mode)
+                .compactMap { Fuzzy.score(query: "focus", candidate: $0) }.max()
+            XCTAssertGreaterThanOrEqual(best ?? 0, 0.65, "mode \(mode) should match a bare focus query")
+        }
+    }
+
+    func testSymbolMapping() {
+        XCTAssertEqual(FocusProvider.symbol(for: "Do Not Disturb"), "moon.fill")
+        XCTAssertEqual(FocusProvider.symbol(for: "Off"), "slash.circle.fill")
+        XCTAssertEqual(FocusProvider.symbol(for: "Deep Work"), "briefcase.fill")
+        XCTAssertEqual(FocusProvider.symbol(for: "Custom Thing"), "moon.fill")
     }
 }

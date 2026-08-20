@@ -7,7 +7,7 @@ enum StatusIcons {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setFill()
-            path(for: theme).fill()
+            draw(theme, color: .black)
             return true
         }
         image.isTemplate = true
@@ -21,28 +21,69 @@ enum StatusIcons {
             let transform = NSAffineTransform()
             transform.scale(by: size / 18.0)
             transform.concat()
-            path(for: theme).fill()
+            draw(theme, color: color)
             return true
         }
     }
 
-    // All shapes live in an 18x18 unit space, y pointing up.
-    static func path(for theme: HeroTheme) -> NSBezierPath {
+    // All shapes live in an 18x18 unit space, y pointing up. The fill color
+    // must already be set before calling.
+    private static func draw(_ theme: HeroTheme, color: NSColor) {
         switch theme {
-        case .spiderman: return spideyMaskPath()
-        case .batman: return batSymbolPath()
-        case .ironman: return ironHelmetPath()
+        case .spiderman:
+            drawSpideyMask(color: color)
+        case .batman:
+            batSymbolPath().fill()
         }
     }
 
-    // Round mask silhouette with the classic large sweeping eyes cut out.
-    static func spideyMaskPath() -> NSBezierPath {
-        let path = NSBezierPath()
-        path.windingRule = .evenOdd
-        path.append(NSBezierPath(ovalIn: NSRect(x: 1, y: 1, width: 16, height: 16)))
-        path.append(spideyEyePath(mirrored: false))
-        path.append(spideyEyePath(mirrored: true))
-        return path
+    // Line-art mask like the classic emblem: stroked rim, thin web, solid eyes.
+    private static func drawSpideyMask(color: NSColor) {
+        color.setStroke()
+
+        let rim = NSBezierPath(ovalIn: NSRect(x: 1, y: 1, width: 16, height: 16))
+        rim.lineWidth = 1.0
+        rim.stroke()
+
+        // Web: spokes and rings from between the eye tips, clipped to the disk.
+        NSGraphicsContext.current?.saveGraphicsState()
+        NSBezierPath(ovalIn: NSRect(x: 1.4, y: 1.4, width: 15.2, height: 15.2)).setClip()
+        let center = NSPoint(x: 9.0, y: 10.2)
+        for index in 0..<12 {
+            let angle = CGFloat(index) * .pi / 6
+            let spoke = NSBezierPath()
+            spoke.move(to: center)
+            spoke.line(to: NSPoint(
+                x: center.x + cos(angle) * 10.5,
+                y: center.y + sin(angle) * 10.5
+            ))
+            spoke.lineWidth = 0.35
+            spoke.stroke()
+        }
+        for radius: CGFloat in [2.2, 4.4, 6.6] {
+            let ring = NSBezierPath(ovalIn: NSRect(
+                x: center.x - radius, y: center.y - radius,
+                width: radius * 2, height: radius * 2
+            ))
+            ring.lineWidth = 0.35
+            ring.stroke()
+        }
+        NSGraphicsContext.current?.restoreGraphicsState()
+
+        // Eyes: clear the web behind them, then stroke a bold outline, so they
+        // read as clean white cutouts like the classic emblem.
+        if let context = NSGraphicsContext.current?.cgContext {
+            context.saveGState()
+            context.setBlendMode(.destinationOut)
+            spideyEyePath(mirrored: false).fill()
+            spideyEyePath(mirrored: true).fill()
+            context.restoreGState()
+        }
+        for mirrored in [false, true] {
+            let outline = spideyEyePath(mirrored: mirrored)
+            outline.lineWidth = 1.1
+            outline.stroke()
+        }
     }
 
     // One eye: pointed at the top outer corner, rounded at the bottom inner corner.
@@ -85,37 +126,6 @@ enum StatusIcons {
         path.curve(to: point(5.8, 9.4), controlPoint1: point(7.5, 9.6), controlPoint2: point(6.5, 10.2))
         path.curve(to: point(0.6, 13.6), controlPoint1: point(4.4, 9.8), controlPoint2: point(2.2, 11.0))
         path.close()
-        return path
-    }
-
-    // Helmet silhouette: rounded dome, tapered jaw, one horizontal visor slit cut out.
-    static func ironHelmetPath() -> NSBezierPath {
-        func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x, y: y) }
-        let path = NSBezierPath()
-        path.windingRule = .evenOdd
-
-        let helmet = NSBezierPath()
-        // Chin.
-        helmet.move(to: point(6.6, 2.8))
-        helmet.line(to: point(11.4, 2.8))
-        // Angular right jaw and cheek, then the side.
-        helmet.line(to: point(13.8, 5.0))
-        helmet.line(to: point(15.2, 8.2))
-        helmet.line(to: point(15.2, 12.4))
-        // Flat-ish dome.
-        helmet.curve(to: point(9.0, 15.8), controlPoint1: point(15.2, 14.6), controlPoint2: point(12.2, 15.8))
-        helmet.curve(to: point(2.8, 12.4), controlPoint1: point(5.8, 15.8), controlPoint2: point(2.8, 14.6))
-        helmet.line(to: point(2.8, 8.2))
-        // Angular left cheek and jaw back down to the chin.
-        helmet.line(to: point(4.2, 5.0))
-        helmet.close()
-        path.append(helmet)
-
-        // Visor slit.
-        path.append(NSBezierPath(
-            roundedRect: NSRect(x: 4.2, y: 9.4, width: 9.6, height: 1.7),
-            xRadius: 0.85, yRadius: 0.85
-        ))
         return path
     }
 }

@@ -106,7 +106,13 @@ final class SettingsStore: ObservableObject {
         } else {
             enabledServices = Set(StreamingService.all.map(\.id))
         }
-        claudeDirectory = defaults.string(forKey: "claudeDirectory") ?? NSHomeDirectory()
+        // The Claude app refuses to remember trust for the home directory, so a
+        // home-dir default makes every deep-link launch re-show the trust prompt.
+        var claudeDir = defaults.string(forKey: "claudeDirectory") ?? Self.defaultClaudeDirectory
+        if claudeDir == NSHomeDirectory() || claudeDir == "/" {
+            claudeDir = Self.defaultClaudeDirectory
+        }
+        claudeDirectory = claudeDir
         let limit = defaults.integer(forKey: "clipboardLimit")
         clipboardLimit = limit > 0 ? limit : 200
         if let data = defaults.data(forKey: "hotKey"),
@@ -115,6 +121,12 @@ final class SettingsStore: ObservableObject {
         } else {
             hotKey = .commandSpace
         }
+    }
+
+    static var defaultClaudeDirectory: String {
+        let dir = NSHomeDirectory() + "/Claude"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     var activeStreamingServices: [StreamingService] {

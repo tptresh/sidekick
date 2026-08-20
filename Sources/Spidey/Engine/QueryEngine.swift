@@ -15,8 +15,27 @@ final class SpideyViewModel: ObservableObject {
     private var syncResults: [ResultItem] = []
     private var fileResults: [ResultItem] = []
     private var fileSearchDebounce: DispatchWorkItem?
+    // Drops completions from file searches that are no longer current.
+    private var fileSearchGeneration = 0
     // Destructive system command waiting for a confirming second Return.
     private var armedCommand: String?
+
+    init() {
+        // Re-run providers when a site logo finishes downloading so rows upgrade
+        // from the fallback symbol to the real favicon.
+        NotificationCenter.default.addObserver(
+            forName: .spideyFaviconLoaded, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refresh()
+        }
+        // Same idea for Focus: the list of "Focus: ..." shortcuts loads in the
+        // background, so re-run the query when it arrives or changes.
+        NotificationCenter.default.addObserver(
+            forName: .spideyFocusShortcutsChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refresh()
+        }
+    }
 
     func reset() {
         query = ""
@@ -54,12 +73,35 @@ final class SpideyViewModel: ObservableObject {
             return
         }
 
+        if lowered == "find" || lowered.hasPrefix("find ") {
+            let term = lowered.hasPrefix("find ")
+                ? String(trimmed.dropFirst("find ".count)).trimmingCharacters(in: .whitespaces)
+                : ""
+            if term.count < 2 {
+                syncResults = [ResultItem(
+                    title: "Find files",
+                    subtitle: "Keep typing to search every indexed file, e.g. find tax return",
+                    icon: .symbol("doc.text.magnifyingglass"),
+                    score: 500,
+                    action: {}
+                )]
+                publish()
+                scheduleFileSearch(for: nil)
+            } else {
+                syncResults = []
+                publish()
+                scheduleFileSearch(for: term, mode: .dedicated)
+            }
+            return
+        }
+
         var commandItems: [ResultItem] = []
         commandItems += CalculatorProvider.results(for: trimmed)
         commandItems += ClaudeProvider.results(for: trimmed)
         commandItems += DictionaryProvider.results(for: trimmed)
         commandItems += WebSearchProvider.results(for: trimmed)
         commandItems += MediaProvider.results(for: trimmed)
+        commandItems += FocusProvider.results(for: trimmed)
         commandItems += SystemProvider.results(for: trimmed, armedCommand: armedCommand) { [weak self] title in
             self?.armedCommand = title
             self?.refresh()
@@ -81,22 +123,36 @@ final class SpideyViewModel: ObservableObject {
         scheduleFileSearch(for: trimmed)
     }
 
-    private func scheduleFileSearch(for query: String?) {
+    private func scheduleFileSearch(for query: String?, mode: FileProvider.Mode = .ambient) {
         fileSearchDebounce?.cancel()
-        guard let query, query.count >= 3, !Calculator.looksLikeExpression(query) else {
+        fileSearchGeneration += 1
+        let generation = fileSearchGeneration
+        let minLength = mode == .dedicated ? 2 : 3
+        guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
             fileResults = []
             publish()
             return
         }
         let work = DispatchWorkItem { [weak self] in
-            FileProvider.search(query) { items in
-                guard let self, self.query.trimmingCharacters(in: .whitespaces) == query else { return }
-                self.fileResults = items
+            FileProvider.search(query, mode: mode) { items in
+                guard let self, self.fileSearchGeneration == generation else { return }
+                if mode == .dedicated, items.isEmpty {
+                    self.fileResults = [ResultItem(
+                        title: "No files found",
+                        subtitle: "Nothing in the Spotlight index matches \"\(query)\"",
+                        icon: .symbol("questionmark.folder"),
+                        score: 100,
+                        action: {}
+                    )]
+                } else {
+                    self.fileResults = items
+                }
                 self.publish()
             }
         }
         fileSearchDebounce = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+        // The dedicated mode is an explicit request, so answer it faster.
+        DispatchQueue.main.asyncAfter(deadline: .now() + (mode == .dedicated ? 0.15 : 0.25), execute: work)
     }
 
     private func publish() {
