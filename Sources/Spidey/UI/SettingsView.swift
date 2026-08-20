@@ -190,8 +190,17 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .textSelection(.enabled)
+                } else if let host = binding.wrappedValue.host,
+                          linkChecker.discoveringHosts.contains(host) {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Setting up this site's search — checking that searches really work there. Takes about half a minute.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 } else {
-                    Text("Sidekick finds the site's own search page automatically when it can; add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself. Until then, searches go via Google.")
+                    Text("Sidekick finds and verifies the site's own search page automatically when it can; add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself. Until then, searches go via Google.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

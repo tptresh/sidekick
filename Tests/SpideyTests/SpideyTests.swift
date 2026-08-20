@@ -391,6 +391,40 @@ final class SearchTemplateFinderTests: XCTestCase {
         ))
     }
 
+    func testCandidatesRankSearchActionFirstThenGuesses() {
+        let html = #"{"urlTemplate":"https://example.com/search?query={search_term_string}"} plus a /search link"#
+        let candidates = SearchTemplateFinder.candidateTemplates(
+            fromHTML: html, sitemap: nil, homepage: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(candidates.first, "https://example.com/search?query={query}")
+        XCTAssertTrue(candidates.contains("https://example.com/search?q={query}"))
+        XCTAssertLessThanOrEqual(candidates.count, 5)
+        // Deduped: the SearchAction template must not repeat among the guesses.
+        XCTAssertEqual(candidates, Array(Set(candidates)).sorted { a, b in
+            candidates.firstIndex(of: a)! < candidates.firstIndex(of: b)!
+        })
+    }
+
+    func testCandidatesWithoutAnyHintsStillOfferGenericGuesses() {
+        let candidates = SearchTemplateFinder.candidateTemplates(
+            fromHTML: "<p>nothing here</p>", sitemap: nil,
+            homepage: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(candidates, [
+            "https://example.com/?s={query}",
+            "https://example.com/search?q={query}",
+        ])
+    }
+
+    func testSitemapMentionAddsSearchRouteGuesses() {
+        let candidates = SearchTemplateFinder.candidateTemplates(
+            fromHTML: nil, sitemap: "<loc>https://example.com/search</loc>",
+            homepage: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(candidates.first, "https://example.com/search?q={query}")
+        XCTAssertTrue(candidates.contains("https://example.com/search?query={query}"))
+    }
+
     func testDiscoveredTemplateIsUsedForSearches() {
         let site = CustomMediaSite(
             name: "FD", urlString: "https://flickystream.dad",
