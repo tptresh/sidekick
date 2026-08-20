@@ -72,6 +72,20 @@ struct StreamingService: Identifiable {
     ]
 }
 
+// One row in the unified media list: a built-in streaming service or a
+// user-added custom site, shown and searched in the user's chosen order.
+enum MediaEntry: Identifiable {
+    case service(StreamingService)
+    case custom(CustomMediaSite)
+
+    var id: String {
+        switch self {
+        case .service(let service): return service.id
+        case .custom(let site): return site.id.uuidString
+        }
+    }
+}
+
 final class SettingsStore: ObservableObject {
     static let shared = SettingsStore()
 
@@ -89,6 +103,10 @@ final class SettingsStore: ObservableObject {
                 defaults.set(data, forKey: "customMediaSites")
             }
         }
+    }
+    // Ids (service ids and custom-site UUIDs) in the user's display order.
+    @Published var mediaOrder: [String] {
+        didSet { defaults.set(mediaOrder, forKey: "mediaOrder") }
     }
     @Published var claudeDirectory: String {
         didSet { defaults.set(claudeDirectory, forKey: "claudeDirectory") }
@@ -119,6 +137,7 @@ final class SettingsStore: ObservableObject {
         } else {
             customMediaSites = []
         }
+        mediaOrder = defaults.stringArray(forKey: "mediaOrder") ?? []
         // The Claude app refuses to remember trust for the home directory, so a
         // home-dir default makes every deep-link launch re-show the trust prompt.
         var claudeDir = defaults.string(forKey: "claudeDirectory") ?? Self.defaultClaudeDirectory
@@ -149,5 +168,37 @@ final class SettingsStore: ObservableObject {
     // Entries whose URL parses to a real host; half-typed rows are ignored.
     var validCustomMediaSites: [CustomMediaSite] {
         customMediaSites.filter(\.isValid)
+    }
+
+    var orderedMediaEntries: [MediaEntry] {
+        Self.orderedMediaEntries(
+            order: mediaOrder,
+            services: StreamingService.all,
+            customSites: customMediaSites
+        )
+    }
+
+    // Ids missing from the stored order (new rows, first launch) keep their
+    // canonical position at the end; stale ids from removed rows are dropped.
+    static func orderedMediaEntries(
+        order: [String], services: [StreamingService], customSites: [CustomMediaSite]
+    ) -> [MediaEntry] {
+        var byID: [String: MediaEntry] = [:]
+        var canonical: [String] = []
+        for service in services {
+            byID[service.id] = .service(service)
+            canonical.append(service.id)
+        }
+        for site in customSites {
+            byID[site.id.uuidString] = .custom(site)
+            canonical.append(site.id.uuidString)
+        }
+        return (order + canonical).compactMap { byID.removeValue(forKey: $0) }
+    }
+
+    func moveMediaEntries(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var order = orderedMediaEntries.map(\.id)
+        order.move(fromOffsets: source, toOffset: destination)
+        mediaOrder = order
     }
 }

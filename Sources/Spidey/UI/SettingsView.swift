@@ -15,8 +15,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 themeSection
                 hotkeySection
-                streamingSection
-                customMediaSection
+                mediaSection
                 claudeSection
                 clipboardSection
                 loginSection
@@ -64,49 +63,32 @@ struct SettingsView: View {
         }
     }
 
-    private var streamingSection: some View {
+    private var mediaSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Streaming Services").font(.headline)
-            Text("Typing a show name offers to open it on each enabled service, in Brave.")
+            Text("Media Sites").font(.headline)
+            Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            ForEach(StreamingService.all) { service in
-                Toggle(service.name, isOn: Binding(
-                    get: { settings.enabledServices.contains(service.id) },
-                    set: { enabled in
-                        if enabled {
-                            settings.enabledServices.insert(service.id)
-                        } else {
-                            settings.enabledServices.remove(service.id)
-                        }
-                    }
-                ))
-            }
-        }
-    }
-
-    private var customMediaSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Custom Media Sites").font(.headline)
-            Text("Favourite streaming site not here? Add a link below and we can search directly there!")
+            Text("Drag rows to set the order results appear in.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            ForEach($settings.customMediaSites) { $site in
-                HStack(spacing: 8) {
-                    statusDot(for: site)
-                    TextField("Name", text: $site.name)
-                        .frame(width: 110)
-                    TextField("https://example.com", text: $site.urlString)
-                    Button {
-                        settings.customMediaSites.removeAll { $0.id == site.id }
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
+            let entries = settings.orderedMediaEntries
+            List {
+                ForEach(entries) { entry in
+                    mediaRow(for: entry)
+                        .frame(height: 24)
+                        .listRowInsets(EdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0))
+                        .listRowSeparator(.hidden)
                 }
-                .textFieldStyle(.roundedBorder)
+                .onMove { source, destination in
+                    settings.moveMediaEntries(fromOffsets: source, toOffset: destination)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .scrollDisabled(true)
+            .environment(\.defaultMinListRowHeight, 30)
+            .frame(height: CGFloat(entries.count) * 30)
             HStack {
                 Button("Add Site") {
                     settings.customMediaSites.append(CustomMediaSite())
@@ -128,9 +110,63 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private func mediaRow(for entry: MediaEntry) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundColor(Color.secondary.opacity(0.6))
+            switch entry {
+            case .service(let service):
+                Toggle(service.name, isOn: Binding(
+                    get: { settings.enabledServices.contains(service.id) },
+                    set: { enabled in
+                        if enabled {
+                            settings.enabledServices.insert(service.id)
+                        } else {
+                            settings.enabledServices.remove(service.id)
+                        }
+                    }
+                ))
+                Spacer()
+            case .custom(let site):
+                let binding = siteBinding(site)
+                statusDot(for: binding.wrappedValue)
+                TextField("Name", text: binding.name)
+                    .frame(width: 110)
+                TextField("https://example.com", text: binding.urlString)
+                Button {
+                    settings.customMediaSites.removeAll { $0.id == site.id }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .textFieldStyle(.roundedBorder)
+    }
+
+    // Rows are rendered from the ordered entry list, so field edits route
+    // back to the matching element of the source array by id.
+    private func siteBinding(_ site: CustomMediaSite) -> Binding<CustomMediaSite> {
+        Binding(
+            get: { settings.customMediaSites.first { $0.id == site.id } ?? site },
+            set: { updated in
+                guard let index = settings.customMediaSites.firstIndex(where: { $0.id == site.id })
+                else { return }
+                settings.customMediaSites[index] = updated
+            }
+        )
+    }
+
+    private static var checkIntervalDays: Int {
+        Int(LinkChecker.checkInterval / 86_400)
+    }
+
     private var lastCheckDescription: String {
         guard let lastRun = linkChecker.lastRun else {
-            return "Links are checked automatically every few days."
+            return "Links are auto-checked every \(Self.checkIntervalDays) days."
         }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated

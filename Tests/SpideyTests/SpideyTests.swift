@@ -261,7 +261,38 @@ final class CustomMediaSiteTests: XCTestCase {
     }
 }
 
+final class MediaOrderTests: XCTestCase {
+    func testDefaultOrderKeepsServicesFirstThenCustomSites() {
+        let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
+        let entries = SettingsStore.orderedMediaEntries(
+            order: [], services: StreamingService.all, customSites: [site]
+        )
+        XCTAssertEqual(entries.map(\.id), StreamingService.all.map(\.id) + [site.id.uuidString])
+    }
+
+    func testStoredOrderWinsAndStaleIdsAreDropped() {
+        let site = CustomMediaSite(name: "Flicky", urlString: "https://flickystream.dad")
+        let order = [site.id.uuidString, "disneyplus", "removed-long-ago", "netflix"]
+        let entries = SettingsStore.orderedMediaEntries(
+            order: order, services: StreamingService.all, customSites: [site]
+        )
+        XCTAssertEqual(
+            Array(entries.map(\.id).prefix(3)),
+            [site.id.uuidString, "disneyplus", "netflix"]
+        )
+        // Ids missing from the stored order still show up, after the ordered ones.
+        XCTAssertEqual(
+            Set(entries.map(\.id)),
+            Set(StreamingService.all.map(\.id) + [site.id.uuidString])
+        )
+    }
+}
+
 final class LinkCheckerTests: XCTestCase {
+    func testChecksRunEveryTwoDaysAsAdvertised() {
+        XCTAssertEqual(LinkChecker.checkInterval, 2 * 24 * 60 * 60)
+    }
+
     func testReachabilityClassification() {
         XCTAssertTrue(LinkChecker.isReachable(statusCode: 200))
         XCTAssertTrue(LinkChecker.isReachable(statusCode: 301))
