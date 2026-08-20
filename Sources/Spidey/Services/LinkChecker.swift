@@ -62,7 +62,7 @@ final class LinkChecker: ObservableObject {
         guard !isRunning else { return }
         let targets = Self.targets(
             services: SettingsStore.shared.activeStreamingServices,
-            customSites: SettingsStore.shared.validCustomMediaSites
+            customSites: SettingsStore.shared.activeCustomMediaSites
         )
         guard !targets.isEmpty else {
             finish(results: [:])

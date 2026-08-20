@@ -137,9 +137,9 @@ struct SettingsView: View {
                     }
                 ))
             case .custom(let site):
-                let current = siteBinding(site).wrappedValue
-                Text(current.displayName)
-                deadLinkWarning(for: current)
+                let binding = siteBinding(site)
+                Toggle(binding.wrappedValue.displayName, isOn: binding.enabled)
+                deadLinkWarning(for: binding.wrappedValue)
             }
             Spacer()
             infoButton(for: entry)
