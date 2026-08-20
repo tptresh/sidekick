@@ -1,9 +1,9 @@
 #!/bin/bash
-# ship-hook.sh — Claude Code "Stop" hook.
+# ship-hook.sh - Claude Code "Stop" hook.
 #
 # Fires whenever a Claude session finishes a turn. If the session left
 # uncommitted or unmerged work behind, this runs scripts/ship.sh so the
-# change lands on main, gets built, and the app relaunches — automatically.
+# change lands on main, gets built, and the app relaunches - automatically.
 #
 # Exit 0  = nothing to do, or ship succeeded.
 # Exit 2  = ship failed (merge conflict or broken build); stderr is fed back
@@ -34,7 +34,7 @@ fi
 OUT=$(scripts/ship.sh "auto-ship: session stopped with unshipped changes" 2>&1)
 if [ $? -ne 0 ]; then
   echo "$BRANCH $(git rev-parse HEAD)" >"$MARKER"
-  echo "AUTO-SHIP FAILED — Spidey's main branch is not cleanly built. You must fix this now (see SHIPLOG.md for the record). Details:
+  echo "AUTO-SHIP FAILED - Spidey's main branch is not cleanly built. You must fix this now (see SHIPLOG.md for the record). Details:
 $OUT" >&2
   exit 2
 fi

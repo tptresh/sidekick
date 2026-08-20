@@ -28,7 +28,7 @@ enum StreamingProvider {
                 ))
             case .custom(let site):
                 // A site joins search results only once its own search page
-                // is known and verified — never via a Google fallback.
+                // is known and verified - never via a Google fallback.
                 guard site.enabled, site.isValid, site.searchesDirectly,
                       let url = site.searchURL(encodedQuery: encoded) else { continue }
                 let how = "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
@@ -64,6 +64,6 @@ enum StreamingProvider {
 
     private static func subtitle(_ base: String, statusKey: String) -> String {
         guard let status = LinkChecker.shared.status(forKey: statusKey), !status.ok else { return base }
-        return base + " — site was unreachable at the last link check"
+        return base + " - site was unreachable at the last link check"
     }
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# ship.sh — make the current change live, in one step.
+# ship.sh - make the current change live, in one step.
 #
 # Spidey is a solo local project: no remotes, no PRs. "Shipping" means:
 #   1. commit whatever changed in this checkout (worktree or main)
@@ -10,7 +10,7 @@
 #
 # Usage: scripts/ship.sh "short description of the change"
 # Run it from anywhere inside the repo or any worktree. Safe to run
-# concurrently from several sessions — a lock serializes ships.
+# concurrently from several sessions - a lock serializes ships.
 #
 # Exit code 0 = main is up to date, built, and running.
 # Exit code 1 = something failed; stderr says what and SHIPLOG.md records it.
@@ -45,12 +45,21 @@ BRANCH=$(git -C "$WT_ROOT" rev-parse --abbrev-ref HEAD)
 log_entry() {
   {
     echo ""
-    echo "## $STAMP — $1 — $BRANCH"
+    echo "## $STAMP - $1 - $BRANCH"
     printf '%s\n' "$2"
   } >>"$SHIPLOG"
   git -C "$MAIN_ROOT" add SHIPLOG.md
   git -C "$MAIN_ROOT" commit -q -m "shiplog: $1 from $BRANCH" 2>/dev/null || true
 }
+
+# ---- 0. house rule: the app's UI must never show an em dash ----
+# Every user-visible string lives under Sources/, so that is what we scan.
+# The character is built with printf so this script never contains one itself.
+EMDASH=$(printf '\342\200\224')
+if git -C "$WT_ROOT" grep -nI --untracked -e "$EMDASH" -- Sources >&2; then
+  echo "ship: em dash (U+2014) found under Sources/ (listed above). The UI must never show one (see CLAUDE.md) - use a plain hyphen or rewrite, then re-run scripts/ship.sh." >&2
+  exit 1
+fi
 
 # ---- 1. commit everything in the current checkout ----
 if [ -n "$(git -C "$WT_ROOT" status --porcelain)" ]; then
@@ -61,7 +70,7 @@ fi
 # ---- 2. merge into main (skipped when already on main) ----
 MERGED_COMMITS=""
 if [ "$BRANCH" != "main" ]; then
-  # Stray manual edits in the main checkout must not block the merge — keep them.
+  # Stray manual edits in the main checkout must not block the merge - keep them.
   if [ -n "$(git -C "$MAIN_ROOT" status --porcelain)" ]; then
     git -C "$MAIN_ROOT" add -A
     git -C "$MAIN_ROOT" commit -q -m "Manual edits found on main (auto-committed by ship)"
@@ -87,7 +96,7 @@ BUILD_LOG=$(mktemp)
 if ! make -C "$MAIN_ROOT" app >"$BUILD_LOG" 2>&1; then
   ERRTAIL=$(tail -40 "$BUILD_LOG")
   FIRST_ERR=$(grep -m1 'error:' "$BUILD_LOG" || echo "(no 'error:' line; see stderr)")
-  log_entry "BROKEN" "- merged, but 'make app' FAILED — main is at $(git -C "$MAIN_ROOT" rev-parse --short HEAD) and does not build.
+  log_entry "BROKEN" "- merged, but 'make app' FAILED - main is at $(git -C "$MAIN_ROOT" rev-parse --short HEAD) and does not build.
 - merged commits:
 ${MERGED_COMMITS:-  - (none, rebuild of existing main)}
 - first error: $FIRST_ERR
@@ -113,7 +122,7 @@ open "$MAIN_ROOT/build/$APP_NAME.app"
 # ---- 5. record the insertion in the ledger ----
 log_entry "OK" "- \"$MSG\"
 - merged commits:
-${MERGED_COMMITS:-  - (none — rebuild/relaunch only)}
+${MERGED_COMMITS:-  - (none - rebuild/relaunch only)}
 - main is now at: $(git -C "$MAIN_ROOT" rev-parse --short HEAD) (build succeeded, app $RELAUNCHED)"
 
 # ---- keep the worktree branch level with main so future merges stay small ----
@@ -121,5 +130,5 @@ if [ "$BRANCH" != "main" ]; then
   git -C "$WT_ROOT" merge --ff-only -q main 2>/dev/null || true
 fi
 
-echo "ship: OK — $BRANCH merged, app rebuilt and $RELAUNCHED, SHIPLOG updated (main @ $(git -C "$MAIN_ROOT" rev-parse --short HEAD))"
+echo "ship: OK - $BRANCH merged, app rebuilt and $RELAUNCHED, SHIPLOG updated (main @ $(git -C "$MAIN_ROOT" rev-parse --short HEAD))"
 exit 0

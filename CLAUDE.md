@@ -1,4 +1,4 @@
-# Spidey — working rules for Claude sessions
+# Spidey - working rules for Claude sessions
 
 Spidey is a macOS launcher app (Swift + SwiftUI, SwiftPM, no dependencies).
 It is developed and used by ONE person, locally, with no git remote. Several
@@ -8,14 +8,14 @@ unmerged, or unbuilt.
 
 ## Build & run
 
-- `make app` — release build into `build/Sidekick.app` (the app is named
+- `make app` - release build into `build/Sidekick.app` (the app is named
   Sidekick; the binary/repo is Spidey)
-- `make test` — run the test suite (`swift test`)
+- `make test` - run the test suite (`swift test`)
 - `make app` ad-hoc signs each build, so the Makefile resets the stale
   Accessibility grant; features needing Accessibility re-prompt after a
   rebuild. That is expected, not a bug.
 
-## The ship workflow (solo trunk-based — no PRs, no pushes, no remote)
+## The ship workflow (solo trunk-based - no PRs, no pushes, no remote)
 
 **When you finish a piece of work, run:**
 
@@ -27,22 +27,22 @@ That commits everything in your worktree, merges your branch into main,
 rebuilds the app, relaunches it so the user is always testing the latest
 build, records the insertion in `SHIPLOG.md`, and fast-forwards your branch
 back level with main. Ship after each coherent chunk, not only at the very
-end — small merges conflict less.
+end - small merges conflict less.
 
 Safety nets (configured in `.claude/settings.json`):
 - A **Stop hook** auto-runs ship whenever a session pauses with unshipped
   work, so nothing is ever stranded. If the ship fails, the failure text is
-  fed back into the session — **you must fix it** (resolve the conflict or
+  fed back into the session - **you must fix it** (resolve the conflict or
   the compile error, then re-run `scripts/ship.sh`).
 - A **SessionStart hook** fast-forwards a stale worktree to main, so you
   start from the latest shipped code. If your branch has diverged instead,
   run `git merge main` yourself before doing anything else.
 
 Rules:
-- Never create PRs, never push, never ask the user to review a merge —
+- Never create PRs, never push, never ask the user to review a merge -
   there is no remote and no reviewer. Merging to main IS shipping.
 - Never edit `SHIPLOG.md` by hand; only `scripts/ship.sh` writes it.
-- If `make app` fails, main is marked BROKEN in the shiplog — fixing it
+- If `make app` fails, main is marked BROKEN in the shiplog - fixing it
   takes priority over any other task.
 
 ## When something regresses ("this used to work")
@@ -61,8 +61,13 @@ insertion broke things:
 
 ## Code conventions
 
+- **No em dashes (U+2014) in anything the user can see.** UI strings, labels,
+  help text, tooltips, error messages: use a plain hyphen or rewrite the
+  sentence instead. `ship.sh` refuses to ship if one appears anywhere under
+  `Sources/`, so just never type one there (comments included - simplest way
+  to keep the guard quiet).
 - Comment only non-obvious constraints (see the Makefile's tccutil note for
-  the house style). Keep commit messages about user-visible behavior — they
+  the house style). Keep commit messages about user-visible behavior - they
   are what the shiplog points at.
 - The project will eventually be open-sourced: keep code, names, and docs
   ordinary and readable, but do not add licensing/CI/contribution scaffolding

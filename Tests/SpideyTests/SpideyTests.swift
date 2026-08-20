@@ -368,7 +368,7 @@ final class SearchTemplateFinderTests: XCTestCase {
 
     func testSearchActionMarkupInEscapedJSONWins() {
         // Framework payloads ship the JSON-LD escaped, with a sloppy double
-        // slash in the path — as 1shows.org does.
+        // slash in the path - as 1shows.org does.
         let html = #"lAction\\\":[{\\\"@type\\\":\\\"SearchAction\\\",\\\"target\\\":{\\\"@type\\\":\\\"EntryPoint\\\",\\\"urlTemplate\\\":\\\"https://www.1shows.org//search?query={search_term_string}\\\"},\\\"query-input\\\":..."#
         let template = SearchTemplateFinder.searchActionTemplate(
             fromHTML: html, baseURL: URL(string: "https://www.1shows.org")!
