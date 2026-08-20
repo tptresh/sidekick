@@ -25,9 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         viewModel.onHide = { [weak self] in self?.hidePanel() }
 
+        // @Published emits on willSet, so read the emitted value, not settings.hotKey.
         settings.$hotKey
             .dropFirst()
-            .sink { [weak self] _ in self?.registerHotKey() }
+            .sink { [weak self] combo in self?.registerHotKey(preferred: combo) }
             .store(in: &cancellables)
         settings.$theme
             .sink { [weak self] theme in self?.updateStatusIcon(theme) }
@@ -42,6 +43,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] note in
             guard let self, let window = note.object as? NSWindow, window == self.panel else { return }
             self.hidePanel()
+        }
+
+        // If we fell back (e.g. Spotlight owned Cmd+Space at launch), retry the
+        // preferred combo whenever the app is brought forward — the user may
+        // have freed it up in System Settings since.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self, self.settings.activeHotKey != self.settings.hotKey else { return }
+            self.registerHotKey()
         }
 
         showFirstRunHintIfNeeded()
@@ -238,8 +249,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Hotkey
 
-    private func registerHotKey() {
-        let preferred = settings.hotKey
+    private func registerHotKey(preferred: HotKeyCombo? = nil) {
+        let preferred = preferred ?? settings.hotKey
         if HotKeyCenter.shared.register(preferred, handler: { [weak self] in self?.togglePanel() }) {
             settings.activeHotKey = preferred
             return
