@@ -384,6 +384,32 @@ final class SearchTemplateFinderTests: XCTestCase {
         XCTAssertEqual(template, "https://example.com/find?keyword={query}")
     }
 
+    func testMirrorDomainCandidatesAreRehostedToTheEnteredLink() {
+        // 67movies.nl's markup declares its search on the canonical .net
+        // domain; a foreign-host template can never activate, so candidates
+        // must come back on the host the user entered.
+        let html = #"{"@type":"SearchAction","target":"https://67movies.net/search?q={search_term_string}"}"#
+        let candidates = SearchTemplateFinder.candidateTemplates(
+            fromHTML: html, sitemap: nil, homepage: URL(string: "https://67movies.nl")!
+        )
+        XCTAssertEqual(candidates.first, "https://67movies.nl/search?q={query}")
+        XCTAssertFalse(candidates.contains { $0.contains("67movies.net") })
+    }
+
+    func testRehostingLeavesPathQueryAndPlaceholderAlone() {
+        XCTAssertEqual(
+            SearchTemplateFinder.rehosted(
+                "https://mirror.example/find?keyword={query}&lang=en", to: "site.example"
+            ),
+            "https://site.example/find?keyword={query}&lang=en"
+        )
+        // Already on the right host: unchanged.
+        XCTAssertEqual(
+            SearchTemplateFinder.rehosted("https://site.example/?s={query}", to: "site.example"),
+            "https://site.example/?s={query}"
+        )
+    }
+
     func testNoSearchActionMarkupReturnsNil() {
         XCTAssertNil(SearchTemplateFinder.searchActionTemplate(
             fromHTML: "<p>just a page mentioning /search</p>",

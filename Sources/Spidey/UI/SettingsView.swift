@@ -75,7 +75,7 @@ struct SettingsView: View {
             Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link usually integrates within a minute - up to a few minutes for some sites - before it appears in searches.")
+            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link joins searches right away through a Google site search, then switches to the site's own search page once Sidekick has found and verified it - usually under a minute, up to a few minutes for some sites.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             let entries = settings.orderedMediaEntries
@@ -222,7 +222,12 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 TextField("Name", text: binding.name)
                 TextField("https://example.com", text: binding.urlString)
-                if let template = binding.wrappedValue.activeDiscoveredTemplate {
+                if binding.wrappedValue.hasSearchTemplate {
+                    Text("Searches go to: \(binding.wrappedValue.normalizedURLString)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
+                } else if let template = binding.wrappedValue.activeDiscoveredTemplate {
                     Text("Searches go to: \(template)")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -232,12 +237,12 @@ struct SettingsView: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Setting up this site's search - trying the site's possible search pages and checking that searches really work there. Usually under a minute, but a stubborn site can take a few minutes; it joins search results once it's done.")
+                        Text("Setting up this site's search - trying the site's possible search pages and checking that searches really work there. Usually under a minute, but a stubborn site can take a few minutes. Until it's done, searches go through a Google site search.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Sidekick finds and verifies the site's own search page automatically - usually under a minute, up to a few minutes for some sites - and it only appears in searches once it's ready. Add \(CustomMediaSite.queryPlaceholder) to the link to set it yourself.")
+                    Text("Searches use a Google search scoped to this site. Sidekick looks for the site's own search page automatically, but some sites only search from an in-page box with no linkable search URL. Add \(CustomMediaSite.queryPlaceholder) to the link to set one yourself.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

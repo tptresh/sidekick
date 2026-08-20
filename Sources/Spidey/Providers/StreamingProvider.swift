@@ -27,11 +27,16 @@ enum StreamingProvider {
                     action: { BrowserLauncher.open(url) }
                 ))
             case .custom(let site):
-                // A site joins search results only once its own search page
-                // is known and verified - never via a Google fallback.
-                guard site.enabled, site.isValid, site.searchesDirectly,
+                // A site joins search results as soon as it is added: through
+                // a site-scoped Google search at first, then through its own
+                // search page once one is discovered and verified. Some sites
+                // never get past the fallback - their search only exists as an
+                // in-page overlay with no linkable URL.
+                guard site.enabled, site.isValid,
                       let url = site.searchURL(encodedQuery: encoded) else { continue }
-                let how = "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
+                let how = site.searchesDirectly
+                    ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
+                    : "Searches \(site.displayName) via Google in \(BrowserLauncher.targetName)"
                 items.append(ResultItem(
                     title: "Watch \"\(trimmed)\" on \(site.displayName)",
                     subtitle: subtitle(how, statusKey: site.id.uuidString),
