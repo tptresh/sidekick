@@ -204,7 +204,9 @@ private struct DragModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if let url {
-            content.onDrag { NSItemProvider(object: url as NSURL) }
+            // contentsOf registers the file's real type (e.g. png) alongside the
+            // URL, so image wells and chat apps accept the drop as a file.
+            content.onDrag { NSItemProvider(contentsOf: url) ?? NSItemProvider(object: url as NSURL) }
         } else {
             content
         }
