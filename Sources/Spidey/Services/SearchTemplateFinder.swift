@@ -7,35 +7,46 @@ import Foundation
 // in the page or in the site's sitemap.
 enum SearchTemplateFinder {
 
-    static func discover(
-        homepage: URL, session: URLSession, completion: @escaping (String?) -> Void
+    // Produce ranked candidate templates for the site. Every candidate is
+    // then proven against the live site by SearchTemplateVerifier before it
+    // is trusted, so this list errs on the side of inclusion.
+    static func candidates(
+        homepage: URL, session: URLSession, completion: @escaping ([String]) -> Void
     ) {
         fetch(homepage, session: session) { html in
-            if let html {
-                // A schema.org SearchAction is the site's own declaration of
-                // its search URL, so it beats every heuristic.
-                if let template = searchActionTemplate(fromHTML: html, baseURL: homepage) {
-                    completion(template)
-                    return
-                }
-                if let template = template(fromHTML: html, baseURL: homepage) {
-                    completion(template)
-                    return
-                }
-                if mentionsSearchRoute(html) {
-                    completion(searchPathTemplate(for: homepage))
-                    return
-                }
-            }
             let sitemap = homepage.appendingPathComponent("sitemap.xml")
             fetch(sitemap, session: session) { xml in
-                if let xml, mentionsSearchRoute(xml) {
-                    completion(searchPathTemplate(for: homepage))
-                } else {
-                    completion(nil)
-                }
+                completion(candidateTemplates(fromHTML: html, sitemap: xml, homepage: homepage))
             }
         }
+    }
+
+    static func candidateTemplates(
+        fromHTML html: String?, sitemap: String?, homepage: URL
+    ) -> [String] {
+        var result: [String] = []
+        func add(_ template: String?) {
+            if let template, !result.contains(template) { result.append(template) }
+        }
+        if let html {
+            // A schema.org SearchAction is the site's own declaration of its
+            // search URL, so it goes first.
+            add(searchActionTemplate(fromHTML: html, baseURL: homepage))
+            add(template(fromHTML: html, baseURL: homepage))
+        }
+        guard let host = homepage.host else { return result }
+        let placeholder = CustomMediaSite.queryPlaceholder
+        let mentioned = (html.map(mentionsSearchRoute) ?? false)
+            || (sitemap.map(mentionsSearchRoute) ?? false)
+        if mentioned {
+            add("https://\(host)/search?q=\(placeholder)")
+            add("https://\(host)/search?query=\(placeholder)")
+            add("https://\(host)/search/\(placeholder)")
+        }
+        // WordPress-style and generic guesses as a last resort.
+        add("https://\(host)/?s=\(placeholder)")
+        add("https://\(host)/search?q=\(placeholder)")
+        return Array(result.prefix(5))
     }
 
     // MARK: - Pure helpers (unit tested)

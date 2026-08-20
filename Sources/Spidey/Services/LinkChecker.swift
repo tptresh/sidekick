@@ -23,9 +23,11 @@ final class LinkChecker: ObservableObject {
     private let defaults = UserDefaults.standard
     private var timer: Timer?
     private var sitesSubscription: AnyCancellable?
-    // Hosts we are probing or have already failed to find a search page for,
-    // so edits don't hammer the same site.
-    private var discoveringHosts: Set<String> = []
+    // Hosts currently being probed and verified — published so Preferences
+    // can show that the site's search is still being set up.
+    @Published private(set) var discoveringHosts: Set<String> = []
+    // Hosts where no candidate survived verification, so edits don't hammer
+    // the same site.
     private var undiscoverableHosts: Set<String> = []
 
     private let session: URLSession = {
@@ -66,6 +68,9 @@ final class LinkChecker: ObservableObject {
             }
     }
 
+    // Find candidate search URLs for the site, then prove one against the
+    // live site in a hidden web view before storing it. Only a candidate
+    // where searching really returns results is ever used.
     func discoverSearchTemplates(for sites: [CustomMediaSite]) {
         for site in sites {
             guard site.isValid, !site.hasSearchTemplate, site.activeDiscoveredTemplate == nil,
@@ -73,21 +78,31 @@ final class LinkChecker: ObservableObject {
                   !discoveringHosts.contains(host), !undiscoverableHosts.contains(host)
             else { continue }
             discoveringHosts.insert(host)
-            SearchTemplateFinder.discover(homepage: homepage, session: session) { template in
+            SearchTemplateFinder.candidates(homepage: homepage, session: session) { candidates in
                 DispatchQueue.main.async {
-                    self.discoveringHosts.remove(host)
-                    guard let template else {
-                        self.undiscoverableHosts.insert(host)
+                    guard !candidates.isEmpty else {
+                        self.finishDiscovery(siteID: site.id, host: host, template: nil)
                         return
                     }
-                    let store = SettingsStore.shared
-                    guard let index = store.customMediaSites.firstIndex(where: {
-                        $0.id == site.id && $0.host == host
-                    }) else { return }
-                    store.customMediaSites[index].discoveredTemplate = template
+                    SearchTemplateVerifier.shared.firstWorking(from: candidates) { template in
+                        self.finishDiscovery(siteID: site.id, host: host, template: template)
+                    }
                 }
             }
         }
+    }
+
+    private func finishDiscovery(siteID: UUID, host: String, template: String?) {
+        discoveringHosts.remove(host)
+        guard let template else {
+            undiscoverableHosts.insert(host)
+            return
+        }
+        let store = SettingsStore.shared
+        guard let index = store.customMediaSites.firstIndex(where: {
+            $0.id == siteID && $0.host == host
+        }) else { return }
+        store.customMediaSites[index].discoveredTemplate = template
     }
 
     func runIfDue() {
