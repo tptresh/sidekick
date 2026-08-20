@@ -29,3 +29,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 14125cf Preferences section renamed from Hero Theme to Theme
 - main is now at: 49b9c7d (build succeeded, app relaunched)
+
+## 2026-08-20 16:33 — OK — claude/spidey-clipboard-auto-screenshots-ca3028
+- "Screenshots auto-land in clipboard history: last 5 kept, type ss to grab and drag them into any app"
+- merged commits:
+  - 43c5837 Screenshots auto-land in clipboard history: last 5 kept, type ss to grab and drag them into any app
+- main is now at: 5f32df2 (build succeeded, app relaunched)
