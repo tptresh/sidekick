@@ -133,7 +133,9 @@ final class SettingsStore: ObservableObject {
         }
         if let data = defaults.data(forKey: "customMediaSites"),
            let sites = try? JSONDecoder().decode([CustomMediaSite].self, from: data) {
-            customMediaSites = sites
+            // Rows without a link cannot exist; drop any strays from before
+            // the Add Site form required one.
+            customMediaSites = sites.filter { !$0.normalizedURLString.isEmpty }
         } else {
             customMediaSites = []
         }
