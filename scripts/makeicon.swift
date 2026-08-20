@@ -4,6 +4,20 @@ import AppKit
 
 let output = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/AppIcon.icns"
 
+// The classic emblem: red disk, black web, large white sweeping eyes.
+// Eye geometry mirrors StatusIcons.spideyEyePath, drawn in an 18-unit space.
+func spideyEye(mirrored: Bool) -> NSBezierPath {
+    func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
+        NSPoint(x: mirrored ? 18 - x : x, y: y)
+    }
+    let eye = NSBezierPath()
+    eye.move(to: point(2.8, 13.0))
+    eye.curve(to: point(8.3, 5.6), controlPoint1: point(1.8, 9.4), controlPoint2: point(4.2, 5.4))
+    eye.curve(to: point(2.8, 13.0), controlPoint1: point(10.2, 8.8), controlPoint2: point(6.2, 11.8))
+    eye.close()
+    return eye
+}
+
 func drawIcon(size: CGFloat) -> NSImage {
     NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
         let scale = size / 1024.0
@@ -14,74 +28,55 @@ func drawIcon(size: CGFloat) -> NSImage {
         NSColor(red: 0.035, green: 0.055, blue: 0.110, alpha: 1).setFill()
         bg.fill()
 
-        // Web lines radiating from the top center.
-        NSColor(red: 0.690, green: 0.180, blue: 0.210, alpha: 0.16).setStroke()
-        let origin = NSPoint(x: rect.midX, y: bgRect.maxY)
-        for angleDegrees in stride(from: 210.0, through: 330.0, by: 24.0) {
-            let angle = angleDegrees * .pi / 180
-            let line = NSBezierPath()
-            line.move(to: origin)
-            line.line(to: NSPoint(
-                x: origin.x + cos(angle) * size,
-                y: origin.y + sin(angle) * size
-            ))
-            line.lineWidth = 8 * scale
-            line.stroke()
-        }
-
-        // Cartoon mask: head circle in red with black outline.
+        // Mask disk in muted crimson with a black outline.
         let headRect = NSRect(
-            x: rect.midX - 300 * scale, y: rect.midY - 300 * scale,
-            width: 600 * scale, height: 600 * scale
+            x: rect.midX - 310 * scale, y: rect.midY - 310 * scale,
+            width: 620 * scale, height: 620 * scale
         )
         let head = NSBezierPath(ovalIn: headRect)
         NSColor(red: 0.690, green: 0.180, blue: 0.210, alpha: 1).setFill()
         head.fill()
         NSColor(white: 0.05, alpha: 1).setStroke()
-        head.lineWidth = 16 * scale
+        head.lineWidth = 20 * scale
         head.stroke()
 
-        // Web on the mask.
-        NSColor.black.setStroke()
-        let vertical = NSBezierPath()
-        vertical.move(to: NSPoint(x: headRect.midX, y: headRect.maxY))
-        vertical.line(to: NSPoint(x: headRect.midX, y: headRect.minY))
-        vertical.lineWidth = 12 * scale
-        vertical.stroke()
-        for offset: CGFloat in [-95, 95] {
-            let arc = NSBezierPath()
-            arc.move(to: NSPoint(x: headRect.minX + 40 * scale, y: headRect.midY + offset * scale))
-            arc.curve(
-                to: NSPoint(x: headRect.maxX - 40 * scale, y: headRect.midY + offset * scale),
-                controlPoint1: NSPoint(x: headRect.midX - 120 * scale, y: headRect.midY + offset * 1.7 * scale),
-                controlPoint2: NSPoint(x: headRect.midX + 120 * scale, y: headRect.midY + offset * 1.7 * scale)
-            )
-            arc.lineWidth = 12 * scale
-            arc.stroke()
+        // Web: radial spokes from the center plus concentric arcs, clipped to the disk.
+        NSGraphicsContext.current?.saveGraphicsState()
+        NSBezierPath(ovalIn: headRect.insetBy(dx: 6 * scale, dy: 6 * scale)).setClip()
+        NSColor(white: 0.05, alpha: 1).setStroke()
+        let center = NSPoint(x: headRect.midX, y: headRect.midY + 40 * scale)
+        for index in 0..<12 {
+            let angle = CGFloat(index) * .pi / 6
+            let spoke = NSBezierPath()
+            spoke.move(to: center)
+            spoke.line(to: NSPoint(
+                x: center.x + cos(angle) * 420 * scale,
+                y: center.y + sin(angle) * 420 * scale
+            ))
+            spoke.lineWidth = 9 * scale
+            spoke.stroke()
         }
+        for radius in stride(from: CGFloat(90), through: 360, by: 90) {
+            let ring = NSBezierPath(ovalIn: NSRect(
+                x: center.x - radius * scale, y: center.y - radius * scale,
+                width: radius * 2 * scale, height: radius * 2 * scale
+            ))
+            ring.lineWidth = 9 * scale
+            ring.stroke()
+        }
+        NSGraphicsContext.current?.restoreGraphicsState()
 
-        // Big white cartoon eyes with black outlines.
-        for sign: CGFloat in [-1, 1] {
-            let eye = NSBezierPath()
-            let cx = headRect.midX + sign * 120 * scale
-            let top = NSPoint(x: cx + sign * 60 * scale, y: headRect.midY + 90 * scale)
-            let bottom = NSPoint(x: cx - sign * 15 * scale, y: headRect.midY - 60 * scale)
-            eye.move(to: top)
-            eye.curve(
-                to: bottom,
-                controlPoint1: NSPoint(x: cx + sign * 100 * scale, y: headRect.midY + 10 * scale),
-                controlPoint2: NSPoint(x: cx + sign * 45 * scale, y: headRect.midY - 60 * scale)
-            )
-            eye.curve(
-                to: top,
-                controlPoint1: NSPoint(x: cx - sign * 70 * scale, y: headRect.midY - 25 * scale),
-                controlPoint2: NSPoint(x: cx - sign * 25 * scale, y: headRect.midY + 70 * scale)
-            )
-            eye.close()
+        // Large white sweeping eyes with black outlines, in 18-unit mask space.
+        let transform = NSAffineTransform()
+        transform.translateX(by: headRect.minX, yBy: headRect.minY)
+        transform.scale(by: headRect.width / 18.0)
+        for mirrored in [false, true] {
+            let eye = spideyEye(mirrored: mirrored)
+            eye.transform(using: transform as AffineTransform)
             NSColor.white.setFill()
             eye.fill()
-            NSColor.black.setStroke()
-            eye.lineWidth = 16 * scale
+            NSColor(white: 0.05, alpha: 1).setStroke()
+            eye.lineWidth = 18 * scale
             eye.stroke()
         }
         return true
