@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/ship-hook.sh",
+            "timeout": 900,
+            "asyncRewake": true,
+            "statusMessage": "Auto-shipping: commit → merge to main → build → relaunch"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/sync-hook.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
