@@ -41,3 +41,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 9b8b8c9 Site-setup wording now says up to a few minutes instead of half a minute
 - main is now at: 90f504e (build succeeded, app relaunched)
+
+## 2026-08-20 16:36 — OK — claude/spidey-clipboard-auto-screenshots-ca3028
+- "Dragging a file/screenshot row out of the panel now works instead of moving the panel"
+- merged commits:
+  - 22ac3ac Dragging a file/screenshot row out of the panel now works instead of moving the panel
+- main is now at: 10a068c (build succeeded, app relaunched)
