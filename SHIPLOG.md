@@ -23,3 +23,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 0a63575 Hotkey change takes effect on first press; app retries preferred hotkey when brought forward
 - main is now at: 41c3348 (build succeeded, app relaunched)
+
+## 2026-08-20 16:33 — OK — claude/hero-to-theme-06a73b
+- "Preferences section renamed from Hero Theme to Theme"
+- merged commits:
+  - 14125cf Preferences section renamed from Hero Theme to Theme
+- main is now at: 49b9c7d (build succeeded, app relaunched)
