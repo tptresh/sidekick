@@ -16,7 +16,10 @@ final class SearchPanel: NSPanel {
         backgroundColor = .clear
         hasShadow = true
         hidesOnDeactivate = false
-        isMovableByWindowBackground = true
+        // Window-background dragging would swallow row drags (dragging a
+        // clipboard file out of the panel), and the panel recenters on every
+        // show anyway, so moving it is never useful.
+        isMovableByWindowBackground = false
         becomesKeyOnlyIfNeeded = false
     }
 
