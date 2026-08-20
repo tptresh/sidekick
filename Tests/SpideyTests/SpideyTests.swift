@@ -431,3 +431,43 @@ final class EmojiProviderTests: XCTestCase {
         }
     }
 }
+
+final class FindMyProviderTests: XCTestCase {
+    func testParseRecognizedPhrases() {
+        XCTAssertEqual(FindMyProvider.parse("ping my iphone"), FindMyProvider.Parsed(term: "iphone"))
+        XCTAssertEqual(FindMyProvider.parse("Ping AirPods"), FindMyProvider.Parsed(term: "airpods"))
+        XCTAssertEqual(FindMyProvider.parse("find my keys"), FindMyProvider.Parsed(term: "keys"))
+        XCTAssertEqual(FindMyProvider.parse("where is my ipad"), FindMyProvider.Parsed(term: "ipad"))
+        XCTAssertEqual(FindMyProvider.parse("ping"), FindMyProvider.Parsed(term: nil))
+        XCTAssertEqual(FindMyProvider.parse("ping my"), FindMyProvider.Parsed(term: nil))
+    }
+
+    func testParseRejectsOtherQueries() {
+        XCTAssertNil(FindMyProvider.parse("pingpong"))
+        XCTAssertNil(FindMyProvider.parse("find myself"))
+        XCTAssertNil(FindMyProvider.parse("safari"))
+        XCTAssertNil(FindMyProvider.parse("finder"))
+    }
+
+    func testKindMatching() {
+        XCTAssertEqual(FindMyProvider.kindMatching("iphone")?.title, "iPhone")
+        XCTAssertEqual(FindMyProvider.kindMatching("phone")?.title, "iPhone")
+        XCTAssertEqual(FindMyProvider.kindMatching("airpods pro")?.title, "AirPods")
+        XCTAssertEqual(FindMyProvider.kindMatching("macbook")?.title, "Mac")
+        // A custom device name falls through to the literal search term.
+        XCTAssertNil(FindMyProvider.kindMatching("tanush's keys"))
+    }
+
+    func testItemsFirst() {
+        XCTAssertTrue(FindMyProvider.itemsFirst("keys"))
+        XCTAssertTrue(FindMyProvider.itemsFirst("airtag"))
+        XCTAssertFalse(FindMyProvider.itemsFirst("iphone"))
+    }
+
+    func testScriptEscapingAndTabs() {
+        XCTAssertEqual(FindMyProvider.escapeForAppleScript("bob's \"keys\""), "bob's \\\"keys\\\"")
+        let script = FindMyProvider.pingScript(searchTerm: "keys", itemsFirst: true)
+        XCTAssertTrue(script.contains("set firstTab to \"Items\""))
+        XCTAssertTrue(script.contains("set target to \"keys\""))
+    }
+}
