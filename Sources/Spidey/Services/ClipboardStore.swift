@@ -13,6 +13,10 @@ struct ClipEntry: Codable, Identifiable, Equatable {
     var date: Date
     // text: the string. file: the path. image: filename of a PNG in the images folder.
     var value: String
+    // Optional so history saved before screenshots existed still decodes.
+    var isScreenshot: Bool?
+
+    var fromScreenshot: Bool { isScreenshot == true }
 
     var displayTitle: String {
         switch kind {
@@ -103,6 +107,29 @@ final class ClipboardStore: ObservableObject {
 
     func recordDroppedFile(_ url: URL) {
         record(ClipEntry(id: UUID(), kind: .file, date: Date(), value: url.path))
+    }
+
+    // How many screenshot rows the watcher keeps around.
+    static let screenshotKeepCount = 5
+
+    func recordScreenshot(path: String, date: Date) {
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        record(ClipEntry(id: UUID(), kind: .file, date: date, value: path, isScreenshot: true))
+        var seen = 0
+        entries.removeAll { entry in
+            guard entry.fromScreenshot else { return false }
+            seen += 1
+            return seen > Self.screenshotKeepCount
+        }
+        save()
+    }
+
+    // Screenshots live wherever macOS saved them; if the user deleted one,
+    // its history row is dead weight.
+    func pruneMissingScreenshots() {
+        let before = entries.count
+        entries.removeAll { $0.fromScreenshot && !FileManager.default.fileExists(atPath: $0.value) }
+        if entries.count != before { save() }
     }
 
     // Puts an entry back on the system pasteboard.

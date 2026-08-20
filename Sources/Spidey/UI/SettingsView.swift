@@ -333,6 +333,10 @@ struct SettingsView: View {
                 Spacer()
                 Button("Clear History") { clipboard.clear() }
             }
+            Toggle(
+                "Keep recent screenshots — the last \(ClipboardStore.screenshotKeepCount) land here automatically (type \"ss\")",
+                isOn: $settings.screenshotsToClipboard
+            )
         }
     }
 
