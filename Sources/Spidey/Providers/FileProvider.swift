@@ -11,6 +11,9 @@ enum FileProvider {
         case ambient
         // The "find" keyword: files are the only results, so dig deeper.
         case dedicated
+        // The "in" keyword: match file CONTENTS (kMDItemTextContent) instead
+        // of file names, e.g. `in quarterly forecast`.
+        case content
     }
 
     private static var currentProcess: Process?
@@ -93,6 +96,18 @@ enum FileProvider {
         return clauses.joined(separator: " && ")
     }
 
+    // Builds a raw Spotlight query matching the phrase against extracted file
+    // text, so `in quarterly forecast` finds documents CONTAINING that phrase.
+    static func contentQuery(for phrase: String) -> String? {
+        let escaped = phrase
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "*", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        guard !escaped.isEmpty else { return nil }
+        return "kMDItemTextContent = \"*\(escaped)*\"cd"
+    }
+
     // Paths that are technically files but never what a person is looking for.
     static func isNoise(_ path: String) -> Bool {
         if path.contains("/Library/") || path.contains("/.") || path.contains("/node_modules/") {
@@ -129,7 +144,8 @@ enum FileProvider {
 
     static func search(_ query: String, mode: Mode = .ambient, completion: @escaping ([ResultItem]) -> Void) {
         currentProcess?.terminate()
-        guard query.count >= 2, let spotlight = spotlightQuery(for: query) else {
+        let rawQuery = mode == .content ? contentQuery(for: query) : spotlightQuery(for: query)
+        guard query.count >= 2, let spotlight = rawQuery else {
             completion([])
             return
         }
@@ -142,16 +158,20 @@ enum FileProvider {
         process.standardError = Pipe()
         currentProcess = process
 
-        let limit = mode == .dedicated ? 40 : 10
-        let baseScore = mode == .dedicated ? 500.0 : 320.0
-        let spread = mode == .dedicated ? 400.0 : 140.0
+        // The explicit keyword modes are the only results on screen, so dig
+        // deeper and rank them above everything else.
+        let limit = mode == .ambient ? 10 : 40
+        let baseScore = mode == .ambient ? 320.0 : 500.0
+        let spread = mode == .ambient ? 140.0 : 400.0
+        // Content queries scan extracted document text and run longer.
+        let deadline: TimeInterval = mode == .content ? 3.5 : 2.5
 
         DispatchQueue.global(qos: .userInitiated).async {
             var paths: [String] = []
             do {
                 try process.run()
                 // Give slow queries a hard stop.
-                DispatchQueue.global().asyncAfter(deadline: .now() + 2.5) {
+                DispatchQueue.global().asyncAfter(deadline: .now() + deadline) {
                     if process.isRunning { process.terminate() }
                 }
                 refreshIndexIfStale()
@@ -163,7 +183,11 @@ enum FileProvider {
             } catch {
                 paths = []
             }
-            paths += indexMatches(for: query)
+            // The direct folder index only knows file names, so it can't
+            // vouch for content matches.
+            if mode != .content {
+                paths += indexMatches(for: query)
+            }
 
             var seen = Set<String>()
             let ranked = paths
@@ -177,9 +201,12 @@ enum FileProvider {
                 let icon = NSWorkspace.shared.icon(forFile: path)
                 icon.size = NSSize(width: 32, height: 32)
                 let shortPath = path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+                let subtitle = mode == .content
+                    ? "Contains \"\(query)\" - \(shortPath)"
+                    : shortPath + "  (⌘↩ reveals, ⌘Y previews)"
                 return ResultItem(
                     title: url.lastPathComponent,
-                    subtitle: shortPath + "  (⌘↩ reveals in Finder)",
+                    subtitle: subtitle,
                     icon: .appIcon(icon),
                     score: baseScore + match * spread,
                     dragFileURL: url,

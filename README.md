@@ -7,7 +7,8 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 ## Features
 
 - **App launcher**: fuzzy search across /Applications, /System/Applications, and ~/Applications
-- **File search**: just type a file name and matching files appear alongside other results; Spotlight search of every indexed file merged with Spidey's own index of Documents, Downloads, and Desktop, ranked so exact and close name matches come first; multi-word queries work (`pitch deck` finds `Pitch Deck Final.pptx`); `find <name>` runs a files-only deep search with more results; Return opens, Cmd+Return reveals in Finder, and results can be dragged out of the panel
+- **File search**: just type a file name and matching files appear alongside other results; Spotlight search of every indexed file merged with Spidey's own index of Documents, Downloads, and Desktop, ranked so exact and close name matches come first; multi-word queries work (`pitch deck` finds `Pitch Deck Final.pptx`); `find <name>` runs a files-only deep search with more results; Return opens, Cmd+Return reveals in Finder, results can be dragged out of the panel, and Cmd+Y Quick Looks the selected file (Space closes an open preview)
+- **File content search**: `in <phrase>` searches inside file contents (Spotlight full-text), e.g. `in quarterly forecast`
 - **Calculator**: type `2+2*5` and Return copies the result
 - **Unit and currency conversion**: `100 usd to gbp`, `5km in miles`, `72f to c`. Exchange rates are fetched once a day and cached, so currency conversion works offline after the first fetch
 - **World clock**: `time in tokyo` (or `tokyo time`) shows the current time, date, and offset from you
@@ -15,23 +16,43 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Color tools**: type `#E02128` or `rgb(224, 33, 40)` for a live swatch with hex, RGB, and HSL rows, each one Return-copies
 - **Password generator**: `pw` or `pw 24` shows fresh random passwords (with and without symbols), Return copies one
 - **Dictionary**: `define word` and `spell word`
+- **Dev tools**: `uuid`, `b64 <text>` / `b64d <text>`, `url encode <text>` / `url decode <text>`, `sha256 <text>`, `md5 <text>`, and `ts` for unix-timestamp conversion (`ts`, `ts 1700000000`, `ts 2023-11-14T22:13:20Z`). Return copies the value
+- **System info**: `ip` (local and public addresses), `battery`, `disk` free space. Return copies the value
+- **Volume & brightness**: `volume 50`, `volume up` / `volume down`, `mute` / `unmute`; `brightness 0.8` and `brightness up|down` use the `brightness` CLI if installed (`brew install brightness`), else open Display settings
+- **QR codes**: `qr <text>` shows a live preview; Return copies the PNG, Cmd+Return saves `qr.png` to the Desktop
+- **Large type**: `large <text>` or `lt <text>` fills the screen with the text; any key or click dismisses it
 - **System commands**: sleep, lock, restart, shut down, log out, empty trash, screen saver, eject (destructive ones ask for a confirming second Return)
 - **Quit and force-kill**: `quit chrome` asks an app to quit; `kill chrome` force-quits it, and `kill node` also reaches background processes by name
+- **Music controls**: `play`, `pause`, `play pause` (toggle), `next`/`skip`, `prev`/`back`, and `now playing` control whichever of Spotify or Music is running (one row per app if both are); `now playing` shows the current track and Return copies "track — artist"; with neither running, `play` offers to launch whichever is installed. First use triggers the standard macOS Automation prompt
 - **Window snapping**: `left half`, `right half`, quarters, `maximize`, `center` move the front window (one-time Accessibility permission; the row walks you through granting it)
+- **Menu search**: `menu export` searches the front app's menu bar and runs the matching item (Accessibility permission)
+- **Window switcher**: `win mail` lists on-screen windows across apps and raises the one you pick; strong title matches also appear on plain queries
+- **Tab switcher**: `tab gmail` jumps to an open Brave (or Chrome) tab; first use shows the standard Automation consent
 - **Toggles**: `dark mode`, `wifi`, `bluetooth` (direct with blueutil installed, otherwise opens Settings), and `caffeinate` to keep the Mac awake until you turn it off
 - **Ping your Apple devices**: `ping my iphone`, `ping airpods`, or `find my keys` plays a sound on the device through the Find My app; any name from your Find My list works (`ping tanush's macbook`). Uses the same one-time Accessibility permission as window snapping, and if a step cannot be automated Find My is left open on the device so finishing is one click
 - **Timers**: `timer 10m tea` rings with a notification and a sound; `timers` lists running ones and Return cancels
+- **Contacts**: type a name (or `contact <name>` for the full list) to copy a phone number or email; Cmd+Return calls via FaceTime (`tel:`) or opens Mail
+- **Calendar**: `today`/`cal` lists today's remaining events, `next` shows the next event with minutes-until and location; Return opens Calendar
+- **Reminders**: `remind me to buy milk at 5pm`, `remind standup in 20m`, `remind me to water plants tomorrow` create a Reminder with an alarm; the row previews exactly what will be created
 - **Focus modes**: type `dnd` or `do not disturb` and Return to silence notifications; `dnd off` turns them back on. No setup: macOS only exposes Focus switching through Apple Shortcuts, so on first use Spidey generates the needed shortcut, signs it locally, and macOS shows a one-click "Add Shortcut" confirmation; the moment you add it, the Focus flips, and every later use is instant. Custom modes work by convention: name any shortcut `Focus: <Mode>` (a single "Set Focus" action, e.g. `Focus: Work`) and it appears as a command automatically
 - **Web search keywords**: `google`, `amazon`, `wiki`, `imdb`, `gh`, `maps`. `amazon death note manga` opens the Amazon results directly
+- **Custom search keywords**: define your own Alfred-style searches in `~/Library/Application Support/Spidey/searches.json` (`{"yt": {"name": "YouTube", "url": "https://www.youtube.com/results?search_query={query}"}}`, or the short form `{"ddg": "https://duckduckgo.com/?q={query}"}`). Then `yt lofi beats` opens the results directly. Type `searches` to create a commented example file
 - **YouTube and media**: `youtube lofi beats` opens the YouTube search in Brave; bare `youtube`, `netflix`, or `crunchyroll` open the homepage in Brave
 - **Show search**: type any show name and Spidey offers to open it on Netflix, Crunchyroll, Prime Video, or Disney+ (toggle each in Preferences)
 - **Custom media sites**: add any streaming site's homepage URL in Preferences and show searches include it too (Spidey finds the show there with a site-scoped Google search). A background check runs every few days and flags sites that stop resolving
 - **Website directory**: type a mainstream site or brand name (`vinted`, `rimowa`, `grand seiko`, ...) and its homepage opens in Brave; unknown names get a homepage guess
+- **Popularity-aware ranking**: typing a famous site or brand name (`best buy`, `cartier`) opens the website first; "Watch ... on Netflix" suggestions drop below it unless the query reads like a show title (or your usage history says otherwise). Curated offline, no network calls
+- **Bookmarks**: searches your Brave/Chrome/Edge bookmarks (all profiles, de-duplicated). Strong matches appear alongside normal results; type `bm <query>` or `bookmark <query>` to search bookmarks only. Return opens the link, Cmd+Return copies the URL
+- **Learned ranking**: Spidey remembers what you pick for a query and lifts those results toward the top next time, with recency-weighted frecency so old habits fade on their own (see the Learned ranking section below)
+- **App aliases**: give apps your own shorthand (`ps` for Photoshop) via a small JSON file that reloads on save (see the App aliases section below)
 - **Claude Code**: `claude fix the spelling issue on my web page` starts a Claude Code session with that prompt in your chosen folder, in the Claude desktop app when installed, otherwise in Terminal
-- **Clipboard history**: everything you copy (text, files, images) is kept; type `clip` to browse and search it, Return copies an item back
+- **Script commands (plugins)**: every executable file in `~/Library/Application Support/Spidey/scripts/` becomes a command named after its filename; type `scripts` to list them (see the Script commands section below)
+- **Clipboard history**: everything you copy (text, files, images) is kept; type `clip` to browse and search it, Return copies an item back, ⌘⏎ pins an item so it stays at the top and never ages out of the history cap
+- **Pasteboard tools**: `plain` (or `paste plain`) rewrites styled clipboard contents (RTF/HTML) as plain text so it pastes unformatted; `clear clipboard` empties the current clipboard (history is kept)
+- **Snippets**: `snip add addr 123 Main Street` saves a canned-text snippet, `snip` lists them (Return copies one to the clipboard, Cmd+Return deletes it), `snip rm addr` deletes by keyword, and typing a snippet's keyword on its own surfaces it directly
 - **Drag and drop**: drop files onto the panel to open them, reveal them, copy them, or copy their paths; dropped files are also recorded into clipboard history
 - **Site logos**: web rows show the real favicon of the site (Netflix, Crunchyroll, Disney+, ...), fetched once and cached locally
-- **Hero themes**: Spider-Man (black and deep red) and Batman (black and silver grey), switchable in Preferences along with the menu bar emblem
+- **Hero themes**: Spider-Man (black and deep red), Batman (black and silver grey), and Fantastic Four (a bright white/pale-blue light theme with the classic FF blue accent and a "4" badge in the menu bar), switchable in Preferences along with the menu bar emblem
 
 Everything that opens a website prefers [Brave](https://brave.com/); if Brave is not installed, your default browser is used.
 
@@ -62,7 +83,7 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 
 Click the mask icon in the menu bar > Preferences:
 
-- Hero theme (Spider-Man, Batman)
+- Hero theme (Spider-Man, Batman, Fantastic Four)
 - The hotkey that opens Spidey
 - Which streaming services appear for show searches
 - Custom media sites, with a per-site link health dot and a Check Now button
@@ -83,12 +104,85 @@ Add your own sites without rebuilding: create `~/Library/Application Support/Spi
 
 User entries override the built-in list. To extend the built-in list for everyone, edit `Sources/Spidey/Providers/SiteDirectoryProvider.swift` and open a pull request.
 
+## Script commands (plugins)
+
+Spidey treats every **executable** file in
+`~/Library/Application Support/Spidey/scripts/` as a command. The filename minus
+its extension is the keyword: `weather.sh` becomes `weather`. Type
+`scripts` to list everything Spidey discovered; if the folder does not exist yet,
+that command offers to create it with a commented `hello.sh` example and reveals
+it in Finder. Non-executable files are ignored (`chmod +x` to enable one), and
+the folder is rescanned automatically whenever its contents change.
+
+Typing `<keyword> [args...]` shows a single **Run** row. Because scripts can be
+slow, nothing executes while you type — the script runs only when you press
+Return. Arguments are split on spaces and passed as `argv` directly to the file
+(never through a shell, so there is no quoting or injection to worry about; a
+shebang line like `#!/bin/bash` or `#!/usr/bin/env python3` picks the
+interpreter). The working directory is the scripts folder, the run is killed
+after 10 seconds, and stdout is capped at 1 MB. Cmd+Return reveals the script in
+Finder instead of running it.
+
+When the script finishes, Spidey posts a notification and acts on the output:
+
+1. **JSON mode** — if stdout parses as
+   `{"items": [{"title": "...", "subtitle": "...", "arg": "...", "action": "copy"}]}`,
+   the first item is acted on: `"action": "copy"` (the default) puts `arg` on the
+   clipboard, `"action": "open"` opens `arg` as a URL or file path. `arg`
+   defaults to the title. The notification summarizes the first item and how
+   many more the script returned.
+2. **Plain mode** — otherwise the full stdout is copied to the clipboard and the
+   notification shows its first line.
+
+A non-zero exit shows a failure notification with the first line of stderr; a
+timeout says so.
+
+Give a script a one-line description with a `spidey:` comment anywhere in its
+first five lines (any comment leader works):
+
+```bash
+#!/bin/bash
+# spidey: Copy the current public IP
+curl -s https://api.ipify.org
+```
+
+The description appears as the subtitle of the Run row and in the `scripts`
+list.
+
+## Learned ranking
+
+Spidey learns from what you pick. Every time you run a result, it remembers the
+query you typed and the result you chose; next time, that result rises toward the
+top — strongly for the same or a prefix of that query, mildly everywhere for
+things you use a lot. Recency matters (Mozilla-style frecency: picks within the
+hour count 4x, today 2x, this week 1x, older 0.5x), so old habits fade on their
+own. History lives in `~/Library/Application Support/Spidey/usage.json`
+(capped at 500 query associations + 500 global entries; least-recent pruned).
+Delete the file to reset learning.
+
+## App aliases
+
+Create `~/Library/Application Support/Spidey/aliases.json` to give apps your own
+shorthand:
+
+```json
+{
+  "ps": "Photoshop",
+  "vs": "Visual Studio Code"
+}
+```
+
+When you type an alias (or start your query with it), the app it names is scored
+as an exact match. The file is re-read automatically whenever it changes — no
+restart needed.
+
 ## Permissions
 
-- **Automation**: the first system command asks for permission to control System Events or Finder. This is standard macOS behavior for launchers.
+- **Automation**: the first system command asks for permission to control System Events or Finder. This is standard macOS behavior for launchers. Music controls (Spotify/Music) and the tab switcher (Brave/Chrome) each trigger the same standard Automation consent for their app on first use.
+- **Contacts, Calendars, Reminders**: contact search, the calendar rows, and reminder creation each ask for their own permission on first use — the result row itself walks you through granting it. These prompts need the bundled app (`make app`); a bare `swift build` binary has no Info.plist, so the rows explain that instead of prompting. Note that `make app` resets these grants (along with Accessibility) because ad-hoc signing changes the code identity, so a rebuild prompts fresh.
 - **Files**: on first launch macOS asks for access to Documents, Downloads, and Desktop. Click Allow on each, or file search cannot see those folders (macOS also hides them from Spidey's Spotlight queries until then). Optionally grant Spidey Full Disk Access in System Settings > Privacy & Security for the widest Spotlight coverage.
 - **Shortcuts**: Focus switching runs shortcuts through the `shortcuts` command line tool. The Do Not Disturb ones are generated by Spidey and confirmed by you with one click on first use; custom `Focus: <Mode>` ones you create yourself. No extra permission is needed.
-- **Accessibility**: window snapping and device pinging share one Accessibility permission; the result row walks you through granting it on first use. Pinging also triggers the standard Automation prompt for System Events, since it drives the Find My app by scripting its UI (macOS offers no other door into Find My).
+- **Accessibility**: window snapping, menu search, the window switcher, and device pinging share one Accessibility permission; the result row walks you through granting it on first use. Pinging also triggers the standard Automation prompt for System Events, since it drives the Find My app by scripting its UI (macOS offers no other door into Find My).
 - Spidey needs no accessibility permission for its hotkey.
 
 ## Development

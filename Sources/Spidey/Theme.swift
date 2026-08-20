@@ -4,11 +4,13 @@ import AppKit
 enum HeroTheme: String, CaseIterable, Codable {
     case spiderman
     case batman
+    case fantasticFour
 
     var displayName: String {
         switch self {
         case .spiderman: return "Spider-Man"
         case .batman: return "Batman"
+        case .fantasticFour: return "Fantastic Four"
         }
     }
 
@@ -16,6 +18,16 @@ enum HeroTheme: String, CaseIterable, Codable {
         switch self {
         case .spiderman: return "Spidey Search"
         case .batman: return "Explore the Cave"
+        case .fantasticFour: return "It's Searchin' Time"
+        }
+    }
+
+    // Light themes draw dark text on a bright panel; consumers that hardcode
+    // colors for a dark backdrop (text fields, blur materials) branch on this.
+    var isLight: Bool {
+        switch self {
+        case .spiderman, .batman: return false
+        case .fantasticFour: return true
         }
     }
 
@@ -40,6 +52,18 @@ enum HeroTheme: String, CaseIterable, Codable {
                 textPrimary: Color(red: 0.937, green: 0.941, blue: 0.949),
                 textSecondary: Color(red: 0.510, green: 0.522, blue: 0.541),
                 fieldOutline: Color(red: 0.663, green: 0.678, blue: 0.702)
+            )
+        case .fantasticFour:
+            // Bright white with a pale blue cast and the classic FF #0057B7 blue.
+            // Dark slate text keeps every opacity-derived tint (separators,
+            // borders, placeholder) readable against the light panel.
+            return ThemePalette(
+                background: Color(red: 0.937, green: 0.953, blue: 0.976),
+                backgroundTop: Color(red: 0.976, green: 0.984, blue: 0.996),
+                accent: Color(red: 0.0, green: 0.341, blue: 0.718),
+                textPrimary: Color(red: 0.098, green: 0.122, blue: 0.161),
+                textSecondary: Color(red: 0.365, green: 0.404, blue: 0.478),
+                fieldOutline: Color(red: 0.0, green: 0.341, blue: 0.718)
             )
         }
     }

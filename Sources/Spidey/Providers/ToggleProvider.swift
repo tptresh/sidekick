@@ -84,21 +84,43 @@ enum ToggleProvider {
     }
 }
 
-// Runs a short command line tool and returns its stdout. Only used for the
-// fast networksetup/defaults/blueutil state checks and toggles.
+// Runs a short command line tool and returns its stdout, or "" on failure or
+// timeout. stderr goes to the null device (an undrained Pipe would wedge the
+// child once it writes 64KB), and a hung binary is terminated - then killed  - 
+// instead of blocking the caller forever.
 enum Shell {
     @discardableResult
-    static func run(_ path: String, _ arguments: [String]) -> String {
+    static func run(_ path: String, _ arguments: [String], timeout: TimeInterval = 5) -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
         guard (try? process.run()) != nil else { return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(decoding: data, as: UTF8.self)
+
+        let lock = NSLock()
+        var output = Data()
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Draining stdout to EOF also unblocks a child stuck writing.
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            lock.lock()
+            output = data
+            lock.unlock()
+            process.waitUntilExit()
+            done.signal()
+        }
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            if done.wait(timeout: .now() + 1) == .timedOut {
+                kill(process.processIdentifier, SIGKILL)
+            }
+            return ""
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        return String(decoding: output, as: UTF8.self)
     }
 }
 
