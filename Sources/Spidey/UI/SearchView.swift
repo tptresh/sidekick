@@ -1,0 +1,319 @@
+import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
+
+extension Notification.Name {
+    static let spideyFocusSearch = Notification.Name("SpideyFocusSearch")
+}
+
+struct SearchView: View {
+    @ObservedObject var viewModel: SpideyViewModel
+    @ObservedObject var settings: SettingsStore
+    @State private var isDropTargeted = false
+
+    static let panelWidth: CGFloat = 640
+    static let rowHeight: CGFloat = 48
+    static let barHeight: CGFloat = 60
+    static let maxVisibleRows = 9
+
+    var body: some View {
+        let palette = settings.theme.palette
+        VStack(spacing: 0) {
+            searchBar(palette: palette)
+            if !viewModel.results.isEmpty {
+                Rectangle()
+                    .fill(palette.accent.opacity(0.35))
+                    .frame(height: 1)
+                resultsList(palette: palette)
+            }
+        }
+        .frame(width: Self.panelWidth)
+        .background(
+            ZStack {
+                VisualEffectBackground()
+                LinearGradient(
+                    colors: [palette.backgroundTop.opacity(0.92), palette.background.opacity(0.94)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    isDropTargeted ? palette.accent : palette.accent.opacity(0.55),
+                    lineWidth: isDropTargeted ? 2.5 : 1.5
+                )
+        )
+        .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
+            handleDrop(providers)
+        }
+    }
+
+    private func searchBar(palette: ThemePalette) -> some View {
+        ZStack(alignment: .trailing) {
+            HStack(spacing: 12) {
+                Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 30, color: NSColor(palette.accent)))
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                SearchField(
+                    text: $viewModel.query,
+                    placeholder: placeholder,
+                    font: palette.monospacedAccents
+                        ? NSFont.monospacedSystemFont(ofSize: 24, weight: .regular)
+                        : NSFont.systemFont(ofSize: 24, weight: .light),
+                    onMove: { viewModel.moveSelection(by: $0) },
+                    onEnter: { viewModel.runSelected(commandModifier: $0) },
+                    onEscape: { viewModel.escapePressed() }
+                )
+                .frame(height: 32)
+            }
+            .padding(.horizontal, 18)
+            .frame(height: Self.barHeight)
+
+            if !viewModel.droppedFiles.isEmpty {
+                Text("\(viewModel.droppedFiles.count) file\(viewModel.droppedFiles.count == 1 ? "" : "s") dropped")
+                    .font(.caption)
+                    .foregroundColor(palette.accent)
+                    .padding(.trailing, 18)
+            }
+        }
+    }
+
+    private var placeholder: String {
+        viewModel.droppedFiles.isEmpty ? "Spidey Search" : "Choose an action for the dropped files"
+    }
+
+    private func resultsList(palette: ThemePalette) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(viewModel.results.enumerated()), id: \.element.id) { index, item in
+                        ResultRow(
+                            item: item,
+                            palette: palette,
+                            isSelected: index == viewModel.selectedIndex
+                        )
+                        .id(index)
+                        .onTapGesture {
+                            viewModel.selectedIndex = index
+                            viewModel.runSelected(commandModifier: false)
+                        }
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            .frame(height: listHeight)
+            .onChange(of: viewModel.selectedIndex) { index in
+                withAnimation(.easeOut(duration: 0.1)) {
+                    proxy.scrollTo(index, anchor: nil)
+                }
+            }
+        }
+    }
+
+    private var listHeight: CGFloat {
+        CGFloat(min(viewModel.results.count, Self.maxVisibleRows)) * Self.rowHeight + 12
+    }
+
+    static func panelHeight(resultCount: Int) -> CGFloat {
+        guard resultCount > 0 else { return barHeight }
+        return barHeight + 1 + CGFloat(min(resultCount, maxVisibleRows)) * rowHeight + 12
+    }
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                defer { group.leave() }
+                if let data = item as? Data,
+                   let url = URL(dataRepresentation: data, relativeTo: nil) {
+                    urls.append(url)
+                } else if let url = item as? URL {
+                    urls.append(url)
+                }
+            }
+        }
+        group.notify(queue: .main) {
+            viewModel.handleDrop(urls)
+        }
+        return !providers.isEmpty
+    }
+}
+
+private struct ResultRow: View {
+    let item: ResultItem
+    let palette: ThemePalette
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            iconView
+                .frame(width: 32, height: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(palette.textPrimary)
+                    .lineLimit(1)
+                Text(item.subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(isSelected ? palette.textPrimary.opacity(0.8) : palette.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if isSelected {
+                Text("↩")
+                    .font(.system(size: 13))
+                    .foregroundColor(palette.textPrimary.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: SearchView.rowHeight)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? palette.accent.opacity(0.85) : Color.clear)
+                .padding(.horizontal, 6)
+        )
+        .contentShape(Rectangle())
+        .modifier(DragModifier(url: item.dragFileURL))
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch item.icon {
+        case .appIcon(let image):
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .symbol(let name):
+            Image(systemName: name)
+                .font(.system(size: 20))
+                .foregroundColor(isSelected ? palette.textPrimary : palette.accent)
+        }
+    }
+}
+
+// Rows backed by a file can be dragged out of the panel.
+private struct DragModifier: ViewModifier {
+    let url: URL?
+
+    func body(content: Content) -> some View {
+        if let url {
+            content.onDrag { NSItemProvider(object: url as NSURL) }
+        } else {
+            content
+        }
+    }
+}
+
+private struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+// NSTextField wrapper so arrows, Return, and Esc can be intercepted cleanly.
+private struct SearchField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+    let font: NSFont
+    let onMove: (Int) -> Void
+    let onEnter: (Bool) -> Void
+    let onEscape: () -> Void
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.isBordered = false
+        field.isBezeled = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = font
+        field.textColor = .white
+        field.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: NSColor.white.withAlphaComponent(0.35),
+                .font: font,
+            ]
+        )
+        field.delegate = context.coordinator
+        context.coordinator.field = field
+        context.coordinator.observeFocusRequests()
+        return field
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+        nsView.font = font
+        nsView.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: NSColor.white.withAlphaComponent(0.35),
+                .font: font,
+            ]
+        )
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: SearchField
+        weak var field: NSTextField?
+
+        init(_ parent: SearchField) {
+            self.parent = parent
+        }
+
+        func observeFocusRequests() {
+            NotificationCenter.default.addObserver(
+                forName: .spideyFocusSearch, object: nil, queue: .main
+            ) { [weak self] _ in
+                guard let field = self?.field else { return }
+                field.window?.makeFirstResponder(field)
+                field.currentEditor()?.selectedRange = NSRange(
+                    location: field.stringValue.count, length: 0
+                )
+            }
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field else { return }
+            parent.text = field.stringValue
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            switch selector {
+            case #selector(NSResponder.moveUp(_:)):
+                parent.onMove(-1)
+                return true
+            case #selector(NSResponder.moveDown(_:)):
+                parent.onMove(1)
+                return true
+            case #selector(NSResponder.insertNewline(_:)):
+                let commandHeld = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
+                parent.onEnter(commandHeld)
+                return true
+            case #selector(NSResponder.cancelOperation(_:)):
+                parent.onEscape()
+                return true
+            case #selector(NSResponder.insertTab(_:)):
+                parent.onMove(1)
+                return true
+            default:
+                return false
+            }
+        }
+    }
+}
