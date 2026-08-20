@@ -43,10 +43,10 @@ Requires macOS 13+ and Xcode (or the Command Line Tools with a Swift 5.9+ toolch
 git clone <this repo>
 cd Spidey
 make app
-open build/Spidey.app
+open build/Sidekick.app
 ```
 
-Optional: copy `build/Spidey.app` into /Applications and enable "Launch Spidey at login" in Preferences.
+Optional: copy `build/Sidekick.app` into /Applications and enable "Launch Spidey at login" in Preferences.
 
 ## The Cmd+Space hotkey
 
