@@ -329,6 +329,81 @@ final class MediaOrderTests: XCTestCase {
     }
 }
 
+final class SearchTemplateFinderTests: XCTestCase {
+    func testWordPressStyleFormBecomesTemplate() {
+        let html = #"<header><form role="search" method="get" action="/"><input type="text" name="s" placeholder="Search…"></form></header>"#
+        let template = SearchTemplateFinder.template(
+            fromHTML: html, baseURL: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(template, "https://example.com/?s={query}")
+    }
+
+    func testFormWithSearchActionAndHiddenInputs() {
+        let html = #"<form action="/search"><input type="hidden" name="type" value="all"><input type="search" name="q"></form>"#
+        let template = SearchTemplateFinder.template(
+            fromHTML: html, baseURL: URL(string: "https://example.com")!
+        )
+        XCTAssertEqual(template, "https://example.com/search?type=all&q={query}")
+    }
+
+    func testPostFormsAndNonSearchInputsAreIgnored() {
+        let html = #"<form method="post" action="/login"><input type="text" name="q"></form><form action="/subscribe"><input type="email" name="email"></form>"#
+        XCTAssertNil(SearchTemplateFinder.template(
+            fromHTML: html, baseURL: URL(string: "https://example.com")!
+        ))
+    }
+
+    func testSearchRouteDetectionForSinglePageApps() {
+        XCTAssertTrue(SearchTemplateFinder.mentionsSearchRoute(
+            #"<loc>https://flickystream.ru/search</loc>"#
+        ))
+        XCTAssertTrue(SearchTemplateFinder.mentionsSearchRoute(#"{label:"Search",to:"/search"}"#))
+        XCTAssertFalse(SearchTemplateFinder.mentionsSearchRoute("all about /searchengines here"))
+        XCTAssertFalse(SearchTemplateFinder.mentionsSearchRoute("plain page"))
+        XCTAssertEqual(
+            SearchTemplateFinder.searchPathTemplate(for: URL(string: "https://flickystream.dad")!),
+            "https://flickystream.dad/search?q={query}"
+        )
+    }
+
+    func testDiscoveredTemplateIsUsedForSearches() {
+        let site = CustomMediaSite(
+            name: "FD", urlString: "https://flickystream.dad",
+            discoveredTemplate: "https://flickystream.dad/search?q={query}"
+        )
+        XCTAssertTrue(site.searchesDirectly)
+        XCTAssertEqual(
+            site.searchURL(encodedQuery: "big%20bang")?.absoluteString,
+            "https://flickystream.dad/search?q=big%20bang"
+        )
+    }
+
+    func testStaleDiscoveryIsDroppedWhenLinkChanges() {
+        // The link was edited to a different site after discovery ran.
+        let site = CustomMediaSite(
+            name: "FD", urlString: "https://newsite.example",
+            discoveredTemplate: "https://flickystream.dad/search?q={query}"
+        )
+        XCTAssertNil(site.activeDiscoveredTemplate)
+        XCTAssertFalse(site.searchesDirectly)
+        XCTAssertEqual(
+            site.searchURL(encodedQuery: "test")?.absoluteString,
+            "https://www.google.com/search?q=site:newsite.example+test"
+        )
+    }
+
+    func testExplicitTemplateBeatsDiscoveredOne() {
+        let site = CustomMediaSite(
+            name: "FD", urlString: "https://flickystream.dad/browse?find={query}",
+            discoveredTemplate: "https://flickystream.dad/search?q={query}"
+        )
+        XCTAssertEqual(
+            site.searchURL(encodedQuery: "test")?.absoluteString,
+            "https://flickystream.dad/browse?find=test"
+        )
+    }
+}
+
 final class LinkCheckerTests: XCTestCase {
     func testChecksRunEveryTwoDaysAsAdvertised() {
         XCTAssertEqual(LinkChecker.checkInterval, 2 * 24 * 60 * 60)
