@@ -23,6 +23,15 @@ final class InteractiveSearchProber: NSObject {
         var titleTemplate: String?
     }
 
+    enum Outcome {
+        case learned(Learned)
+        // The site never got past an anti-bot interstitial. Spidey does not
+        // fight bot walls; the site is marked so searches open it in the
+        // user's real browser instead, and the UI can say why.
+        case walled
+        case nothing
+    }
+
     static let probeTitle = "Interstellar"
     static let controlQuery = "qzvxkwjqzz"
     // The page counts as ready once a text box or a search opener exists.
@@ -35,12 +44,12 @@ final class InteractiveSearchProber: NSObject {
     // Debounced search calls and result rendering after typing.
     static let resultsWait: TimeInterval = 8
 
-    private var pending: [(homepage: URL, completion: (Learned?) -> Void)] = []
+    private var pending: [(homepage: URL, completion: (Outcome) -> Void)] = []
     private var busy = false
     private var webView: WKWebView?
 
     // Must be called on the main thread; probes run one site at a time.
-    func probe(homepage: URL, completion: @escaping (Learned?) -> Void) {
+    func probe(homepage: URL, completion: @escaping (Outcome) -> Void) {
         pending.append((homepage, completion))
         processNext()
     }
@@ -49,14 +58,14 @@ final class InteractiveSearchProber: NSObject {
         guard !busy, let job = pending.first else { return }
         busy = true
         pending.removeFirst()
-        run(homepage: job.homepage) { [weak self] learned in
-            job.completion(learned)
+        run(homepage: job.homepage) { [weak self] outcome in
+            job.completion(outcome)
             self?.busy = false
             self?.processNext()
         }
     }
 
-    private func run(homepage: URL, completion: @escaping (Learned?) -> Void) {
+    private func run(homepage: URL, completion: @escaping (Outcome) -> Void) {
         let config = WKWebViewConfiguration()
         // The persistent store keeps anti-bot clearance cookies, so a
         // challenge solved once here also unblocks later searches.
@@ -69,16 +78,21 @@ final class InteractiveSearchProber: NSObject {
         self.webView = webView
         webView.load(URLRequest(url: homepage, timeoutInterval: 20))
 
-        let finish: (Learned?) -> Void = { [weak self] learned in
+        let finish: (Outcome) -> Void = { [weak self] outcome in
             self?.webView?.stopLoading()
             self?.webView = nil
-            completion(learned)
+            completion(outcome)
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.readyPollInterval) {
             self.waitUntilReady(webView: webView, attemptsLeft: Self.readyPollAttempts) { ready in
                 guard ready else {
-                    finish(nil)
+                    // Distinguish "stuck on a bot wall" from an ordinary
+                    // failure, so the site can be handled honestly instead of
+                    // being hammered with more automated attempts.
+                    webView.evaluateJavaScript(Self.challengeJS) { value, _ in
+                        finish((value as? Bool) == true ? .walled : .nothing)
+                    }
                     return
                 }
                 webView.evaluateJavaScript(Self.openSearchJS) { _, _ in
@@ -86,7 +100,7 @@ final class InteractiveSearchProber: NSObject {
                         let typeJS = Self.typeJS(query: Self.probeTitle)
                         webView.evaluateJavaScript(typeJS) { typed, _ in
                             guard (typed as? Bool) == true else {
-                                finish(nil)
+                                finish(.nothing)
                                 return
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + Self.resultsWait) {
@@ -126,10 +140,10 @@ final class InteractiveSearchProber: NSObject {
     // API against the live site with a control query before trusting it.
     private func analyze(
         collected: [String: Any]?, homepage: URL, webView: WKWebView,
-        completion: @escaping (Learned?) -> Void
+        completion: @escaping (Outcome) -> Void
     ) {
         guard let collected, let host = homepage.host else {
-            completion(nil)
+            completion(.nothing)
             return
         }
         let requests = collected["requests"] as? [String] ?? []
@@ -143,7 +157,7 @@ final class InteractiveSearchProber: NSObject {
             if let template = SiteSearchAnalysis.pageTemplate(
                 finalURL: candidate, homepage: homepage, probeQuery: Self.probeTitle
             ) {
-                completion(Learned(pageTemplate: template))
+                completion(.learned(Learned(pageTemplate: template)))
                 return
             }
         }
@@ -152,7 +166,7 @@ final class InteractiveSearchProber: NSObject {
             recordedURLs: requests, probeQuery: Self.probeTitle, host: host
         )
         guard let apiTemplate = apiTemplates.first else {
-            completion(nil)
+            completion(.nothing)
             return
         }
         // The captured response of the search call itself is the best teacher
@@ -169,13 +183,13 @@ final class InteractiveSearchProber: NSObject {
             jsonBodies: Array(bodies.values), routes: anchors + requests, host: host
         )
         guard let titleTemplate else {
-            completion(nil)
+            completion(.nothing)
             return
         }
         verifyAPI(template: apiTemplate, webView: webView) { works in
             completion(works
-                ? Learned(apiTemplate: apiTemplate, titleTemplate: titleTemplate)
-                : nil)
+                ? .learned(Learned(apiTemplate: apiTemplate, titleTemplate: titleTemplate))
+                : .nothing)
         }
     }
 
@@ -275,6 +289,18 @@ final class InteractiveSearchProber: NSObject {
       };
       const origOpen = window.open;
       window.open = function (u) { if (u) W.navs.push(String(u)); return null; };
+    })();
+    """#
+
+    // Recognizes anti-bot interstitials (Cloudflare and similar) by their
+    // wording, so a walled site is reported as such rather than retried.
+    private static let challengeJS = #"""
+    (() => {
+      const text = (document.title + ' ' + (document.body ? document.body.innerText : ''))
+        .toLowerCase();
+      return ['just a moment', 'security verification', 'checking your browser',
+              'verify you are human', 'attention required', 'ddos']
+        .some(marker => text.includes(marker));
     })();
     """#
 
