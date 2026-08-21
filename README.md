@@ -264,7 +264,7 @@ Every change that reaches the app is recorded in [SHIPLOG.md](SHIPLOG.md), newes
 
 ## Disclaimer
 
-Spidey is a fan-made open source tool. It is not affiliated with, endorsed by, or connected to Marvel, DC, Alfred, or any of the trademark holders whose characters inspired its themes. The theme artwork is original, simplified cartoon iconography.
+Spidey is a fan-made open source tool. It is not affiliated with, endorsed by, or connected to Marvel, DC, Alfred, or any of the trademark holders whose characters inspired its themes.
 
 ## License
 
