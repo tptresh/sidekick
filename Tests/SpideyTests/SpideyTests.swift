@@ -216,12 +216,12 @@ final class URLBuildingTests: XCTestCase {
 }
 
 final class CustomMediaSiteTests: XCTestCase {
-    func testPlainAddressUsesSiteScopedGoogleSearch() {
+    func testPlainAddressHasNoSearchURLUntilOneIsLearned() {
+        // A plain link cannot be searched by URL until discovery learns how;
+        // its result row opens the homepage in the meantime.
         let site = CustomMediaSite(name: "", urlString: "https://flickystream.dad/")
-        XCTAssertEqual(
-            site.searchURL(encodedQuery: "big%20bang%20theory")?.absoluteString,
-            "https://www.google.com/search?q=site:flickystream.dad+big%20bang%20theory"
-        )
+        XCTAssertNil(site.searchURL(encodedQuery: "big%20bang%20theory"))
+        XCTAssertEqual(site.homepageURL?.absoluteString, "https://flickystream.dad")
     }
 
     func testTemplateSubstitution() {
@@ -471,10 +471,25 @@ final class SearchTemplateFinderTests: XCTestCase {
         )
         XCTAssertNil(site.activeDiscoveredTemplate)
         XCTAssertFalse(site.searchesDirectly)
-        XCTAssertEqual(
-            site.searchURL(encodedQuery: "test")?.absoluteString,
-            "https://www.google.com/search?q=site:newsite.example+test"
+        XCTAssertNil(site.searchURL(encodedQuery: "test"))
+    }
+
+    func testDiscoveredAPIPairIsActiveOnlyWhileHostMatches() {
+        let site = CustomMediaSite(
+            name: "movie", urlString: "https://67movies.nl/",
+            discoveredAPITemplate: "https://67movies.nl/api/semantic-search?q={query}",
+            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}"
         )
+        XCTAssertNotNil(site.activeDiscoveredAPI)
+        XCTAssertFalse(site.searchesDirectly)
+        XCTAssertNil(site.searchURL(encodedQuery: "test"))
+
+        let edited = CustomMediaSite(
+            name: "movie", urlString: "https://othersite.example",
+            discoveredAPITemplate: "https://67movies.nl/api/semantic-search?q={query}",
+            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}"
+        )
+        XCTAssertNil(edited.activeDiscoveredAPI)
     }
 
     func testExplicitTemplateBeatsDiscoveredOne() {
@@ -486,6 +501,119 @@ final class SearchTemplateFinderTests: XCTestCase {
             site.searchURL(encodedQuery: "test")?.absoluteString,
             "https://flickystream.dad/browse?find=test"
         )
+    }
+}
+
+final class SiteSearchAnalysisTests: XCTestCase {
+    // The shapes below mirror what the probe observed on 67movies.nl: the
+    // overlay queries a search API, and homepage links pair TMDB-style JSON
+    // objects with /watch/{media_type}/{id} routes.
+
+    func testAPITemplatesPickRequestsCarryingTheQuery() {
+        let recorded = [
+            "https://67movies.nl/_next/image?url=poster.jpg&w=256",
+            "https://api.themoviedb.org/3/trending/all/day?api_key=k",
+            "https://api.themoviedb.org/3/search/multi?api_key=k&query=Interstellar",
+            "https://67movies.nl/api/semantic-search?q=Interstellar",
+        ]
+        let templates = SiteSearchAnalysis.apiTemplates(
+            recordedURLs: recorded, probeQuery: "Interstellar", host: "67movies.nl"
+        )
+        // The site's own endpoint outranks the third-party one.
+        XCTAssertEqual(templates.first, "https://67movies.nl/api/semantic-search?q={query}")
+        XCTAssertTrue(templates.contains(
+            "https://api.themoviedb.org/3/search/multi?api_key=k&query={query}"
+        ))
+        XCTAssertFalse(templates.contains { $0.contains("_next/image") })
+    }
+
+    func testAPITemplatesMatchPercentEncodedQueries() {
+        let templates = SiteSearchAnalysis.apiTemplates(
+            recordedURLs: ["https://site.example/api/search?q=big%20bang"],
+            probeQuery: "big bang", host: "site.example"
+        )
+        XCTAssertEqual(templates, ["https://site.example/api/search?q={query}"])
+    }
+
+    func testTitleTemplateLearnedFromLinksAndJSON() {
+        let trending = #"{"results":[{"id":1288445,"media_type":"movie","title":"Mutiny"},"#
+            + #"{"id":108978,"media_type":"tv","name":"Reacher"}]}"#
+        let template = SiteSearchAnalysis.titleTemplate(
+            jsonBodies: [trending],
+            routes: ["/watch/movie/1288445", "/watch/tv/108978"],
+            host: "67movies.nl"
+        )
+        XCTAssertEqual(template, "https://67movies.nl/watch/{r.media_type}/{r.id}")
+    }
+
+    func testTitleTemplateNeedsTwoAgreeingLinks() {
+        // One coincidental match must not invent a pattern.
+        let trending = #"{"results":[{"id":1288445,"media_type":"movie"}]}"#
+        XCTAssertNil(SiteSearchAnalysis.titleTemplate(
+            jsonBodies: [trending], routes: ["/watch/movie/1288445"], host: "67movies.nl"
+        ))
+    }
+
+    func testTitleTemplateIgnoresForeignHostRoutes() {
+        let trending = #"{"results":[{"id":1,"media_type":"movie"},{"id":2,"media_type":"tv"}]}"#
+        XCTAssertNil(SiteSearchAnalysis.titleTemplate(
+            jsonBodies: [trending],
+            routes: ["https://cdn.example/watch/movie/1", "https://cdn.example/watch/tv/2"],
+            host: "67movies.nl"
+        ))
+    }
+
+    func testFillBuildsTheTitleURLFromTheTopResult() {
+        let json = #"{"page":1,"results":[{"id":1418,"media_type":"tv","name":"The Big Bang Theory"}]}"#
+        let top = SiteSearchAnalysis.firstResultsArray(inJSON: json)?.first
+        XCTAssertNotNil(top)
+        XCTAssertEqual(
+            SiteSearchAnalysis.fill(
+                titleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}", result: top!
+            ),
+            "https://67movies.nl/watch/tv/1418"
+        )
+    }
+
+    func testFillFailsWhenAFieldIsMissing() {
+        XCTAssertNil(SiteSearchAnalysis.fill(
+            titleTemplate: "https://site.example/watch/{r.media_type}/{r.id}",
+            result: ["id": 42]
+        ))
+    }
+
+    func testFirstResultsArrayFindsNestedLists() {
+        XCTAssertEqual(
+            SiteSearchAnalysis.firstResultsArray(
+                inJSON: #"{"data":{"hits":[{"id":7,"name":"Seven"}]},"total":1}"#
+            )?.count,
+            1
+        )
+        XCTAssertEqual(SiteSearchAnalysis.firstResultsArray(inJSON: #"{"results":[]}"#)?.count, nil)
+        XCTAssertNil(SiteSearchAnalysis.firstResultsArray(inJSON: "not json"))
+    }
+
+    func testPageTemplateFromNavigation() {
+        XCTAssertEqual(
+            SiteSearchAnalysis.pageTemplate(
+                finalURL: "https://site.example/search?q=Interstellar",
+                homepage: URL(string: "https://site.example")!,
+                probeQuery: "Interstellar"
+            ),
+            "https://site.example/search?q={query}"
+        )
+        // Staying on the homepage teaches nothing.
+        XCTAssertNil(SiteSearchAnalysis.pageTemplate(
+            finalURL: "https://site.example/",
+            homepage: URL(string: "https://site.example")!,
+            probeQuery: "Interstellar"
+        ))
+        // A navigation off-site is not this site's search.
+        XCTAssertNil(SiteSearchAnalysis.pageTemplate(
+            finalURL: "https://elsewhere.example/search?q=Interstellar",
+            homepage: URL(string: "https://site.example")!,
+            probeQuery: "Interstellar"
+        ))
     }
 }
 
