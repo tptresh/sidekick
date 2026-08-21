@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 // Plays a full screen entrance when the theme changes: the Spidey mask swings
-// in on a web line, the bat signal lights up the sky, or Sasuke's Sharingan
-// spins out of his eye and swallows the screen. The overlay is a borderless
+// in on a web line, the bat signal lights up the sky, or Sasuke turns up and
+// opens Rinnegan all over the screen. The overlay is a borderless
 // click-through window above everything, and the theme itself flips
 // mid-animation so the app is already dressed when it fades.
 final class ThemeAnimator {
@@ -86,7 +86,7 @@ private struct ThemeEntranceView: View {
             case .batman:
                 BatSignalView(size: size, applyTheme: applyTheme, finished: finished)
             case .sasuke:
-                SharinganAwakenView(size: size, applyTheme: applyTheme, finished: finished)
+                RinneganAwakenView(size: size, applyTheme: applyTheme, finished: finished)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -276,22 +276,34 @@ private struct BeamShape: Shape {
     }
 }
 
-// MARK: - Sasuke: his eye ignites and the Sharingan spins out of it
+// MARK: - Sasuke: his face appears and Rinnegan open all over the screen
 
-private struct SharinganAwakenView: View {
+// Where each eye opens, as fractions of the screen, with the size it opens to
+// as a fraction of the shorter side. Kept off the middle so his face stays
+// readable underneath, and ordered so they spread outwards as they fire.
+private let rinneganScatter: [(x: CGFloat, y: CGFloat, size: CGFloat, spin: Double)] = [
+    (0.30, 0.34, 0.11, 12), (0.70, 0.31, 0.10, -18),
+    (0.15, 0.20, 0.15, 24), (0.84, 0.22, 0.13, -8),
+    (0.22, 0.71, 0.14, -22), (0.78, 0.74, 0.12, 16),
+    (0.07, 0.48, 0.09, 6), (0.93, 0.52, 0.10, -14),
+    (0.38, 0.11, 0.08, 20), (0.62, 0.90, 0.09, -6),
+    (0.13, 0.87, 0.07, 10), (0.88, 0.85, 0.08, -20),
+    (0.47, 0.93, 0.06, 4), (0.55, 0.07, 0.07, -12),
+    (0.04, 0.68, 0.05, 18), (0.96, 0.34, 0.06, -4),
+]
+
+private struct RinneganAwakenView: View {
     let size: CGSize
     let applyTheme: () -> Void
     let finished: () -> Void
 
     private let headSide: CGFloat
-    private let eyePoint: CGPoint
-    private let discDiameter: CGFloat
+    private let shortSide: CGFloat
 
     @State private var dimmed = false
-    @State private var headIn = false
+    @State private var faceIn = false
     @State private var lit = false
-    @State private var opened = false
-    @State private var spin: Double = 0
+    @State private var opened = 0
     @State private var flash = false
     @State private var visible = true
 
@@ -299,43 +311,24 @@ private struct SharinganAwakenView: View {
         self.size = size
         self.applyTheme = applyTheme
         self.finished = finished
-        let headWidth = min(size.width, size.height) * 0.56
-        headSide = headWidth * 18 / SasukeArt.headWidthUnits
-        // The head sits in the top half of its 18 unit box, so it is centred on
-        // its own head centre; every landmark shifts by the same amount.
-        let unit = headSide / 18
-        eyePoint = CGPoint(
-            x: size.width / 2 + (SasukeArt.sharinganEye.x - SasukeArt.headCentre.x) * unit,
-            y: size.height / 2 + (SasukeArt.sharinganEye.y - SasukeArt.headCentre.y) * unit
-        )
-        discDiameter = min(size.width, size.height) * 0.70
-    }
-
-    // Shrunk to the size of the iris in his eye, so the wheel starts out
-    // sitting exactly on the Sharingan already painted there.
-    private var closedScale: CGFloat {
-        SasukeArt.irisUnits * (headSide / 18) / discDiameter
+        shortSide = min(size.width, size.height)
+        headSide = shortSide * 0.62 * 18 / SasukeArt.headWidthUnits
     }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(dimmed ? 0.62 : 0)
+            Color.black.opacity(dimmed ? 0.72 : 0)
             head
-            SharinganDisc(diameter: discDiameter, spin: spin)
-                .shadow(
-                    color: SasukeArt.sharinganRed.opacity(0.8),
-                    radius: discDiameter * (opened ? 0.09 : 0)
-                )
-                .scaleEffect(opened ? 1 : closedScale)
-                .position(opened ? CGPoint(x: size.width / 2, y: size.height / 2) : eyePoint)
-                .opacity(lit ? 1 : 0)
-            Color(red: 0.85, green: 0.16, blue: 0.16).opacity(flash ? 0.5 : 0)
+            eyes
+            SasukeArt.rinneganPurple.opacity(flash ? 0.45 : 0)
         }
         .frame(width: size.width, height: size.height)
         .opacity(visible ? 1 : 0)
         .onAppear(perform: run)
     }
 
+    // The head sits in the top half of its own box, so it is centred on its
+    // head centre rather than on the box.
     private var head: some View {
         let unit = headSide / 18
         return SasukeHeadView(side: headSide, glow: lit)
@@ -343,21 +336,36 @@ private struct SharinganAwakenView: View {
                 x: (9 - SasukeArt.headCentre.x) * unit,
                 y: (9 - SasukeArt.headCentre.y) * unit
             )
-            .scaleEffect(headIn ? 1 : 0.86)
-            .opacity(headIn ? 1 : 0)
+            .scaleEffect(faceIn ? 1 : 0.9)
+            .opacity(faceIn ? 1 : 0)
             .position(x: size.width / 2, y: size.height / 2)
     }
 
+    private var eyes: some View {
+        ForEach(Array(rinneganScatter.enumerated()), id: \.offset) { index, eye in
+            let diameter = eye.size * shortSide
+            RinneganDisc(diameter: diameter)
+                .rotationEffect(.degrees(eye.spin))
+                .shadow(color: SasukeArt.rinneganPurple.opacity(0.85), radius: diameter * 0.22)
+                .scaleEffect(index < opened ? 1 : 0.15)
+                .opacity(index < opened ? 1 : 0)
+                .position(x: eye.x * size.width, y: eye.y * size.height)
+        }
+    }
+
     private func run() {
-        step(0.02, .easeOut(duration: 0.30)) { dimmed = true }
-        step(0.10, .spring(response: 0.55, dampingFraction: 0.75)) { headIn = true }
-        step(0.65, .easeInOut(duration: 0.30)) { lit = true }
-        step(1.00, .easeOut(duration: 1.05)) { opened = true }
-        step(1.00, .easeOut(duration: 1.70)) { spin = 400 }
-        step(1.55, .easeOut(duration: 0.16)) { flash = true }
-        step(1.62, nil) { applyTheme() }
-        step(1.75, .easeOut(duration: 0.35)) { flash = false }
-        step(2.45, .easeIn(duration: 0.45)) { visible = false }
-        step(3.00, nil) { finished() }
+        step(0.02, .easeOut(duration: 0.32)) { dimmed = true }
+        step(0.10, .spring(response: 0.55, dampingFraction: 0.8)) { faceIn = true }
+        step(0.62, .easeInOut(duration: 0.30)) { lit = true }
+        for index in rinneganScatter.indices {
+            step(0.82 + Double(index) * 0.055, .spring(response: 0.34, dampingFraction: 0.62)) {
+                opened = index + 1
+            }
+        }
+        step(1.80, .easeOut(duration: 0.16)) { flash = true }
+        step(1.86, nil) { applyTheme() }
+        step(2.00, .easeOut(duration: 0.38)) { flash = false }
+        step(2.60, .easeIn(duration: 0.50)) { visible = false }
+        step(3.20, nil) { finished() }
     }
 }

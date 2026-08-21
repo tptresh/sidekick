@@ -2,7 +2,7 @@ import AppKit
 
 // Typing a hero's name offers a theme switch with a full screen entrance:
 // "spidey" swings the mask in on a web line, "the bat" lights the signal,
-// "sasuke" opens the Sharingan.
+// "sasuke" opens Rinnegan across the whole screen.
 enum ThemeProvider {
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
@@ -41,7 +41,7 @@ enum ThemeProvider {
             case .batman:
                 subtitle = "Lights the signal and summons the Dark Knight"
             case .sasuke:
-                subtitle = "His eye lights up and the Sharingan spins out of it"
+                subtitle = "He turns up and opens Rinnegan all over the screen"
             }
         }
         return ResultItem(
