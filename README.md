@@ -197,9 +197,12 @@ showing what is ready, with buttons to re-ask or retry an install.
 ```
 swift build        # debug build
 swift test         # unit tests
-make app           # release .app bundle in build/
+make app           # release .app bundle in build/ (main checkout only)
+make prune         # delete .app bundles left behind in git worktrees
 make icon          # regenerate Resources/AppIcon.icns
 ```
+
+Only one Sidekick runs at a time: a launching copy terminates any older one, because two instances would each claim the menu bar item and the global hotkey. `make app` refuses to run in a git worktree for the same reason - a second bundle with the same bundle id is what lets macOS start a stale copy alongside the real app.
 
 Dev flags: `Spidey --show "query"` opens the panel on launch; `Spidey --snapshot <dir>` renders sample panels to PNGs and exits.
 

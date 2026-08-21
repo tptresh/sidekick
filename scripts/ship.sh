@@ -111,10 +111,22 @@ rm -f "$BUILD_LOG"
 
 # ---- 4. relaunch so the running app is always the latest build ----
 APP_NAME=$(sed -n 's/^APP_NAME = //p' "$MAIN_ROOT/Makefile")
+
+# App bundles left behind in worktrees carry this one's bundle id, so macOS can
+# resolve the app to a stale copy and run it beside the build we just made.
+"$MAIN_ROOT/scripts/prune-worktree-apps.sh" >/dev/null 2>&1
+
 RELAUNCHED="launched"
 if pgrep -xq "$APP_NAME"; then
   pkill -x "$APP_NAME"
-  sleep 1
+  # Wait for it to actually exit. Opening the new build while the old one still
+  # holds the status item and the global hot key is how two copies end up
+  # running, so a fixed sleep is not good enough.
+  for _ in $(seq 20); do
+    pgrep -xq "$APP_NAME" || break
+    sleep 0.25
+  done
+  pkill -9 -x "$APP_NAME" 2>/dev/null
   RELAUNCHED="relaunched"
 fi
 open "$MAIN_ROOT/build/$APP_NAME.app"
