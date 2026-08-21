@@ -111,6 +111,11 @@ final class SettingsStore: ObservableObject {
     @Published var claudeDirectory: String {
         didSet { defaults.set(claudeDirectory, forKey: "claudeDirectory") }
     }
+    // Name of the file behind SasukePortrait, or empty for the drawn face.
+    // Stored so Preferences can show what is in use and redraw when it changes.
+    @Published var sasukePortraitName: String {
+        didSet { defaults.set(sasukePortraitName, forKey: "sasukePortraitName") }
+    }
     @Published var clipboardLimit: Int {
         didSet { defaults.set(clipboardLimit, forKey: "clipboardLimit") }
     }
@@ -128,6 +133,7 @@ final class SettingsStore: ObservableObject {
     @Published var activeHotKey: HotKeyCombo?
 
     private init() {
+        sasukePortraitName = defaults.string(forKey: "sasukePortraitName") ?? ""
         let storedTheme = defaults.string(forKey: "theme") ?? ""
         // Sasuke took the Iron Man slot, so anyone left on it lands there
         // rather than being bumped back to the default.
