@@ -65,7 +65,7 @@ enum WebSearchProvider {
         return ResultItem(
             title: "Search Google for \"\(trimmed)\"",
             subtitle: "Opens in \(BrowserLauncher.targetName)",
-            icon: FaviconStore.shared.resultIcon(for: "https://www.google.com", fallbackSymbol: "magnifyingglass"),
+            icon: BrowserLauncher.targetIcon(fallbackSymbol: "magnifyingglass"),
             score: score,
             action: { BrowserLauncher.open(url) }
         )
