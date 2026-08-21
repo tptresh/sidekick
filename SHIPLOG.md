@@ -84,3 +84,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - adf4672 Sites whose search could not be learned on the first try now retry automatically and on Check Now
 - main is now at: 18a6e58 (build succeeded, app relaunched)
+
+## 2026-08-20 17:44 - OK - claude/movie-search-visibility-311aed
+- "Search learning now rides out Cloudflare walls, learns title links straight from API responses, and runtime searches work on protected sites"
+- merged commits:
+  - bb96c60 Search learning now rides out Cloudflare walls, learns title links straight from API responses, and runtime searches work on protected sites
+- main is now at: 328a62e (build succeeded, app relaunched)
