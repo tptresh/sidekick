@@ -235,3 +235,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - cacab6c Sasuke's search field now reads Awaken the Rinnegan, matching the eye beside it
 - main is now at: 6d4aa46 (build succeeded, app relaunched)
+
+## 2026-08-20 22:50 - OK - claude/sasuke-theme-replacement-74c118
+- "Leave Sasuke's eye exactly as the artwork has it and spin only the six commas on the spot, instead of pasting a drawn Rinnegan over it"
+- merged commits:
+  - 8ab57cb Leave Sasuke's eye exactly as the artwork has it and spin only the six commas on the spot, instead of pasting a drawn Rinnegan over it
+- main is now at: e821197 (build succeeded, app relaunched)
