@@ -168,3 +168,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 19d2192 Redraw Sasuke from reference: a bold chibi figure in the menu bar with his swept spiky hair and lit eyes, and a proper chibi bust in the entrance with the Sharingan and Rinnegan in his eyes
 - main is now at: 9bd0a13 (build succeeded, app relaunched)
+
+## 2026-08-20 21:57 - OK - claude/sasuke-theme-replacement-74c118
+- "Sasuke theme now uses his Rinnegan as the menu bar emblem, and the entrance is an anime-styled drawing of his face with Rinnegan opening all over the screen"
+- merged commits:
+  - 9f74fa6 Sasuke theme now uses his Rinnegan as the menu bar emblem, and the entrance is an anime-styled drawing of his face with Rinnegan opening all over the screen
+- main is now at: b066b3d (build succeeded, app relaunched)
