@@ -375,10 +375,12 @@ private struct RinneganAwakenView: View {
                 // against the ones underneath, and his eyelid comes round with
                 // them. Drawing it means only the tomoe move, which is the part
                 // that should.
-                SasukeIris(diameter: EyeArt.major * display.width * 2)
-                    .rotationEffect(.degrees(spin))
-                    .scaleEffect(x: 1, y: EyeArt.squash)
-                    .rotationEffect(.degrees(EyeArt.tilt))
+                SasukeIris(
+                    diameter: EyeArt.major * display.width * 2,
+                    squash: EyeArt.squash,
+                    tilt: EyeArt.tilt,
+                    spin: spin
+                )
                     .position(
                         x: EyeArt.centre.x * display.width,
                         y: EyeArt.centre.y * display.height
