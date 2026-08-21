@@ -136,6 +136,13 @@ final class WindowSnapMatchingTests: XCTestCase {
         XCTAssertFalse(titles.contains { $0.contains("Full Screen") })
     }
 
+    func testMinimizeIsOfferedAndIsNotMaximize() {
+        let titles = WindowProvider.results(for: "minimise").map(\.title)
+        XCTAssertTrue(titles.contains { $0.contains("Minimize") })
+        XCTAssertFalse(titles.contains { $0.contains("Maximize") })
+        XCTAssertFalse(WindowProvider.results(for: "maximize").map(\.title).contains { $0.contains("Minimize") })
+    }
+
     func testFullScreenSnapUsesTheFullScreenAction() {
         let snap = WindowProvider.snaps.first { $0.title == "Full Screen" }
         XCTAssertNotNil(snap)
