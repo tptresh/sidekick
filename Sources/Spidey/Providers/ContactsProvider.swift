@@ -23,13 +23,15 @@ enum ContactsProvider {
 
     // MARK: - Cache
 
-    private static let store = CNContactStore()
     private static let fetchQueue = DispatchQueue(label: "dev.opensource.spidey.contacts", qos: .userInitiated)
     private static let lock = NSLock()
-    private static var cache: [String: (people: [Person], fetchedAt: Date)] = [:]
+    // people == nil records a failed fetch, kept separately from "no matches"
+    // so an error never masquerades as an empty address book.
+    private static var cache: [String: (people: [Person]?, fetchedAt: Date)] = [:]
     private static var inFlight: Set<String> = []
     private static var pendingFetch: DispatchWorkItem?
     private static let cacheTTL: TimeInterval = 300
+    private static let failureTTL: TimeInterval = 10
     private static let maxCacheEntries = 64
     private static let debounceInterval: TimeInterval = 0.3
     private static var observingChanges = false
@@ -66,7 +68,7 @@ enum ContactsProvider {
         }
 
         startObservingChangesIfNeeded()
-        guard let people = cachedPeople(for: term) else {
+        guard let entry = cachedEntry(for: term) else {
             scheduleFetch(term: term)
             return dedicated ? [ResultItem(
                 title: "Searching contacts\u{2026}",
@@ -74,6 +76,20 @@ enum ContactsProvider {
                 icon: .symbol("person.crop.circle"),
                 score: 950,
                 action: {}
+            )] : []
+        }
+
+        guard let people = entry else {
+            // The fetch itself failed even though the authorization status
+            // reads as granted. The usual cause is a stale grant: each
+            // make app re-signs the bundle, so an old grant in System
+            // Settings no longer matches the running binary.
+            return dedicated ? [ResultItem(
+                title: "Contacts search failed",
+                subtitle: "Return opens Privacy settings - toggle Sidekick off and on there, then try again",
+                icon: .symbol("exclamationmark.triangle"),
+                score: 950,
+                action: { openPrivacySettings() }
             )] : []
         }
 
@@ -131,8 +147,15 @@ enum ContactsProvider {
     }
 
     private static func requestAccess() {
+        let store = CNContactStore()
         store.requestAccess(for: .contacts) { _, _ in
-            // Re-run the visible query so granted access takes effect at once.
+            // Keep the store alive until the request resolves.
+            _ = store
+            // Drop results cached while access was missing, then re-run the
+            // visible query so the grant takes effect at once.
+            lock.lock()
+            cache.removeAll()
+            lock.unlock()
             NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
         }
     }
@@ -217,14 +240,16 @@ enum ContactsProvider {
 
     // MARK: - Fetching
 
-    private static func cachedPeople(for term: String) -> [Person]? {
+    // Outer nil: no fresh entry, a fetch is needed. Inner nil: the last
+    // fetch failed (kept only briefly so a transient error retries soon).
+    private static func cachedEntry(for term: String) -> [Person]?? {
         let key = term.lowercased()
         lock.lock()
         defer { lock.unlock() }
-        guard let entry = cache[key], Date().timeIntervalSince(entry.fetchedAt) < cacheTTL else {
-            return nil
-        }
-        return entry.people
+        guard let entry = cache[key] else { return nil }
+        let ttl = entry.people == nil ? failureTTL : cacheTTL
+        guard Date().timeIntervalSince(entry.fetchedAt) < ttl else { return nil }
+        return .some(entry.people)
     }
 
     private static func scheduleFetch(term: String) {
@@ -265,15 +290,19 @@ enum ContactsProvider {
         NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
     }
 
-    private static func fetchPeople(matching term: String) -> [Person] {
+    // nil means the store threw (a real error), distinct from no matches.
+    private static func fetchPeople(matching term: String) -> [Person]? {
         let keys: [CNKeyDescriptor] = [
             CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
             CNContactPhoneNumbersKey as CNKeyDescriptor,
             CNContactEmailAddressesKey as CNKeyDescriptor,
         ]
         let predicate = CNContact.predicateForContacts(matchingName: term)
+        // A fresh store per fetch: an instance created before access was
+        // granted can keep reporting authorization errors afterwards.
+        let store = CNContactStore()
         guard let contacts = try? store.unifiedContacts(matching: predicate, keysToFetch: keys) else {
-            return []
+            return nil
         }
         return contacts.compactMap { contact in
             let name = CNContactFormatter.string(from: contact, style: .fullName)
