@@ -68,33 +68,49 @@ final class LinkChecker: ObservableObject {
             }
     }
 
-    // Find candidate search URLs for the site, then prove one against the
-    // live site in a hidden web view before storing it. Only a candidate
-    // where searching really returns results is ever used.
+    // Learn how to search the site, preferring what a real visit teaches:
+    // first drive the site's own search box in a hidden web view
+    // (InteractiveSearchProber), and only if that finds nothing fall back to
+    // guessing common search URLs and verifying them. Whatever is learned is
+    // proven against the live site before it is stored.
     func discoverSearchTemplates(for sites: [CustomMediaSite]) {
         for site in sites {
             guard site.isValid, !site.hasSearchTemplate, site.activeDiscoveredTemplate == nil,
+                  site.activeDiscoveredAPI == nil,
                   let homepage = site.homepageURL, let host = site.host,
                   !discoveringHosts.contains(host), !undiscoverableHosts.contains(host)
             else { continue }
             discoveringHosts.insert(host)
-            SearchTemplateFinder.candidates(homepage: homepage, session: session) { candidates in
-                DispatchQueue.main.async {
-                    guard !candidates.isEmpty else {
-                        self.finishDiscovery(siteID: site.id, host: host, template: nil)
-                        return
-                    }
-                    SearchTemplateVerifier.shared.firstWorking(from: candidates) { template in
-                        self.finishDiscovery(siteID: site.id, host: host, template: template)
+            InteractiveSearchProber.shared.probe(homepage: homepage) { learned in
+                if let learned {
+                    self.finishDiscovery(siteID: site.id, host: host, learned: learned)
+                    return
+                }
+                SearchTemplateFinder.candidates(homepage: homepage, session: self.session) { candidates in
+                    DispatchQueue.main.async {
+                        guard !candidates.isEmpty else {
+                            self.finishDiscovery(siteID: site.id, host: host, learned: nil)
+                            return
+                        }
+                        SearchTemplateVerifier.shared.firstWorking(from: candidates) { template in
+                            self.finishDiscovery(
+                                siteID: site.id, host: host,
+                                learned: template.map {
+                                    InteractiveSearchProber.Learned(pageTemplate: $0)
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
-    private func finishDiscovery(siteID: UUID, host: String, template: String?) {
+    private func finishDiscovery(
+        siteID: UUID, host: String, learned: InteractiveSearchProber.Learned?
+    ) {
         discoveringHosts.remove(host)
-        guard let template else {
+        guard let learned else {
             undiscoverableHosts.insert(host)
             return
         }
@@ -102,7 +118,12 @@ final class LinkChecker: ObservableObject {
         guard let index = store.customMediaSites.firstIndex(where: {
             $0.id == siteID && $0.host == host
         }) else { return }
-        store.customMediaSites[index].discoveredTemplate = template
+        if let page = learned.pageTemplate {
+            store.customMediaSites[index].discoveredTemplate = page
+        } else {
+            store.customMediaSites[index].discoveredAPITemplate = learned.apiTemplate
+            store.customMediaSites[index].discoveredTitleTemplate = learned.titleTemplate
+        }
     }
 
     func runIfDue() {

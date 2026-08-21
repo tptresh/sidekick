@@ -75,7 +75,7 @@ struct SettingsView: View {
             Text("Typing a show name offers to open it on each enabled site, in Brave. Favourite site not here? Add a link below and we can search directly there! Added links join this list, and every link is auto-checked every \(Self.checkIntervalDays) days.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link joins searches right away through a Google site search, then switches to the site's own search page once Sidekick has found and verified it - usually under a minute, up to a few minutes for some sites.")
+            Text("Drag rows to set the order results appear in. Press ⓘ to see a site's link. A newly added link joins searches right away; in the background Sidekick opens the site, types into its search box, and learns how its search works so results can jump straight to the right page - usually ready within a minute or two.")
                 .font(.caption)
                 .foregroundColor(.secondary)
             let entries = settings.orderedMediaEntries
@@ -165,7 +165,7 @@ struct SettingsView: View {
                     ProgressView()
                         .controlSize(.small)
                         .scaleEffect(0.6)
-                        .help("Setting up this site's search - can take a few minutes")
+                        .help("Learning this site's search - can take a few minutes")
                 }
                 deadLinkWarning(for: binding.wrappedValue)
             }
@@ -232,17 +232,22 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .textSelection(.enabled)
+                } else if let api = binding.wrappedValue.activeDiscoveredAPI {
+                    Text("Searches ask the site's own search service and open the top matching title. Learned by typing into the site's search box: \(api.apiTemplate)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
                 } else if let host = binding.wrappedValue.host,
                           linkChecker.discoveringHosts.contains(host) {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Setting up this site's search - trying the site's possible search pages and checking that searches really work there. Usually under a minute, but a stubborn site can take a few minutes. Until it's done, searches go through a Google site search.")
+                        Text("Learning this site's search - opening the site, typing into its search box, and checking that a test search really returns titles. Usually under a minute, but a stubborn site can take a few minutes. Until then, searches open the site itself.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Searches use a Google search scoped to this site. Sidekick looks for the site's own search page automatically, but some sites only search from an in-page box with no linkable search URL. Add \(CustomMediaSite.queryPlaceholder) to the link to set one yourself.")
+                    Text("Sidekick could not learn a way to search this site directly yet, so its result opens the site itself; search from its own box there. Add \(CustomMediaSite.queryPlaceholder) to the link to set a search URL yourself.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

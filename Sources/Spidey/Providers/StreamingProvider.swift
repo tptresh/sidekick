@@ -51,28 +51,41 @@ enum StreamingProvider {
                     action: { BrowserLauncher.open(url) }
                 ))
             case .custom(let site):
-                // A site joins search results as soon as it is added: through
-                // a site-scoped Google search at first, then through its own
-                // search page once one is discovered and verified. Some sites
-                // never get past the fallback - their search only exists as an
-                // in-page overlay with no linkable URL.
-                guard site.enabled, site.isValid,
-                      let url = site.searchURL(encodedQuery: encoded) else { continue }
-                let how = site.searchesDirectly
-                    ? "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
-                    : "Searches \(site.displayName) via Google in \(BrowserLauncher.targetName)"
+                // A site joins search results as soon as it is added. Best to
+                // worst: open its real search results page, ask its internal
+                // search API and jump to the top matching title, or open the
+                // site itself so its own search box is one click away.
+                guard site.enabled, site.isValid, let homepage = site.homepageURL
+                else { continue }
+                let how: String
+                let action: () -> Void
+                if let url = site.searchURL(encodedQuery: encoded) {
+                    how = "Opens the \(site.displayName) search in \(BrowserLauncher.targetName)"
+                    action = { BrowserLauncher.open(url) }
+                } else if let api = site.activeDiscoveredAPI {
+                    how = "Opens the top match on \(site.displayName) in \(BrowserLauncher.targetName)"
+                    action = {
+                        SiteSearchOpener.openTopMatch(
+                            apiTemplate: api.apiTemplate, titleTemplate: api.titleTemplate,
+                            query: trimmed, homepage: homepage
+                        )
+                    }
+                } else {
+                    how = "Opens \(site.displayName) in \(BrowserLauncher.targetName) - search from there"
+                    action = { BrowserLauncher.open(homepage) }
+                }
                 let key = "stream:\(site.id.uuidString)"
                 let rowDemoted = demoted && !rescuesDemotion(boost: boosts[key] ?? 0)
                 items.append(ResultItem(
                     title: "Watch \"\(trimmed)\" on \(site.displayName)",
                     subtitle: subtitle(how, statusKey: site.id.uuidString),
                     icon: FaviconStore.shared.resultIcon(
-                        for: site.homepageURL?.absoluteString ?? url.absoluteString,
+                        for: homepage.absoluteString,
                         fallbackSymbol: "play.tv.fill"
                     ),
                     score: (rowDemoted ? 80.0 : 200.0) - position,
                     rankingKey: key,
-                    action: { BrowserLauncher.open(url) }
+                    action: action
                 ))
             }
             position += 1
