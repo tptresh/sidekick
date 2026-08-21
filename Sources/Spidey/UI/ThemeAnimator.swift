@@ -283,14 +283,8 @@ private struct BeamShape: Shape {
 // the image. His eye is turned away from us, so the iris is an ellipse rather
 // than a circle, which the spin has to account for.
 private enum EyeArt {
-    // Where his Rinnegan sits in the picture, fitted to the artwork: the middle
-    // of the iris, its semi-major axis as a fraction of the picture's width,
-    // how far the minor axis is squashed against it, and how far it leans. His
-    // eye is turned away from us, so the iris is a tilted ellipse.
-    static let centre = UnitPoint(x: 0.4950, y: 0.5704)
-    static let major: CGFloat = 0.2620
-    static let squash: CGFloat = 0.560
-    static let tilt: Double = -16.0
+    // His pupil, as a fraction of the picture. The chakra rings roll out of it.
+    static let pupil = UnitPoint(x: 0.4922, y: 0.5494)
 }
 
 // Where each smaller eye opens, as fractions of the screen, with the size it
@@ -344,8 +338,8 @@ private struct RinneganAwakenView: View {
     private var irisCentre: CGPoint {
         let display = displaySize
         return CGPoint(
-            x: size.width / 2 + (EyeArt.centre.x - 0.5) * display.width,
-            y: size.height / 2 + (EyeArt.centre.y - 0.5) * display.height
+            x: size.width / 2 + (EyeArt.pupil.x - 0.5) * display.width,
+            y: size.height / 2 + (EyeArt.pupil.y - 0.5) * display.height
         )
     }
 
@@ -369,22 +363,7 @@ private struct RinneganAwakenView: View {
             let display = displaySize
             ZStack {
                 picture(portrait, display)
-                // A Rinnegan drawn to match the one in the picture, laid over
-                // it and turned. Rotating the artwork itself instead means
-                // fighting the ellipse: the rings slide out of true and beat
-                // against the ones underneath, and his eyelid comes round with
-                // them. Drawing it means only the tomoe move, which is the part
-                // that should.
-                SasukeIris(
-                    diameter: EyeArt.major * display.width * 2,
-                    squash: EyeArt.squash,
-                    tilt: EyeArt.tilt,
-                    spin: spin
-                )
-                    .position(
-                        x: EyeArt.centre.x * display.width,
-                        y: EyeArt.centre.y * display.height
-                    )
+                SasukeTomoe(display: display, spin: spin)
             }
             .frame(width: display.width, height: display.height)
             .scaleEffect(arrived ? 1 : 1.1)
