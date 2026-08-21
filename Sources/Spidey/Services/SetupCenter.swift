@@ -197,20 +197,24 @@ final class SetupCenter: ObservableObject {
     // players and browsers are only primed while running, because targeting
     // them otherwise would launch them.
     private func primeAutomationConsents() {
-        var targets: [(scriptName: String, alwaysAlive: Bool, bundleID: String?)] = [
-            ("System Events", true, nil),
-            ("Finder", true, nil),
+        // Each script must round-trip a real Apple Event: asking for `name`
+        // (or other application properties) is answered locally by
+        // AppleScript from the target's Info.plist, sends nothing, and so
+        // never triggers the consent.
+        var targets: [(script: String, bundleID: String?)] = [
+            ("tell application \"System Events\" to count processes", nil),
+            ("tell application \"Finder\" to count windows", nil),
         ]
         let optional: [(String, String)] = [
-            ("Music", "com.apple.Music"),
-            ("Spotify", "com.spotify.client"),
-            ("Brave Browser", "com.brave.Browser"),
-            ("Google Chrome", "com.google.Chrome"),
-            ("Terminal", "com.apple.Terminal"),
+            ("tell application \"Music\" to get player state", "com.apple.Music"),
+            ("tell application \"Spotify\" to get player state", "com.spotify.client"),
+            ("tell application \"Brave Browser\" to count windows", "com.brave.Browser"),
+            ("tell application \"Google Chrome\" to count windows", "com.google.Chrome"),
+            ("tell application \"Terminal\" to count windows", "com.apple.Terminal"),
         ]
         let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-        for (name, bundleID) in optional where running.contains(bundleID) {
-            targets.append((name, false, bundleID))
+        for (script, bundleID) in optional where running.contains(bundleID) {
+            targets.append((script, bundleID))
         }
         automationQueue.async {
             for target in targets {
@@ -220,7 +224,7 @@ final class SetupCenter: ObservableObject {
                 // taking their time on the dialog, not a hang.
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                process.arguments = ["-e", "tell application \"\(target.scriptName)\" to get name"]
+                process.arguments = ["-e", target.script]
                 process.standardOutput = FileHandle.nullDevice
                 process.standardError = FileHandle.nullDevice
                 guard (try? process.run()) != nil else { continue }
