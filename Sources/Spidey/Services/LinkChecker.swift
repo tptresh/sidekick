@@ -77,6 +77,39 @@ final class LinkChecker: ObservableObject {
         discoverSearchTemplates(for: SettingsStore.shared.customMediaSites)
     }
 
+    // Learned searches rot when a site redesigns. Each check cycle re-proves
+    // every learned mechanism against the live site; a broken one is cleared,
+    // which automatically triggers a fresh learning pass for that site.
+    func reverifyLearnedSearches() {
+        for site in SettingsStore.shared.customMediaSites {
+            guard site.isValid, let host = site.host, !discoveringHosts.contains(host)
+            else { continue }
+            if let template = site.activeDiscoveredTemplate {
+                SearchTemplateVerifier.shared.firstWorking(from: [template]) { working in
+                    if working == nil { self.clearLearned(siteID: site.id, host: host) }
+                }
+            } else if let api = site.activeDiscoveredAPI {
+                SiteSearchOpener.verify(apiTemplate: api.apiTemplate) { works in
+                    if !works { self.clearLearned(siteID: site.id, host: host) }
+                }
+            }
+        }
+    }
+
+    private func clearLearned(siteID: UUID, host: String) {
+        let store = SettingsStore.shared
+        guard let index = store.customMediaSites.firstIndex(where: {
+            $0.id == siteID && $0.host == host
+        }) else { return }
+        store.customMediaSites[index].discoveredTemplate = nil
+        store.customMediaSites[index].discoveredAPITemplate = nil
+        store.customMediaSites[index].discoveredTitleTemplate = nil
+        store.customMediaSites[index].discoveredHost = nil
+        // The store mutation republishes the site list, which starts a fresh
+        // learning pass on its own.
+        undiscoverableHosts.remove(host)
+    }
+
     // Learn how to search the site, preferring what a real visit teaches:
     // first drive the site's own search box in a hidden web view
     // (InteractiveSearchProber), and only if that finds nothing fall back to
@@ -243,5 +276,7 @@ final class LinkChecker: ObservableObject {
             defaults.set(data, forKey: "linkCheckStatuses")
         }
         defaults.set(lastRun, forKey: "linkCheckLastRun")
+        // Every check cycle also re-proves the learned search mechanisms.
+        reverifyLearnedSearches()
     }
 }

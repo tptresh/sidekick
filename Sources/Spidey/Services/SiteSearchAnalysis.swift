@@ -131,6 +131,13 @@ enum SiteSearchAnalysis {
         return firstObjectArray(in: json)
     }
 
+    // True for any well-formed JSON payload - the shape a search API answers
+    // with, and never the shape of an anti-bot interstitial page.
+    static func isJSON(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data)) != nil
+    }
+
     static func resultsText(_ results: [[String: Any]]) -> String {
         results.flatMap { object in
             object.keys.sorted().compactMap { stringValue(object[$0]!) }
@@ -229,14 +236,57 @@ enum SiteSearchOpener {
         // Fast path first; sites behind an anti-bot wall answer a plain
         // request with a challenge page instead of JSON, and for those the
         // hidden web view (which holds the clearance cookies) asks again.
+        fetchJSONText(url: url) { text in
+            if !openFromBody(text) { openHomepage() }
+        }
+    }
+
+    // Prove a learned search API still works: the probe film must come back
+    // in a results list, the nonsense query must not.
+    static func verify(apiTemplate: String, completion: @escaping (Bool) -> Void) {
+        let filled = { (query: String) in
+            URL(string: apiTemplate.replacingOccurrences(
+                of: CustomMediaSite.queryPlaceholder, with: BrowserLauncher.encodeQuery(query)
+            ))
+        }
+        guard let probeURL = filled(InteractiveSearchProber.probeTitle),
+              let controlURL = filled(InteractiveSearchProber.controlQuery) else {
+            completion(false)
+            return
+        }
+        fetchJSONText(url: probeURL) { probeText in
+            guard let probeText,
+                  let probe = SiteSearchAnalysis.firstResultsArray(inJSON: probeText),
+                  SiteSearchAnalysis.resultsText(probe)
+                      .localizedCaseInsensitiveContains(InteractiveSearchProber.probeTitle)
+            else {
+                completion(false)
+                return
+            }
+            fetchJSONText(url: controlURL) { controlText in
+                let control = controlText.flatMap(SiteSearchAnalysis.firstResultsArray) ?? []
+                let text = SiteSearchAnalysis.resultsText(control)
+                completion(
+                    !text.localizedCaseInsensitiveContains(InteractiveSearchProber.probeTitle)
+                        && text != SiteSearchAnalysis.resultsText(probe)
+                )
+            }
+        }
+    }
+
+    // Plain request first, hidden web view second (for anti-bot walls).
+    // Completion arrives on the main thread.
+    private static func fetchJSONText(url: URL, completion: @escaping (String?) -> Void) {
         var request = URLRequest(url: url, timeoutInterval: 8)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         URLSession.shared.dataTask(with: request) { data, _, _ in
-            if openFromBody(data.flatMap { String(data: $0, encoding: .utf8) }) { return }
+            if let text = data.flatMap({ String(data: $0, encoding: .utf8) }),
+               SiteSearchAnalysis.isJSON(text) {
+                DispatchQueue.main.async { completion(text) }
+                return
+            }
             DispatchQueue.main.async {
-                WebViewFetcher.shared.fetchText(url: url) { text in
-                    if !openFromBody(text) { openHomepage() }
-                }
+                WebViewFetcher.shared.fetchText(url: url, completion: completion)
             }
         }.resume()
     }
