@@ -299,6 +299,8 @@ private struct RinneganAwakenView: View {
 
     private let headSide: CGFloat
     private let shortSide: CGFloat
+    // Whatever picture of him is installed; nil falls back to the drawn face.
+    private let portrait: NSImage?
 
     @State private var dimmed = false
     @State private var faceIn = false
@@ -313,6 +315,7 @@ private struct RinneganAwakenView: View {
         self.finished = finished
         shortSide = min(size.width, size.height)
         headSide = shortSide * 0.62 * 18 / SasukeArt.headWidthUnits
+        portrait = SasukePortrait.image()
     }
 
     var body: some View {
@@ -327,9 +330,28 @@ private struct RinneganAwakenView: View {
         .onAppear(perform: run)
     }
 
-    // The head sits in the top half of its own box, so it is centred on its
-    // head centre rather than on the box.
+    @ViewBuilder
     private var head: some View {
+        if let portrait {
+            Image(nsImage: portrait)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: shortSide * 0.78, height: shortSide * 0.78)
+                .shadow(
+                    color: SasukeArt.rinneganPurple.opacity(lit ? 0.85 : 0),
+                    radius: lit ? shortSide * 0.06 : 0
+                )
+                .scaleEffect(faceIn ? 1 : 0.9)
+                .opacity(faceIn ? 1 : 0)
+                .position(x: size.width / 2, y: size.height / 2)
+        } else {
+            drawnHead
+        }
+    }
+
+    // The drawn head sits in the top half of its own box, so it is centred on
+    // its head centre rather than on the box.
+    private var drawnHead: some View {
         let unit = headSide / 18
         return SasukeHeadView(side: headSide, glow: lit)
             .offset(
