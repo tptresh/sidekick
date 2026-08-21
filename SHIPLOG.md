@@ -272,3 +272,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: b1ee39c (build succeeded, app relaunched)
+
+## 2026-08-21 00:43 - OK - main
+- "Commit history now uses a GitHub noreply address instead of a personal email"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: e296440 (build succeeded, app relaunched)
