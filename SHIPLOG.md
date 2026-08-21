@@ -180,3 +180,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 11c758f Preferences can point the Sasuke entrance at a real picture of him, which the animation uses instead of the drawn face
 - main is now at: 64262e6 (build succeeded, app relaunched)
+
+## 2026-08-20 22:12 - OK - claude/sasuke-theme-replacement-74c118
+- "Sasuke's entrance now uses the real anime render of him: he arrives, gathers purple chakra, and Rinnegan open across the screen as chakra rings roll out"
+- merged commits:
+  - 7f78dd4 Sasuke's entrance now uses the real anime render of him: he arrives, gathers purple chakra, and Rinnegan open across the screen as chakra rings roll out
+- main is now at: 9ee24d0 (build succeeded, app relaunched)
