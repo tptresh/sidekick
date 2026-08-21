@@ -57,7 +57,7 @@ final class WebViewFetcher: NSObject {
                 "document.body ? document.body.innerText : ''"
             ) { value, _ in
                 let text = value as? String ?? ""
-                if SiteSearchAnalysis.firstResultsArray(inJSON: text) != nil {
+                if SiteSearchAnalysis.isJSON(text) {
                     then(text)
                     return
                 }
