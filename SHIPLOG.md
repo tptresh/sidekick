@@ -222,3 +222,10 @@ last worked, and inspect its listed commit hashes with `git show`.
 - unmerged commits:
   - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
 - fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
+
+## 2026-08-20 22:44 - OK - claude/last-watched-episode-memory-c418cb
+- "Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up"
+- merged commits:
+  - 3d0513c Merge main into last-watched-episode-memory
+  - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
+- main is now at: db719ad (build succeeded, app relaunched)
