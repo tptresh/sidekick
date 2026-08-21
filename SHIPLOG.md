@@ -162,3 +162,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 894e943 Spidey understands spoken system commands: set a timer for 5 minutes, turn off wifi, what's my ip, dim the screen
 - main is now at: bda7915 (build succeeded, app relaunched)
+
+## 2026-08-20 19:57 - OK - claude/sasuke-theme-replacement-74c118
+- "Redraw Sasuke from reference: a bold chibi figure in the menu bar with his swept spiky hair and lit eyes, and a proper chibi bust in the entrance with the Sharingan and Rinnegan in his eyes"
+- merged commits:
+  - 19d2192 Redraw Sasuke from reference: a bold chibi figure in the menu bar with his swept spiky hair and lit eyes, and a proper chibi bust in the entrance with the Sharingan and Rinnegan in his eyes
+- main is now at: 9bd0a13 (build succeeded, app relaunched)
