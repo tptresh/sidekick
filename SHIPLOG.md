@@ -71,3 +71,10 @@ last worked, and inspect its listed commit hashes with `git show`.
 - unmerged commits:
   - 3d79d4e Custom sites' search is now learned by driving the site's real search box; results jump to the top matching title, never a dead Google page
 - fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
+
+## 2026-08-20 17:11 - OK - claude/movie-search-visibility-311aed
+- "Custom sites' search is now learned by driving the site's real search box; results jump to the top matching title, never a dead Google page"
+- merged commits:
+  - 19546f0 Merge main: keep demotion ranking, add learned-search open actions
+  - 3d79d4e Custom sites' search is now learned by driving the site's real search box; results jump to the top matching title, never a dead Google page
+- main is now at: 580c60f (build succeeded, app relaunched)
