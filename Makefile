@@ -24,6 +24,12 @@ app: build
 	@# in System Settings. Reset it so relaunching prompts fresh instead of
 	@# silently failing.
 	-tccutil reset Accessibility $(BUNDLE_ID)
+	@# Same staleness applies to the Contacts/Calendar/Reminders grants,
+	@# and to the Automation (Apple Events) grants for browsers and players.
+	-tccutil reset AddressBook $(BUNDLE_ID)
+	-tccutil reset Calendar $(BUNDLE_ID)
+	-tccutil reset Reminders $(BUNDLE_ID)
+	-tccutil reset AppleEvents $(BUNDLE_ID)
 	@echo "Built $(APP_DIR)"
 
 icon:

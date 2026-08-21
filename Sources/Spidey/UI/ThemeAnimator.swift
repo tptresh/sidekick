@@ -84,6 +84,8 @@ private struct ThemeEntranceView: View {
                 WebSlingView(size: size, applyTheme: applyTheme, finished: finished)
             case .batman:
                 BatSignalView(size: size, applyTheme: applyTheme, finished: finished)
+            case .fantasticFour:
+                FourFlareView(size: size, applyTheme: applyTheme, finished: finished)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -270,5 +272,65 @@ private struct BeamShape: Shape {
         path.addLine(to: CGPoint(x: target.x - px * halfWidth, y: target.y - py * halfWidth))
         path.closeSubpath()
         return path
+    }
+}
+
+// MARK: - Fantastic Four: a flare bursts and the 4 lights up the sky
+
+private struct FourFlareView: View {
+    let size: CGSize
+    let applyTheme: () -> Void
+    let finished: () -> Void
+
+    private let emblemImage: NSImage
+    private let emblemRadius: CGFloat
+
+    @State private var brightened = false
+    @State private var emblemShown = false
+    @State private var glowSpread = false
+    @State private var visible = true
+
+    init(size: CGSize, applyTheme: @escaping () -> Void, finished: @escaping () -> Void) {
+        self.size = size
+        self.applyTheme = applyTheme
+        self.finished = finished
+        emblemRadius = min(size.width, size.height) * 0.20
+        emblemImage = StatusIcons.watermark(
+            for: .fantasticFour,
+            size: emblemRadius * 1.8,
+            color: NSColor(HeroTheme.fantasticFour.palette.accent)
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            Color.white.opacity(brightened ? 0.45 : 0)
+            Circle()
+                .fill(RadialGradient(
+                    colors: [HeroTheme.fantasticFour.palette.accent.opacity(0.55), .clear],
+                    center: .center, startRadius: 0, endRadius: emblemRadius * 2.4
+                ))
+                .frame(width: emblemRadius * 4.8, height: emblemRadius * 4.8)
+                .scaleEffect(glowSpread ? 1 : 0.2)
+                .opacity(glowSpread ? 1 : 0)
+            Image(nsImage: emblemImage)
+                .opacity(emblemShown ? 1 : 0)
+                .scaleEffect(emblemShown ? 1 : 0.4)
+        }
+        .frame(width: size.width, height: size.height)
+        .opacity(visible ? 1 : 0)
+        .onAppear(perform: run)
+    }
+
+    private func run() {
+        step(0.05, .easeIn(duration: 0.25)) { brightened = true }
+        step(0.30, .spring(response: 0.45, dampingFraction: 0.65)) {
+            emblemShown = true
+            glowSpread = true
+        }
+        step(0.75, nil) { applyTheme() }
+        step(0.80, .easeOut(duration: 0.35)) { brightened = false }
+        step(1.45, .easeOut(duration: 0.4)) { visible = false }
+        step(1.90, nil) { finished() }
     }
 }
