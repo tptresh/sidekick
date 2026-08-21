@@ -13,6 +13,6 @@ xattr -dr com.apple.quarantine /Applications/Sidekick.app
    Spotlight) to open the panel.
 
 Prefer to build it yourself? `git clone`, then `make app`. See the
-[README](../blob/main/README.md#install).
+[README](https://github.com/tptresh/sidekick#install).
 
 ---
