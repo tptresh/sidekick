@@ -18,7 +18,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Dictionary**: `define word` and `spell word`
 - **Dev tools**: `uuid`, `b64 <text>` / `b64d <text>`, `url encode <text>` / `url decode <text>`, `sha256 <text>`, `md5 <text>`, and `ts` for unix-timestamp conversion (`ts`, `ts 1700000000`, `ts 2023-11-14T22:13:20Z`). Return copies the value
 - **System info**: `ip` (local and public addresses), `battery`, `disk` free space. Return copies the value
-- **Volume & brightness**: `volume 50`, `volume up` / `volume down`, `mute` / `unmute`; `brightness 0.8` and `brightness up|down` use the `brightness` CLI if installed (`brew install brightness`), else open Display settings
+- **Volume & brightness**: `volume 50`, `volume up` / `volume down`, `mute` / `unmute`; `brightness 0.8` and `brightness up|down` use the `brightness` CLI, which Sidekick installs automatically at launch via Homebrew
 - **QR codes**: `qr <text>` shows a live preview; Return copies the PNG, Cmd+Return saves `qr.png` to the Desktop
 - **Large type**: `large <text>` or `lt <text>` fills the screen with the text; any key or click dismisses it
 - **System commands**: sleep, lock, restart, shut down, log out, empty trash, screen saver, eject (destructive ones ask for a confirming second Return)
@@ -28,7 +28,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Menu search**: `menu export` searches the front app's menu bar and runs the matching item (Accessibility permission)
 - **Window switcher**: `win mail` lists on-screen windows across apps and raises the one you pick; strong title matches also appear on plain queries
 - **Tab switcher**: `tab gmail` jumps to an open Brave (or Chrome) tab; first use shows the standard Automation consent
-- **Toggles**: `dark mode`, `wifi`, `bluetooth` (direct with blueutil installed, otherwise opens Settings), and `caffeinate` to keep the Mac awake until you turn it off
+- **Toggles**: `dark mode`, `wifi`, `bluetooth` (via blueutil, which Sidekick installs automatically at launch), and `caffeinate` to keep the Mac awake until you turn it off
 - **Ping your Apple devices**: `ping my iphone`, `ping airpods`, or `find my keys` plays a sound on the device through the Find My app; any name from your Find My list works (`ping tanush's macbook`). Uses the same one-time Accessibility permission as window snapping, and if a step cannot be automated Find My is left open on the device so finishing is one click
 - **Timers**: `timer 10m tea` rings with a notification and a sound; `timers` lists running ones and Return cancels
 - **Contacts**: type a name (or `contact <name>` for the full list) to copy a phone number or email; Cmd+Return calls via FaceTime (`tel:`) or opens Mail
@@ -176,10 +176,17 @@ When you type an alias (or start your query with it), the app it names is scored
 as an exact match. The file is re-read automatically whenever it changes — no
 restart needed.
 
-## Permissions
+## Permissions & setup
 
-- **Automation**: the first system command asks for permission to control System Events or Finder. This is standard macOS behavior for launchers. Music controls (Spotify/Music) and the tab switcher (Brave/Chrome) each trigger the same standard Automation consent for their app on first use.
-- **Contacts, Calendars, Reminders**: contact search, the calendar rows, and reminder creation each ask for their own permission on first use — the result row itself walks you through granting it. These prompts need the bundled app (`make app`); a bare `swift build` binary has no Info.plist, so the rows explain that instead of prompting. Note that `make app` resets these grants (along with Accessibility) because ad-hoc signing changes the code identity, so a rebuild prompts fresh.
+Sidekick front-loads its setup: on launch it asks for every permission its
+features need and installs its own command line tools, so no feature surprises
+you with a missing piece later. Preferences has a "Permissions & Tools" section
+showing what is ready, with buttons to re-ask or retry an install.
+
+- **At launch**: the app requests Accessibility, Contacts, Calendar, and Reminders access up front, and triggers the standard Automation consents for System Events and Finder (plus Spotify/Music, Brave/Chrome, and Terminal when they are already running - apps that are not running are asked on first use instead, so launch never opens them).
+- **Command line tools**: the Bluetooth toggle uses `blueutil` and brightness control uses the `brightness` CLI. If either is missing, Sidekick installs it through Homebrew in the background at launch and tells you when it is done. Without Homebrew installed, Sidekick explains that once and those two commands fall back to opening the matching System Settings pane.
+- **Automation**: controlling System Events, Finder, music players, and browser tabs uses standard macOS Automation consents, the same ones every launcher triggers.
+- **Contacts, Calendars, Reminders**: prompts need the bundled app (`make app`); a bare `swift build` binary has no Info.plist, so the result rows explain that instead of prompting. Note that `make app` resets these grants (along with Accessibility) because ad-hoc signing changes the code identity, so a rebuild prompts fresh at next launch.
 - **Files**: on first launch macOS asks for access to Documents, Downloads, and Desktop. Click Allow on each, or file search cannot see those folders (macOS also hides them from Spidey's Spotlight queries until then). Optionally grant Spidey Full Disk Access in System Settings > Privacy & Security for the widest Spotlight coverage.
 - **Shortcuts**: Focus switching runs shortcuts through the `shortcuts` command line tool. The Do Not Disturb ones are generated by Spidey and confirmed by you with one click on first use; custom `Focus: <Mode>` ones you create yourself. No extra permission is needed.
 - **Accessibility**: window snapping, menu search, the window switcher, and device pinging share one Accessibility permission; the result row walks you through granting it on first use. Pinging also triggers the standard Automation prompt for System Events, since it drives the Find My app by scripting its UI (macOS offers no other door into Find My).

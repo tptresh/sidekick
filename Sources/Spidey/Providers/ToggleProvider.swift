@@ -55,7 +55,7 @@ enum ToggleProvider {
             } else {
                 items.append(ResultItem(
                     title: "Open Bluetooth Settings",
-                    subtitle: "Toggling directly needs blueutil (brew install blueutil)",
+                    subtitle: SetupCenter.shared.missingToolHint("blueutil"),
                     icon: .symbol("wave.3.right"),
                     score: 950,
                     action: {
@@ -150,10 +150,9 @@ enum WifiControl {
 }
 
 enum Bluetooth {
-    static let blueutilPath: String? = {
-        ["/opt/homebrew/bin/blueutil", "/usr/local/bin/blueutil"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
-    }()
+    // Looked up per query, not cached: SetupCenter may install blueutil in
+    // the background after launch.
+    static var blueutilPath: String? { SetupCenter.binaryPath(for: "blueutil") }
 }
 
 // Keeps a caffeinate child process alive while "keep awake" is on.

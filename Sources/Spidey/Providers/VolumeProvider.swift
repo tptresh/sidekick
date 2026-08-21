@@ -3,10 +3,9 @@ import AppKit
 // "volume 50", "volume up/down", "mute"/"unmute", and "brightness 0.8" or
 // "brightness up/down" (needs the brightness CLI, else opens Displays settings).
 enum VolumeProvider {
-    static let brightnessCLI: String? = {
-        ["/opt/homebrew/bin/brightness", "/usr/local/bin/brightness"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
-    }()
+    // Looked up per query, not cached: SetupCenter may install the CLI in
+    // the background after launch.
+    static var brightnessCLI: String? { SetupCenter.binaryPath(for: "brightness") }
 
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
@@ -78,7 +77,7 @@ enum VolumeProvider {
             }
             return [ResultItem(
                 title: "Open Display Settings",
-                subtitle: "Changing brightness directly needs the brightness CLI (brew install brightness)",
+                subtitle: SetupCenter.shared.missingToolHint("brightness"),
                 icon: .symbol("sun.max"), score: 950,
                 action: {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.Displays-Settings.extension") {
