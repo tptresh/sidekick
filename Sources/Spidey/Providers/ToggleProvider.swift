@@ -1,27 +1,56 @@
 import AppKit
 
 // Quick toggles: dark mode, Wi-Fi, Bluetooth, and caffeinate (keep the Mac awake).
+// A query can name the state it wants ("wifi off", "dark mode on") or just the
+// subject ("wifi"), which flips whatever it is now.
 enum ToggleProvider {
+    // What the query asked for, once a trailing on/off is peeled away.
+    enum Intent {
+        case flip, on, off
+
+        func desired(current: Bool) -> Bool {
+            switch self {
+            case .flip: return !current
+            case .on: return true
+            case .off: return false
+            }
+        }
+
+        // "wifi off" -> (.off, "wifi"); "wifi" -> (.flip, "wifi").
+        static func split(_ query: String) -> (intent: Intent, subject: String) {
+            if query.hasSuffix(" off") {
+                return (.off, String(query.dropLast(" off".count)))
+            }
+            if query.hasSuffix(" on") {
+                return (.on, String(query.dropLast(" on".count)))
+            }
+            return (.flip, query)
+        }
+    }
+
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard lowered.count >= 3 else { return [] }
+        let (intent, subject) = Intent.split(lowered)
+        guard !subject.isEmpty else { return [] }
         var items: [ResultItem] = []
 
         func matches(_ names: [String], threshold: Double = 0.7) -> Bool {
             names.contains { candidate in
-                (Fuzzy.score(query: lowered, candidate: candidate) ?? 0) >= threshold
+                (Fuzzy.score(query: subject, candidate: candidate) ?? 0) >= threshold
             }
         }
 
         if matches(["dark mode", "light mode", "appearance", "dark", "theme system"]) {
             let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
                 || Shell.run("/usr/bin/defaults", ["read", "-g", "AppleInterfaceStyle"]).contains("Dark")
-            items.append(ResultItem(
-                title: isDark ? "Switch to Light Mode" : "Switch to Dark Mode",
+            items.append(row(
+                intent: intent, current: isDark,
+                onTitle: "Switch to Dark Mode", offTitle: "Switch to Light Mode",
+                settledTitle: isDark ? "Already in Dark Mode" : "Already in Light Mode",
                 subtitle: "Toggles the system appearance",
-                icon: .symbol(isDark ? "sun.max.fill" : "moon.fill"),
-                score: 950,
-                action: {
+                symbol: isDark ? "sun.max.fill" : "moon.fill",
+                apply: { _ in
                     SystemProvider.runAppleScript(
                         "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"
                     )
@@ -32,12 +61,13 @@ enum ToggleProvider {
         if matches(["wifi", "wi-fi", "wireless"]) {
             if let device = WifiControl.device {
                 let isOn = WifiControl.isOn(device: device)
-                items.append(ResultItem(
-                    title: isOn ? "Turn Wi-Fi Off" : "Turn Wi-Fi On",
+                items.append(row(
+                    intent: intent, current: isOn,
+                    onTitle: "Turn Wi-Fi On", offTitle: "Turn Wi-Fi Off",
+                    settledTitle: "Wi-Fi is already \(isOn ? "on" : "off")",
                     subtitle: "Wi-Fi is currently \(isOn ? "on" : "off") (\(device))",
-                    icon: .symbol(isOn ? "wifi.slash" : "wifi"),
-                    score: 950,
-                    action: { WifiControl.setPower(!isOn, device: device) }
+                    symbol: isOn ? "wifi.slash" : "wifi",
+                    apply: { WifiControl.setPower($0, device: device) }
                 ))
             }
         }
@@ -45,12 +75,13 @@ enum ToggleProvider {
         if matches(["bluetooth"]) {
             if let blueutil = Bluetooth.blueutilPath {
                 let isOn = Shell.run(blueutil, ["-p"]).trimmingCharacters(in: .whitespacesAndNewlines) == "1"
-                items.append(ResultItem(
-                    title: isOn ? "Turn Bluetooth Off" : "Turn Bluetooth On",
+                items.append(row(
+                    intent: intent, current: isOn,
+                    onTitle: "Turn Bluetooth On", offTitle: "Turn Bluetooth Off",
+                    settledTitle: "Bluetooth is already \(isOn ? "on" : "off")",
                     subtitle: "Bluetooth is currently \(isOn ? "on" : "off")",
-                    icon: .symbol("wave.3.right"),
-                    score: 950,
-                    action: { _ = Shell.run(blueutil, ["-p", isOn ? "0" : "1"]) }
+                    symbol: "wave.3.right",
+                    apply: { _ = Shell.run(blueutil, ["-p", $0 ? "1" : "0"]) }
                 ))
             } else {
                 items.append(ResultItem(
@@ -69,18 +100,50 @@ enum ToggleProvider {
 
         if matches(["caffeinate", "keep awake", "awake", "coffee", "no sleep"]) {
             let active = CaffeinateManager.shared.isActive
-            items.append(ResultItem(
-                title: active ? "Stop Keeping Mac Awake" : "Keep Mac Awake",
+            items.append(row(
+                intent: intent, current: active,
+                onTitle: "Keep Mac Awake", offTitle: "Stop Keeping Mac Awake",
+                settledTitle: active ? "Mac is already staying awake" : "Mac already sleeps normally",
                 subtitle: active
                     ? "Caffeinate is running, sleep works normally again after this"
                     : "Stops the Mac and display from sleeping until turned off",
-                icon: .symbol(active ? "cup.and.saucer" : "cup.and.saucer.fill"),
-                score: 950,
-                action: { CaffeinateManager.shared.toggle() }
+                symbol: active ? "cup.and.saucer" : "cup.and.saucer.fill",
+                apply: { _ in CaffeinateManager.shared.toggle() }
             ))
         }
 
         return items
+    }
+
+    // One row per toggle: the action row when the state has to change, and an
+    // "already off" confirmation when the query asked for the state it is in.
+    private static func row(
+        intent: Intent,
+        current: Bool,
+        onTitle: String,
+        offTitle: String,
+        settledTitle: String,
+        subtitle: String,
+        symbol: String,
+        apply: @escaping (Bool) -> Void
+    ) -> ResultItem {
+        let desired = intent.desired(current: current)
+        guard desired != current else {
+            return ResultItem(
+                title: settledTitle,
+                subtitle: "Nothing to change",
+                icon: .symbol(symbol),
+                score: 950,
+                action: {}
+            )
+        }
+        return ResultItem(
+            title: desired ? onTitle : offTitle,
+            subtitle: subtitle,
+            icon: .symbol(symbol),
+            score: 950,
+            action: { apply(desired) }
+        )
     }
 }
 

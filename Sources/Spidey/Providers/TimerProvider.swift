@@ -10,7 +10,7 @@ enum TimerProvider {
             if running.isEmpty {
                 return [ResultItem(
                     title: "No timers running",
-                    subtitle: "Start one like: timer 10m tea",
+                    subtitle: "Start one like: set a timer for 10 minutes",
                     icon: .symbol("timer"),
                     score: 950,
                     action: {}
@@ -28,11 +28,11 @@ enum TimerProvider {
         }
 
         guard lowered.hasPrefix("timer ") else { return [] }
-        let spec = String(query.dropFirst("timer ".count))
+        let spec = String(query.dropFirst("timer ".count)).trimmingCharacters(in: .whitespaces)
         guard let parsed = TimerCenter.parse(spec) else {
             return [ResultItem(
                 title: "Start a timer",
-                subtitle: "Like: timer 10m tea, timer 1h30m pasta, timer 90s",
+                subtitle: "Like: timer for 10 minutes, timer 1h30m pasta, timer 90s",
                 icon: .symbol("timer"),
                 score: 950,
                 action: {}
@@ -42,8 +42,13 @@ enum TimerProvider {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         let endTime = formatter.string(from: Date().addingTimeInterval(parsed.seconds))
+        let duration = durationDescription(parsed.seconds)
+        // An unlabelled timer is just its length, so do not repeat the word.
+        let title = parsed.label == "Timer"
+            ? "Start a \(duration) timer"
+            : "Start timer: \(parsed.label) (\(duration))"
         return [ResultItem(
-            title: "Start timer: \(parsed.label) (\(durationDescription(parsed.seconds)))",
+            title: title,
             subtitle: "Rings at \(endTime) with a notification and a sound",
             icon: .symbol("timer"),
             score: 985,
