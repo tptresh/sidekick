@@ -2,12 +2,15 @@ import AppKit
 import Contacts
 
 // "contact tanush" (dedicated, more rows) or typing a two-word name (ambient,
-// max 3 matches): searches the macOS address book. Each match yields a
-// "Name - phone" row (Return copies the number, Cmd+Return opens tel: to call
-// via FaceTime) and a "Name - email" row (Return copies, Cmd+Return opens
-// mailto:). Fetches run on a background queue against CNContactStore with an
-// in-memory per-term cache; when a fetch lands it posts the shared refresh
-// notification so the visible query re-runs against the warm cache.
+// max 2 matches): searches the macOS address book. Each match yields action
+// rows - Message, Call, FaceTime, Email - whose Return performs the action and
+// Cmd+Return copies the number or address; each carries a ranking key so the
+// engine learns which action the user actually picks for a name. A matched
+// person ranks above site and app rows so typing a contact's name puts the
+// person first, not a website. Fetches run on a background queue against
+// CNContactStore with an in-memory per-term cache; when a fetch lands it posts
+// the shared refresh notification so the visible query re-runs against the
+// warm cache.
 //
 // Authorization mirrors FindMyProvider's row-driven flow, but only for the
 // explicit "contact" keyword - an ambient name-shaped query stays silent when
@@ -104,9 +107,12 @@ enum ContactsProvider {
         }
 
         return rows(
-            for: dedicated ? Array(people.prefix(8)) : Array(people.prefix(3)),
+            for: dedicated ? Array(people.prefix(8)) : Array(people.prefix(2)),
             allDetails: dedicated,
-            baseScore: dedicated ? 950 : 585
+            // Ambient: a name that really matches a contact outranks every
+            // site row (tier 3 strong match tops out at 945) and app row
+            // (max 900), so the person is option one, not a website.
+            baseScore: dedicated ? 950 : 960
         )
     }
 
@@ -186,36 +192,104 @@ enum ContactsProvider {
 
     // MARK: - Rows
 
+    // The number Messages/FaceTime most likely reach: prefer a mobile line.
+    private static func primaryPhone(of person: Person) -> (label: String, value: String)? {
+        person.phones.first {
+            let label = $0.label.lowercased()
+            return label.contains("mobile") || label.contains("iphone")
+        } ?? person.phones.first
+    }
+
     private static func rows(for people: [Person], allDetails: Bool, baseScore: Double) -> [ResultItem] {
         var items: [ResultItem] = []
-        var score = baseScore
+        var personScore = baseScore
         for person in people {
-            let phones = allDetails ? person.phones : Array(person.phones.prefix(1))
-            let emails = allDetails ? person.emails : Array(person.emails.prefix(1))
-            for phone in phones {
-                let label = phone.label.isEmpty ? "" : "\(phone.label) \u{00B7} "
+            let phone = primaryPhone(of: person)
+            let email = person.emails.first
+            // iMessage and FaceTime reach a phone number or an Apple ID email.
+            let reachable = phone?.value ?? email?.value
+            let key = person.name.lowercased()
+            var score = personScore
+
+            if let reachable {
                 items.append(ResultItem(
-                    title: "\(person.name) \u{2014} \(phone.value)",
-                    subtitle: "\(label)Return copies the number \u{00B7} \u{2318}Return calls it",
+                    title: "Message \(person.name)",
+                    subtitle: "\(reachable) \u{00B7} Return opens Messages \u{00B7} \u{2318}Return copies",
+                    icon: .symbol("message.fill"),
+                    score: score,
+                    rankingKey: "contact:message:\(key)",
+                    secondaryAction: { copy(reachable) },
+                    action: { message(reachable) }
+                ))
+                score -= 1
+            }
+            if let phone {
+                items.append(ResultItem(
+                    title: "Call \(person.name)",
+                    subtitle: "\(phone.value) \u{00B7} Return calls \u{00B7} \u{2318}Return copies",
                     icon: .symbol("phone.fill"),
                     score: score,
-                    secondaryAction: { call(phone.value) },
-                    action: { copy(phone.value) }
+                    rankingKey: "contact:call:\(key)",
+                    secondaryAction: { copy(phone.value) },
+                    action: { call(phone.value) }
                 ))
                 score -= 1
             }
-            for email in emails {
-                let label = email.label.isEmpty ? "" : "\(email.label) \u{00B7} "
+            if let reachable {
                 items.append(ResultItem(
-                    title: "\(person.name) \u{2014} \(email.value)",
-                    subtitle: "\(label)Return copies the address \u{00B7} \u{2318}Return opens Mail",
+                    title: "FaceTime \(person.name)",
+                    subtitle: "\(reachable) \u{00B7} Return starts the call \u{00B7} \u{2318}Return copies",
+                    icon: .symbol("video.fill"),
+                    score: score,
+                    rankingKey: "contact:facetime:\(key)",
+                    secondaryAction: { copy(reachable) },
+                    action: { faceTime(reachable) }
+                ))
+                score -= 1
+            }
+            if let email {
+                items.append(ResultItem(
+                    title: "Email \(person.name)",
+                    subtitle: "\(email.value) \u{00B7} Return opens Mail \u{00B7} \u{2318}Return copies",
                     icon: .symbol("envelope.fill"),
                     score: score,
-                    secondaryAction: { compose(email.value) },
-                    action: { copy(email.value) }
+                    rankingKey: "contact:email:\(key)",
+                    secondaryAction: { copy(email.value) },
+                    action: { compose(email.value) }
                 ))
                 score -= 1
             }
+
+            // Dedicated searches also list any further numbers and addresses
+            // as copy rows, below the action rows.
+            if allDetails {
+                for extra in person.phones where extra.value != phone?.value {
+                    let label = extra.label.isEmpty ? "" : "\(extra.label) \u{00B7} "
+                    items.append(ResultItem(
+                        title: "\(person.name) - \(extra.value)",
+                        subtitle: "\(label)Return copies the number \u{00B7} \u{2318}Return calls it",
+                        icon: .symbol("phone"),
+                        score: score,
+                        secondaryAction: { call(extra.value) },
+                        action: { copy(extra.value) }
+                    ))
+                    score -= 1
+                }
+                for extra in person.emails where extra.value != email?.value {
+                    let label = extra.label.isEmpty ? "" : "\(extra.label) \u{00B7} "
+                    items.append(ResultItem(
+                        title: "\(person.name) - \(extra.value)",
+                        subtitle: "\(label)Return copies the address \u{00B7} \u{2318}Return opens Mail",
+                        icon: .symbol("envelope"),
+                        score: score,
+                        secondaryAction: { compose(extra.value) },
+                        action: { copy(extra.value) }
+                    ))
+                    score -= 1
+                }
+            }
+            // Room for every row of one person before the next one starts.
+            personScore -= 10
         }
         return items
     }
@@ -229,6 +303,27 @@ enum ContactsProvider {
     private static func call(_ number: String) {
         let digits = number.filter { "0123456789+".contains($0) }
         guard !digits.isEmpty, let url = URL(string: "tel://\(digits)") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    // Messages and FaceTime take a phone number or an email Apple ID.
+    private static func urlTarget(for recipient: String) -> String? {
+        if recipient.contains("@") {
+            return recipient.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? recipient
+        }
+        let digits = recipient.filter { "0123456789+".contains($0) }
+        return digits.isEmpty ? nil : digits
+    }
+
+    private static func message(_ recipient: String) {
+        guard let target = urlTarget(for: recipient),
+              let url = URL(string: "imessage://\(target)") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private static func faceTime(_ recipient: String) {
+        guard let target = urlTarget(for: recipient),
+              let url = URL(string: "facetime://\(target)") else { return }
         NSWorkspace.shared.open(url)
     }
 
