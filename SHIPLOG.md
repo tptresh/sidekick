@@ -114,3 +114,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 2b167b8 Automation permission prompts now actually appear at launch (the priming script sent no real Apple Event before)
 - main is now at: 08ba61f (build succeeded, app relaunched)
+
+## 2026-08-20 18:23 - OK - claude/jovial-benz-6dcb02
+- "Contact search now recovers when a Contacts fetch fails after access is granted, instead of caching a false 'no matches' for 5 minutes"
+- merged commits:
+  - 26fc519 Contact search now recovers when a Contacts fetch fails after access is granted, instead of caching a false 'no matches' for 5 minutes
+- main is now at: 8d50f2e (build succeeded, app relaunched)
