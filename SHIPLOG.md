@@ -120,3 +120,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 26fc519 Contact search now recovers when a Contacts fetch fails after access is granted, instead of caching a false 'no matches' for 5 minutes
 - main is now at: 8d50f2e (build succeeded, app relaunched)
+
+## 2026-08-20 18:30 - OK - claude/jovial-benz-6dcb02
+- "Typing a contact's name puts the person first with Message, Call, FaceTime, and Email actions that learn which one you use"
+- merged commits:
+  - a2d0bf5 Typing a contact's name puts the person first with Message, Call, FaceTime, and Email actions that learn which one you use
+- main is now at: c327be6 (build succeeded, app relaunched)
