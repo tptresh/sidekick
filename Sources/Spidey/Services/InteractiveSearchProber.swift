@@ -25,8 +25,11 @@ final class InteractiveSearchProber: NSObject {
 
     static let probeTitle = "Interstellar"
     static let controlQuery = "qzvxkwjqzz"
-    // The homepage gets this long to render before we go looking for the box.
-    static let loadWait: TimeInterval = 8
+    // The page counts as ready once a text box or a search opener exists.
+    // Anti-bot interstitials (Cloudflare's "Just a moment...") have neither,
+    // so polling simply rides them out until the real page appears.
+    static let readyPollInterval: TimeInterval = 2.5
+    static let readyPollAttempts = 16
     // Overlay open animations finish well within this.
     static let revealWait: TimeInterval = 2
     // Debounced search calls and result rendering after typing.
@@ -55,13 +58,14 @@ final class InteractiveSearchProber: NSObject {
 
     private func run(homepage: URL, completion: @escaping (Learned?) -> Void) {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .nonPersistent()
+        // The persistent store keeps anti-bot clearance cookies, so a
+        // challenge solved once here also unblocks later searches.
+        config.websiteDataStore = .default()
         config.userContentController.addUserScript(WKUserScript(
             source: Self.instrumentationJS, injectionTime: .atDocumentStart, forMainFrameOnly: true
         ))
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1280, height: 900), configuration: config)
-        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+        webView.customUserAgent = SiteSearchOpener.userAgent
         self.webView = webView
         webView.load(URLRequest(url: homepage, timeoutInterval: 20))
 
@@ -71,21 +75,27 @@ final class InteractiveSearchProber: NSObject {
             completion(learned)
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.loadWait) {
-            webView.evaluateJavaScript(Self.openSearchJS) { _, _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealWait) {
-                    let typeJS = Self.typeJS(query: Self.probeTitle)
-                    webView.evaluateJavaScript(typeJS) { typed, _ in
-                        guard (typed as? Bool) == true else {
-                            finish(nil)
-                            return
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + Self.resultsWait) {
-                            webView.evaluateJavaScript(Self.collectJS) { value, _ in
-                                self.analyze(
-                                    collected: value as? [String: Any], homepage: homepage,
-                                    completion: finish
-                                )
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.readyPollInterval) {
+            self.waitUntilReady(webView: webView, attemptsLeft: Self.readyPollAttempts) { ready in
+                guard ready else {
+                    finish(nil)
+                    return
+                }
+                webView.evaluateJavaScript(Self.openSearchJS) { _, _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealWait) {
+                        let typeJS = Self.typeJS(query: Self.probeTitle)
+                        webView.evaluateJavaScript(typeJS) { typed, _ in
+                            guard (typed as? Bool) == true else {
+                                finish(nil)
+                                return
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + Self.resultsWait) {
+                                webView.evaluateJavaScript(Self.collectJS) { value, _ in
+                                    self.analyze(
+                                        collected: value as? [String: Any], homepage: homepage,
+                                        webView: webView, completion: finish
+                                    )
+                                }
                             }
                         }
                     }
@@ -94,10 +104,29 @@ final class InteractiveSearchProber: NSObject {
         }
     }
 
+    private func waitUntilReady(
+        webView: WKWebView, attemptsLeft: Int, then: @escaping (Bool) -> Void
+    ) {
+        webView.evaluateJavaScript(Self.readyJS) { value, _ in
+            if (value as? Bool) == true {
+                then(true)
+                return
+            }
+            guard attemptsLeft > 0 else {
+                then(false)
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.readyPollInterval) {
+                self.waitUntilReady(webView: webView, attemptsLeft: attemptsLeft - 1, then: then)
+            }
+        }
+    }
+
     // Turn the raw observations into learned templates, then prove the search
     // API against the live site with a control query before trusting it.
     private func analyze(
-        collected: [String: Any]?, homepage: URL, completion: @escaping (Learned?) -> Void
+        collected: [String: Any]?, homepage: URL, webView: WKWebView,
+        completion: @escaping (Learned?) -> Void
     ) {
         guard let collected, let host = homepage.host else {
             completion(nil)
@@ -122,15 +151,28 @@ final class InteractiveSearchProber: NSObject {
         let apiTemplates = SiteSearchAnalysis.apiTemplates(
             recordedURLs: requests, probeQuery: Self.probeTitle, host: host
         )
-        guard let apiTemplate = apiTemplates.first,
-              let titleTemplate = SiteSearchAnalysis.titleTemplate(
-                jsonBodies: Array(bodies.values), routes: anchors + requests, host: host
-              )
-        else {
+        guard let apiTemplate = apiTemplates.first else {
             completion(nil)
             return
         }
-        verifyAPI(template: apiTemplate) { works in
+        // The captured response of the search call itself is the best teacher
+        // of how results link to their pages; anchor correlation is the
+        // fallback for APIs that only return ids.
+        let searchBody = bodies.first { key, _ in
+            SiteSearchAnalysis.apiTemplates(
+                recordedURLs: [key], probeQuery: Self.probeTitle, host: host
+            ).first == apiTemplate
+        }?.value
+        let titleTemplate = searchBody.flatMap {
+            SiteSearchAnalysis.urlFieldTitleTemplate(searchBody: $0, host: host)
+        } ?? SiteSearchAnalysis.titleTemplate(
+            jsonBodies: Array(bodies.values), routes: anchors + requests, host: host
+        )
+        guard let titleTemplate else {
+            completion(nil)
+            return
+        }
+        verifyAPI(template: apiTemplate, webView: webView) { works in
             completion(works
                 ? Learned(apiTemplate: apiTemplate, titleTemplate: titleTemplate)
                 : nil)
@@ -139,42 +181,42 @@ final class InteractiveSearchProber: NSObject {
 
     // The probe search must return a list of titles containing the probe film;
     // the nonsense search must not, and must differ - otherwise the endpoint
-    // is ignoring the query.
-    private func verifyAPI(template: String, completion: @escaping (Bool) -> Void) {
-        fetchResults(template: template, query: Self.probeTitle) { probe in
-            guard let probe, !probe.isEmpty,
-                  SiteSearchAnalysis.resultsText(probe).localizedCaseInsensitiveContains(Self.probeTitle)
-            else {
-                DispatchQueue.main.async { completion(false) }
-                return
-            }
-            self.fetchResults(template: template, query: Self.controlQuery) { control in
-                let controlText = control.map(SiteSearchAnalysis.resultsText) ?? ""
-                let works = !controlText.localizedCaseInsensitiveContains(Self.probeTitle)
-                    && controlText != SiteSearchAnalysis.resultsText(probe)
-                DispatchQueue.main.async { completion(works) }
-            }
-        }
-    }
-
-    private func fetchResults(
-        template: String, query: String, completion: @escaping ([[String: Any]]?) -> Void
+    // is ignoring the query. Fetches run inside the page, where anti-bot
+    // clearance cookies live; a plain HTTP client would be walled out.
+    private func verifyAPI(
+        template: String, webView: WKWebView, completion: @escaping (Bool) -> Void
     ) {
-        guard let url = URL(string: template.replacingOccurrences(
-            of: CustomMediaSite.queryPlaceholder, with: BrowserLauncher.encodeQuery(query)
-        )) else {
-            completion(nil)
-            return
+        let fill = { (query: String) in
+            template.replacingOccurrences(
+                of: CustomMediaSite.queryPlaceholder, with: BrowserLauncher.encodeQuery(query)
+            )
         }
-        var request = URLRequest(url: url, timeoutInterval: 15)
-        request.setValue(SiteSearchOpener.userAgent, forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { data, _, _ in
-            guard let data, let text = String(data: data, encoding: .utf8) else {
-                completion(nil)
+        let js = """
+        const get = async (u) => {
+          try { const r = await fetch(u); return await r.text(); } catch (e) { return null; }
+        };
+        return { probe: await get(probeURL), control: await get(controlURL) };
+        """
+        webView.callAsyncJavaScript(
+            js,
+            arguments: ["probeURL": fill(Self.probeTitle), "controlURL": fill(Self.controlQuery)],
+            in: nil, in: .page
+        ) { result in
+            guard case .success(let value) = result, let pair = value as? [String: Any],
+                  let probeText = pair["probe"] as? String,
+                  let probe = SiteSearchAnalysis.firstResultsArray(inJSON: probeText),
+                  SiteSearchAnalysis.resultsText(probe)
+                      .localizedCaseInsensitiveContains(Self.probeTitle)
+            else {
+                completion(false)
                 return
             }
-            completion(SiteSearchAnalysis.firstResultsArray(inJSON: text) ?? [])
-        }.resume()
+            let control = (pair["control"] as? String)
+                .flatMap(SiteSearchAnalysis.firstResultsArray) ?? []
+            let controlText = SiteSearchAnalysis.resultsText(control)
+            completion(!controlText.localizedCaseInsensitiveContains(Self.probeTitle)
+                && controlText != SiteSearchAnalysis.resultsText(probe))
+        }
     }
 
     // MARK: - Injected scripts
@@ -233,6 +275,25 @@ final class InteractiveSearchProber: NSObject {
       };
       const origOpen = window.open;
       window.open = function (u) { if (u) W.navs.push(String(u)); return null; };
+    })();
+    """#
+
+    // Ready means the real page is up: it shows a text box or something
+    // labelled search. Challenge interstitials show neither.
+    private static let readyJS = #"""
+    (() => {
+      const typable = e => {
+        const type = (e.getAttribute('type') || 'text').toLowerCase();
+        return e.tagName === 'TEXTAREA' || ['text', 'search'].includes(type);
+      };
+      if (Array.from(document.querySelectorAll('input, textarea')).some(typable)) { return true; }
+      const searchy = e => {
+        const s = [e.getAttribute('aria-label'), e.getAttribute('title'), e.id,
+                   typeof e.className === 'string' ? e.className : (e.className && e.className.baseVal)
+                  ].join(' ');
+        return /search/i.test(s);
+      };
+      return Array.from(document.querySelectorAll('button, a, [role=button]')).some(searchy);
     })();
     """#
 

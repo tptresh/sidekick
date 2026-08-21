@@ -478,7 +478,8 @@ final class SearchTemplateFinderTests: XCTestCase {
         let site = CustomMediaSite(
             name: "movie", urlString: "https://67movies.nl/",
             discoveredAPITemplate: "https://67movies.nl/api/semantic-search?q={query}",
-            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}"
+            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}",
+            discoveredHost: "67movies.nl"
         )
         XCTAssertNotNil(site.activeDiscoveredAPI)
         XCTAssertFalse(site.searchesDirectly)
@@ -487,7 +488,8 @@ final class SearchTemplateFinderTests: XCTestCase {
         let edited = CustomMediaSite(
             name: "movie", urlString: "https://othersite.example",
             discoveredAPITemplate: "https://67movies.nl/api/semantic-search?q={query}",
-            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}"
+            discoveredTitleTemplate: "https://67movies.nl/watch/{r.media_type}/{r.id}",
+            discoveredHost: "67movies.nl"
         )
         XCTAssertNil(edited.activeDiscoveredAPI)
     }
@@ -561,6 +563,30 @@ final class SiteSearchAnalysisTests: XCTestCase {
             routes: ["https://cdn.example/watch/movie/1", "https://cdn.example/watch/tv/2"],
             host: "67movies.nl"
         ))
+    }
+
+    func testURLFieldInResultsBecomesTheTitleTemplate() {
+        // nepu.to's /ajax/posts returns each result's finished page URL.
+        let body = #"{"data":[{"id":173049,"name":"Interstellar (2014)","#
+            + #""image":"https://image.tmdb.org/t/p/w500/x.jpg","#
+            + #""url":"https://nepu.to/movie/interstellar-2014-2014-173049","type":"Movie"}]}"#
+        XCTAssertEqual(
+            SiteSearchAnalysis.urlFieldTitleTemplate(searchBody: body, host: "nepu.to"),
+            "{r.url}"
+        )
+        // Foreign-host URL fields (poster CDNs) never qualify.
+        XCTAssertNil(SiteSearchAnalysis.urlFieldTitleTemplate(searchBody: body, host: "other.to"))
+    }
+
+    func testBarePlaceholderFillReturnsTheFieldVerbatim() {
+        XCTAssertEqual(
+            SiteSearchAnalysis.fill(
+                titleTemplate: "{r.url}",
+                result: ["url": "https://nepu.to/movie/interstellar-2014-2014-173049"]
+            ),
+            "https://nepu.to/movie/interstellar-2014-2014-173049"
+        )
+        XCTAssertNil(SiteSearchAnalysis.fill(titleTemplate: "{r.url}", result: ["id": 3]))
     }
 
     func testFillBuildsTheTitleURLFromTheTopResult() {

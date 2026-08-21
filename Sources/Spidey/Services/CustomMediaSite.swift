@@ -16,8 +16,10 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
     // For sites whose search never has its own URL: the internal search API
     // observed while typing into the site's own search box, plus the learned
     // pattern of its title-page links, filled from the API's top result.
+    // discoveredHost records which entered host the pair was learned for.
     var discoveredAPITemplate: String?
     var discoveredTitleTemplate: String?
+    var discoveredHost: String?
 
     static let queryPlaceholder = "{query}"
 
@@ -66,12 +68,14 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
             String.self, forKey: .discoveredAPITemplate)
         discoveredTitleTemplate = try container.decodeIfPresent(
             String.self, forKey: .discoveredTitleTemplate)
+        discoveredHost = try container.decodeIfPresent(String.self, forKey: .discoveredHost)
     }
 
     init(
         id: UUID = UUID(), name: String = "", urlString: String = "",
         enabled: Bool = true, discoveredTemplate: String? = nil,
-        discoveredAPITemplate: String? = nil, discoveredTitleTemplate: String? = nil
+        discoveredAPITemplate: String? = nil, discoveredTitleTemplate: String? = nil,
+        discoveredHost: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -80,6 +84,7 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
         self.discoveredTemplate = discoveredTemplate
         self.discoveredAPITemplate = discoveredAPITemplate
         self.discoveredTitleTemplate = discoveredTitleTemplate
+        self.discoveredHost = discoveredHost
     }
 
     // The discovered template only counts while it still matches the entered
@@ -95,15 +100,12 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
     }
 
     // Like the discovered page template, the learned API pair only counts
-    // while the title-page pattern still points at the entered host, so
-    // editing the link invalidates a stale discovery.
+    // while it was learned for the currently entered host, so editing the
+    // link invalidates a stale discovery.
     var activeDiscoveredAPI: (apiTemplate: String, titleTemplate: String)? {
         guard !hasSearchTemplate, activeDiscoveredTemplate == nil,
               let discoveredAPITemplate, let discoveredTitleTemplate,
-              let titleURL = URL(string: discoveredTitleTemplate.replacingOccurrences(
-                of: #"\{r\.[A-Za-z0-9_]+\}"#, with: "q", options: .regularExpression
-              )),
-              titleURL.host == host
+              let discoveredHost, discoveredHost == host
         else { return nil }
         return (discoveredAPITemplate, discoveredTitleTemplate)
     }

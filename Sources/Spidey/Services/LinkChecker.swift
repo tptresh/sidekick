@@ -132,6 +132,7 @@ final class LinkChecker: ObservableObject {
         } else {
             store.customMediaSites[index].discoveredAPITemplate = learned.apiTemplate
             store.customMediaSites[index].discoveredTitleTemplate = learned.titleTemplate
+            store.customMediaSites[index].discoveredHost = host
         }
     }
 
