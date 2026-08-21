@@ -174,3 +174,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 9f74fa6 Sasuke theme now uses his Rinnegan as the menu bar emblem, and the entrance is an anime-styled drawing of his face with Rinnegan opening all over the screen
 - main is now at: b066b3d (build succeeded, app relaunched)
+
+## 2026-08-20 22:01 - OK - claude/sasuke-theme-replacement-74c118
+- "Preferences can point the Sasuke entrance at a real picture of him, which the animation uses instead of the drawn face"
+- merged commits:
+  - 11c758f Preferences can point the Sasuke entrance at a real picture of him, which the animation uses instead of the drawn face
+- main is now at: 64262e6 (build succeeded, app relaunched)
