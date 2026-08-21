@@ -102,3 +102,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - a08288f Learned site searches are re-proved against the live site every check cycle; broken ones clear and relearn automatically
 - main is now at: 6787a9e (build succeeded, app relaunched)
+
+## 2026-08-20 18:14 - OK - claude/spidey-setup-dependencies-10fe8f
+- "Sidekick sets itself up at launch: requests all permissions up front, auto-installs blueutil and brightness via Homebrew, and shows setup status in Preferences"
+- merged commits:
+  - 2064d01 Sidekick sets itself up at launch: requests all permissions up front, auto-installs blueutil and brightness via Homebrew, and shows setup status in Preferences
+- main is now at: f8c02f9 (build succeeded, app relaunched)
