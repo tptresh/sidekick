@@ -68,3 +68,47 @@ struct RinneganDisc: View {
         .frame(width: diameter, height: diameter)
     }
 }
+
+// The Rinnegan as it is painted in his eye: pale lavender, hairline rings, and
+// six small tomoe in two rings of three. Lighter than the badge above, which
+// has to hold up at menu bar size; this one sits on top of the artwork and has
+// to disappear into it.
+struct SasukeIris: View {
+    let diameter: CGFloat
+
+    private let lineColour = Color(red: 0.298, green: 0.267, blue: 0.404)
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(
+                    colors: [
+                        Color(red: 0.812, green: 0.788, blue: 0.878),
+                        Color(red: 0.729, green: 0.702, blue: 0.816),
+                    ],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: diameter * 0.55
+                ))
+            ForEach([0.86, 0.64, 0.42], id: \.self) { fraction in
+                Circle()
+                    .stroke(lineColour.opacity(0.55), lineWidth: diameter * 0.008)
+                    .frame(width: diameter * fraction, height: diameter * fraction)
+            }
+            ForEach(0..<6, id: \.self) { index in
+                let inner = index % 2 == 0
+                Tomoe()
+                    .fill(SasukeArt.ink)
+                    .frame(width: diameter * 0.105, height: diameter * 0.105)
+                    .offset(y: -diameter * (inner ? 0.155 : 0.245))
+                    .rotationEffect(.degrees(Double(index) * 60))
+            }
+            Circle()
+                .fill(SasukeArt.ink)
+                .frame(width: diameter * 0.072, height: diameter * 0.072)
+            Circle()
+                .stroke(lineColour.opacity(0.7), lineWidth: diameter * 0.01)
+        }
+        .frame(width: diameter, height: diameter)
+    }
+}
