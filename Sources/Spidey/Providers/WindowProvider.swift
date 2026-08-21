@@ -16,6 +16,8 @@ enum WindowProvider {
             case frame((NSRect, NSSize) -> NSRect)
             // Real macOS full screen (its own Space), not a screen-sized window.
             case fullScreen
+            // Into the Dock, the same as the yellow button.
+            case minimize
         }
     }
 
@@ -56,6 +58,13 @@ enum WindowProvider {
             symbol: "rectangle.fill",
             subtitle: "Fills the screen without entering full screen",
             action: .frame { screen, _ in screen }
+        ),
+        Snap(
+            names: ["minimize", "minimise", "min"],
+            title: "Minimize",
+            symbol: "minus.rectangle",
+            subtitle: "Sends the front window to the Dock",
+            action: .minimize
         ),
         Snap(names: ["center", "centre", "center window"], title: "Center", symbol: "rectangle.center.inset.filled", action: .frame { screen, size in
             NSRect(
@@ -119,17 +128,10 @@ enum WindowProvider {
         switch snap.action {
         case .fullScreen:
             setFullScreen(axWindow, to: !isFullScreen(axWindow))
+        case .minimize:
+            afterLeavingFullScreen(axWindow) { minimize(axWindow) }
         case .frame(let target):
-            guard isFullScreen(axWindow) else {
-                move(axWindow, using: target)
-                return
-            }
-            // A full screen window ignores position and size, so leave full
-            // screen first and snap once the Space has slid away.
-            setFullScreen(axWindow, to: false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-                move(axWindow, using: target)
-            }
+            afterLeavingFullScreen(axWindow) { move(axWindow, using: target) }
         }
     }
 
@@ -177,12 +179,35 @@ enum WindowProvider {
         if AXUIElementSetAttributeValue(window, fullScreenAttribute, flag) == .success { return }
         // Apps that never publish AXFullScreen still answer their green button,
         // which enters and leaves full screen the same way a click would.
-        for button in [fullScreenButtonAttribute, zoomButtonAttribute] {
-            var ref: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(window, button, &ref) == .success,
-                  let ref, CFGetTypeID(ref) == AXUIElementGetTypeID() else { continue }
-            if AXUIElementPerformAction((ref as! AXUIElement), kAXPressAction as CFString) == .success { return }
+        for button in [fullScreenButtonAttribute, zoomButtonAttribute] where press(button, on: window) {
+            return
         }
+    }
+
+    private static func minimize(_ window: AXUIElement) {
+        if AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue) == .success {
+            return
+        }
+        press(kAXMinimizeButtonAttribute as CFString, on: window)
+    }
+
+    // A full screen window ignores position, size and minimize, so leave full
+    // screen first and act once the Space has slid away.
+    private static func afterLeavingFullScreen(_ window: AXUIElement, _ work: @escaping () -> Void) {
+        guard isFullScreen(window) else {
+            work()
+            return
+        }
+        setFullScreen(window, to: false)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: work)
+    }
+
+    @discardableResult
+    private static func press(_ button: CFString, on window: AXUIElement) -> Bool {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, button, &ref) == .success,
+              let ref, CFGetTypeID(ref) == AXUIElementGetTypeID() else { return false }
+        return AXUIElementPerformAction((ref as! AXUIElement), kAXPressAction as CFString) == .success
     }
 
     private static func move(_ axWindow: AXUIElement, using target: (NSRect, NSSize) -> NSRect) {

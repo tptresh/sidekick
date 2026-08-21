@@ -24,7 +24,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **System commands**: sleep, lock, restart, shut down, log out, empty trash, screen saver, eject (destructive ones ask for a confirming second Return)
 - **Quit and force-kill**: `quit chrome` asks an app to quit; `kill chrome` force-quits it, and `kill node` also reaches background processes by name
 - **Music controls**: `play`, `pause`, `play pause` (toggle), `next`/`skip`, `prev`/`back`, and `now playing` control whichever of Spotify or Music is running (one row per app if both are); `now playing` shows the current track and Return copies "track — artist"; with neither running, `play` offers to launch whichever is installed. First use triggers the standard macOS Automation prompt
-- **Window snapping**: `left half`, `right half`, quarters, `maximize`, `center` move the front window, and `full screen` toggles real macOS full screen (one-time Accessibility permission; the row walks you through granting it)
+- **Window snapping**: `left half`, `right half`, quarters, `maximize`, `minimize`, `center` move the front window, and `full screen` toggles real macOS full screen (one-time Accessibility permission; the row walks you through granting it)
 - **Menu search**: `menu export` searches the front app's menu bar and runs the matching item (Accessibility permission)
 - **Window switcher**: `win mail` lists on-screen windows across apps and raises the one you pick; strong title matches also appear on plain queries
 - **Tab switcher**: `tab gmail` jumps to an open Brave (or Chrome) tab; first use shows the standard Automation consent
