@@ -254,3 +254,9 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 94013b5 Merge main into sharingan theme branch
   - abf61f7 New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan
 - main is now at: e8af0a8 (build succeeded, app relaunched)
+
+## 2026-08-20 23:45 - OK - claude/sharingan-theme-animation-632707
+- "The Sharingan theme runs a deeper blood red: darker iris, darker glow and a darker sky behind it, so the eye is the brightest thing in the frame"
+- merged commits:
+  - e1f58a2 The Sharingan theme runs a deeper blood red: darker iris, darker glow and a darker sky behind it, so the eye is the brightest thing in the frame
+- main is now at: a52de97 (build succeeded, app relaunched)
