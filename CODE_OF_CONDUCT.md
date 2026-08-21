@@ -29,7 +29,7 @@ anywhere someone is representing the project.
 ## Reporting
 
 Report a problem by opening a
-[private security advisory](https://github.com/tptresh/spidey/security/advisories/new),
+[private security advisory](https://github.com/tptresh/sidekick/security/advisories/new),
 which is the only private channel this repo has, or by contacting the
 maintainer through their [GitHub profile](https://github.com/tptresh).
 Reports are handled confidentially.

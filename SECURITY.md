@@ -4,7 +4,7 @@
 
 Please report privately rather than opening a public issue:
 
-**[Open a private security advisory](https://github.com/tptresh/spidey/security/advisories/new)**
+**[Open a private security advisory](https://github.com/tptresh/sidekick/security/advisories/new)**
 
 Include what you found, how to reproduce it, and what an attacker gets out of
 it. Spidey is maintained by one person in their spare time, so expect a first

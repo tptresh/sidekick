@@ -13,11 +13,11 @@ You need macOS 13 or later and a Swift 5.9+ toolchain (Xcode, or the Command
 Line Tools).
 
 ```bash
-git clone https://github.com/tptresh/spidey.git
+git clone https://github.com/tptresh/sidekick.git
 ```
 
 ```bash
-cd spidey && make build && make test
+cd sidekick && make build && make test
 ```
 
 Then build and run the real app:

@@ -1,8 +1,9 @@
 # Spidey - working rules for Claude sessions
 
 Spidey is a macOS launcher app (Swift + SwiftUI, SwiftPM, no dependencies).
-It is developed and used by ONE person, locally, with no git remote. Several
-Claude sessions often work on it concurrently in git worktrees. The whole
+It is developed and used by ONE person, locally, and mirrored to a public
+GitHub repo at github.com/tptresh/sidekick. Several Claude sessions often
+work on it concurrently in git worktrees. The whole
 workflow below exists so concurrent sessions never leave work uncommitted,
 unmerged, or unbuilt.
 
@@ -21,7 +22,7 @@ unmerged, or unbuilt.
   Accessibility grant; features needing Accessibility re-prompt after a
   rebuild. That is expected, not a bug.
 
-## The ship workflow (solo trunk-based - no PRs, no pushes, no remote)
+## The ship workflow (solo trunk-based - no PRs of our own)
 
 **When you finish a piece of work, run:**
 
@@ -31,8 +32,8 @@ scripts/ship.sh "one line describing the user-visible change"
 
 That commits everything in your worktree, merges your branch into main,
 rebuilds the app, relaunches it so the user is always testing the latest
-build, records the insertion in `SHIPLOG.md`, and fast-forwards your branch
-back level with main. Ship after each coherent chunk, not only at the very
+build, records the insertion in `SHIPLOG.md`, pushes main to origin, and
+fast-forwards your branch back level with main. Ship after each coherent chunk, not only at the very
 end - small merges conflict less.
 
 Safety nets (configured in `.claude/settings.json`):
@@ -45,8 +46,15 @@ Safety nets (configured in `.claude/settings.json`):
   run `git merge main` yourself before doing anything else.
 
 Rules:
-- Never create PRs, never push, never ask the user to review a merge -
-  there is no remote and no reviewer. Merging to main IS shipping.
+- Never open a PR for your own work and never ask the user to review a
+  merge - there is no reviewer on this side. Merging to main IS shipping.
+- `ship.sh` pushes main to origin at the end, so never push by hand. Only
+  main is public; never push a `claude/*` branch.
+- Outside contributions arrive as pull requests from forks. Those are the
+  user's to review and merge on GitHub, not something `ship.sh` touches. Use
+  `gh pr view` / `gh pr diff` / `gh pr checkout` when asked to look at one.
+- `main` is protected on GitHub: CI (`make build`, `make test`, the em dash
+  check) must be green. If a push is rejected, fix the build, do not force.
 - Never edit `SHIPLOG.md` by hand; only `scripts/ship.sh` writes it.
 - If `make app` fails, main is marked BROKEN in the shiplog - fixing it
   takes priority over any other task.
@@ -71,10 +79,12 @@ insertion broke things:
   help text, tooltips, error messages: use a plain hyphen or rewrite the
   sentence instead. `ship.sh` refuses to ship if one appears anywhere under
   `Sources/`, so just never type one there (comments included - simplest way
-  to keep the guard quiet).
+  to keep the guard quiet). The same applies to the character written as a
+  `\u{2014}` escape, which the guard also catches.
 - Comment only non-obvious constraints (see the Makefile's tccutil note for
   the house style). Keep commit messages about user-visible behavior - they
   are what the shiplog points at.
-- The project will eventually be open-sourced: keep code, names, and docs
-  ordinary and readable, but do not add licensing/CI/contribution scaffolding
-  until asked.
+- The project is open source (MIT). Keep code, names, and docs ordinary and
+  readable. `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and the workflows
+  in `.github/` are public-facing: keep them accurate when behaviour changes,
+  and hold them to the same no-em-dash rule as the UI.

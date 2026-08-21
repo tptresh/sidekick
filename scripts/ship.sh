@@ -1,12 +1,13 @@
 #!/bin/bash
 # ship.sh - make the current change live, in one step.
 #
-# Spidey is a solo local project: no remotes, no PRs. "Shipping" means:
+# Spidey develops locally with no PRs of its own. "Shipping" means:
 #   1. commit whatever changed in this checkout (worktree or main)
 #   2. merge the branch into main
 #   3. rebuild the app from main (make app)
 #   4. relaunch the app so testing always uses the latest build
 #   5. append a traceable entry to SHIPLOG.md (the ledger of every insertion)
+#   6. push main to origin, when there is one, so the public repo stays level
 #
 # Usage: scripts/ship.sh "short description of the change"
 # Run it from anywhere inside the repo or any worktree. Safe to run
@@ -144,10 +145,24 @@ log_entry "OK" "- \"$MSG\"
 ${MERGED_COMMITS:-  - (none - rebuild/relaunch only)}
 - main is now at: $(git -C "$MAIN_ROOT" rev-parse --short HEAD) (build succeeded, app $RELAUNCHED)"
 
+# ---- 6. publish: keep the public repo level with main ----
+# Only main goes up; the claude/* worktree branches are local scratch. A failure
+# here must not fail the ship: the app is already built and running, so being
+# offline just means the push is owed, not that anything is broken.
+PUSHED=""
+if git -C "$MAIN_ROOT" remote get-url origin >/dev/null 2>&1; then
+  if git -C "$MAIN_ROOT" push -q origin main 2>/dev/null; then
+    PUSHED=", pushed to origin"
+  else
+    echo "ship: warning - could not push main to origin. The app is built and running; run 'git push origin main' when you can." >&2
+    PUSHED=", PUSH TO ORIGIN FAILED (run: git push origin main)"
+  fi
+fi
+
 # ---- keep the worktree branch level with main so future merges stay small ----
 if [ "$BRANCH" != "main" ]; then
   git -C "$WT_ROOT" merge --ff-only -q main 2>/dev/null || true
 fi
 
-echo "ship: OK - $BRANCH merged, app rebuilt and $RELAUNCHED, SHIPLOG updated (main @ $(git -C "$MAIN_ROOT" rev-parse --short HEAD))"
+echo "ship: OK - $BRANCH merged, app rebuilt and $RELAUNCHED, SHIPLOG updated$PUSHED (main @ $(git -C "$MAIN_ROOT" rev-parse --short HEAD))"
 exit 0

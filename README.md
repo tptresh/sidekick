@@ -1,7 +1,7 @@
 # Spidey
 
-[![CI](https://github.com/tptresh/spidey/actions/workflows/ci.yml/badge.svg)](https://github.com/tptresh/spidey/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/tptresh/spidey?sort=semver&label=release)](https://github.com/tptresh/spidey/releases/latest)
+[![CI](https://github.com/tptresh/sidekick/actions/workflows/ci.yml/badge.svg)](https://github.com/tptresh/sidekick/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/tptresh/sidekick?sort=semver&label=release)](https://github.com/tptresh/sidekick/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-lightgrey)
 ![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-orange)
@@ -81,7 +81,7 @@ Everything that opens a website prefers [Brave](https://brave.com/); if Brave is
 
 ### Download a build
 
-Grab the latest `Sidekick.zip` from [Releases](https://github.com/tptresh/spidey/releases/latest), unzip it, and move `Sidekick.app` to /Applications.
+Grab the latest `Sidekick.zip` from [Releases](https://github.com/tptresh/sidekick/releases/latest), unzip it, and move `Sidekick.app` to /Applications.
 
 Builds are ad-hoc signed rather than notarized, so macOS quarantines the download and refuses to open it until you clear that flag once:
 
@@ -94,8 +94,8 @@ xattr -dr com.apple.quarantine /Applications/Sidekick.app
 Requires macOS 13+ and Xcode (or the Command Line Tools with a Swift 5.9+ toolchain).
 
 ```
-git clone https://github.com/tptresh/spidey.git
-cd spidey
+git clone https://github.com/tptresh/sidekick.git
+cd sidekick
 make app
 open build/Sidekick.app
 ```
@@ -253,14 +253,14 @@ Type a hero's name to switch themes, or pick one in Preferences. Each theme sets
 
 Bug reports, fixes, new providers, and additions to the website directory are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), which covers how the query engine and providers fit together and what the house rules are.
 
-- [Report a bug](https://github.com/tptresh/spidey/issues/new?template=bug_report.yml)
-- [Request a feature](https://github.com/tptresh/spidey/issues/new?template=feature_request.yml)
+- [Report a bug](https://github.com/tptresh/sidekick/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/tptresh/sidekick/issues/new?template=feature_request.yml)
 - [Report a security issue privately](SECURITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)
 
 ## Changelog
 
-Every change that reaches the app is recorded in [SHIPLOG.md](SHIPLOG.md), newest at the bottom, with the commit it landed as. Tagged builds and their notes are on the [Releases](https://github.com/tptresh/spidey/releases) page.
+Every change that reaches the app is recorded in [SHIPLOG.md](SHIPLOG.md), newest at the bottom, with the commit it landed as. Tagged builds and their notes are on the [Releases](https://github.com/tptresh/sidekick/releases) page.
 
 ## Disclaimer
 
