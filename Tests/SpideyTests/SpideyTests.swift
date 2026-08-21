@@ -494,6 +494,23 @@ final class SearchTemplateFinderTests: XCTestCase {
         XCTAssertNil(edited.activeDiscoveredAPI)
     }
 
+    func testWalledMarkClearsWhenTheLinkChangesOrSearchIsLearned() {
+        let walled = CustomMediaSite(
+            name: "nepo", urlString: "https://nepu.to/", walledHost: "nepu.to"
+        )
+        XCTAssertTrue(walled.isWalled)
+        // Editing the link to another site drops the stale wall mark.
+        let edited = CustomMediaSite(
+            name: "nepo", urlString: "https://other.example/", walledHost: "nepu.to"
+        )
+        XCTAssertFalse(edited.isWalled)
+        // A hand-set template beats the wall: the user knows the search URL.
+        let manual = CustomMediaSite(
+            name: "nepo", urlString: "https://nepu.to/search?q={query}", walledHost: "nepu.to"
+        )
+        XCTAssertFalse(manual.isWalled)
+    }
+
     func testExplicitTemplateBeatsDiscoveredOne() {
         let site = CustomMediaSite(
             name: "FD", urlString: "https://flickystream.dad/browse?find={query}",

@@ -90,24 +90,29 @@ final class LinkChecker: ObservableObject {
                   !discoveringHosts.contains(host), !undiscoverableHosts.contains(host)
             else { continue }
             discoveringHosts.insert(host)
-            InteractiveSearchProber.shared.probe(homepage: homepage) { learned in
-                if let learned {
+            InteractiveSearchProber.shared.probe(homepage: homepage) { outcome in
+                switch outcome {
+                case .learned(let learned):
                     self.finishDiscovery(siteID: site.id, host: host, learned: learned)
-                    return
-                }
-                SearchTemplateFinder.candidates(homepage: homepage, session: self.session) { candidates in
-                    DispatchQueue.main.async {
-                        guard !candidates.isEmpty else {
-                            self.finishDiscovery(siteID: site.id, host: host, learned: nil)
-                            return
-                        }
-                        SearchTemplateVerifier.shared.firstWorking(from: candidates) { template in
-                            self.finishDiscovery(
-                                siteID: site.id, host: host,
-                                learned: template.map {
-                                    InteractiveSearchProber.Learned(pageTemplate: $0)
-                                }
-                            )
+                case .walled:
+                    // URL guessing would just hit the same wall; record the
+                    // wall so results and Preferences can be honest about it.
+                    self.finishDiscovery(siteID: site.id, host: host, learned: nil, walled: true)
+                case .nothing:
+                    SearchTemplateFinder.candidates(homepage: homepage, session: self.session) { candidates in
+                        DispatchQueue.main.async {
+                            guard !candidates.isEmpty else {
+                                self.finishDiscovery(siteID: site.id, host: host, learned: nil)
+                                return
+                            }
+                            SearchTemplateVerifier.shared.firstWorking(from: candidates) { template in
+                                self.finishDiscovery(
+                                    siteID: site.id, host: host,
+                                    learned: template.map {
+                                        InteractiveSearchProber.Learned(pageTemplate: $0)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -116,17 +121,18 @@ final class LinkChecker: ObservableObject {
     }
 
     private func finishDiscovery(
-        siteID: UUID, host: String, learned: InteractiveSearchProber.Learned?
+        siteID: UUID, host: String, learned: InteractiveSearchProber.Learned?,
+        walled: Bool = false
     ) {
         discoveringHosts.remove(host)
+        let store = SettingsStore.shared
+        let index = store.customMediaSites.firstIndex { $0.id == siteID && $0.host == host }
         guard let learned else {
             undiscoverableHosts.insert(host)
+            if walled, let index { store.customMediaSites[index].walledHost = host }
             return
         }
-        let store = SettingsStore.shared
-        guard let index = store.customMediaSites.firstIndex(where: {
-            $0.id == siteID && $0.host == host
-        }) else { return }
+        guard let index else { return }
         if let page = learned.pageTemplate {
             store.customMediaSites[index].discoveredTemplate = page
         } else {
@@ -134,6 +140,7 @@ final class LinkChecker: ObservableObject {
             store.customMediaSites[index].discoveredTitleTemplate = learned.titleTemplate
             store.customMediaSites[index].discoveredHost = host
         }
+        store.customMediaSites[index].walledHost = nil
     }
 
     func runIfDue() {

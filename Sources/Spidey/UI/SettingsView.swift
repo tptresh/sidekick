@@ -249,8 +249,12 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                } else if binding.wrappedValue.isWalled {
+                    Text("This site checks visitors with a bot-protection wall that Sidekick's hidden browser cannot pass, and Sidekick will not try to defeat it. Searches open the site in your browser (which passes the check) with your search copied, ready to paste into its search box. Add \(CustomMediaSite.queryPlaceholder) to the link if you know the site's search URL.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 } else {
-                    Text("Sidekick could not learn a way to search this site directly yet, so its result opens the site itself; search from its own box there. Add \(CustomMediaSite.queryPlaceholder) to the link to set a search URL yourself.")
+                    Text("Sidekick could not learn a way to search this site directly yet, so its result opens the site with your search copied, ready to paste into its search box. Add \(CustomMediaSite.queryPlaceholder) to the link to set a search URL yourself.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

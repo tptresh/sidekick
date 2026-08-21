@@ -20,6 +20,10 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
     var discoveredAPITemplate: String?
     var discoveredTitleTemplate: String?
     var discoveredHost: String?
+    // Set when learning found the site sitting behind an anti-bot wall that
+    // an embedded web view cannot pass. Spidey never fights such walls;
+    // searches open the site in the real browser instead.
+    var walledHost: String?
 
     static let queryPlaceholder = "{query}"
 
@@ -69,13 +73,14 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
         discoveredTitleTemplate = try container.decodeIfPresent(
             String.self, forKey: .discoveredTitleTemplate)
         discoveredHost = try container.decodeIfPresent(String.self, forKey: .discoveredHost)
+        walledHost = try container.decodeIfPresent(String.self, forKey: .walledHost)
     }
 
     init(
         id: UUID = UUID(), name: String = "", urlString: String = "",
         enabled: Bool = true, discoveredTemplate: String? = nil,
         discoveredAPITemplate: String? = nil, discoveredTitleTemplate: String? = nil,
-        discoveredHost: String? = nil
+        discoveredHost: String? = nil, walledHost: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -85,6 +90,13 @@ struct CustomMediaSite: Codable, Identifiable, Equatable {
         self.discoveredAPITemplate = discoveredAPITemplate
         self.discoveredTitleTemplate = discoveredTitleTemplate
         self.discoveredHost = discoveredHost
+        self.walledHost = walledHost
+    }
+
+    // True while the wall was seen for the currently entered site and no
+    // working search has been learned since.
+    var isWalled: Bool {
+        walledHost == host && !searchesDirectly && activeDiscoveredAPI == nil
     }
 
     // The discovered template only counts while it still matches the entered

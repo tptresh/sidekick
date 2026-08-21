@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 // For any plain query, offer to look the show up on each enabled streaming
@@ -71,8 +72,17 @@ enum StreamingProvider {
                         )
                     }
                 } else {
-                    how = "Opens \(site.displayName) in \(BrowserLauncher.targetName) - search from there"
-                    action = { BrowserLauncher.open(homepage) }
+                    // No learnable search (often an anti-bot wall an embedded
+                    // web view cannot pass, which Spidey does not fight). Open
+                    // the site in the real browser with the query on the
+                    // clipboard, so it is one paste away from its search box.
+                    how = "Opens \(site.displayName) in \(BrowserLauncher.targetName) with your search copied to paste"
+                    action = {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(trimmed, forType: .string)
+                        BrowserLauncher.open(homepage)
+                    }
                 }
                 let key = "stream:\(site.id.uuidString)"
                 let rowDemoted = demoted && !rescuesDemotion(boost: boosts[key] ?? 0)
