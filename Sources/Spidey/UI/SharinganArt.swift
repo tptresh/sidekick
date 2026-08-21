@@ -5,8 +5,10 @@ import SwiftUI
 // spins around it, and the pupil that stays put.
 enum SharinganArt {
     static let ink = Color(red: 0.051, green: 0.020, blue: 0.027)
-    static let blood = Color(red: 0.784, green: 0.071, blue: 0.114)
-    static let ember = Color(red: 0.980, green: 0.286, blue: 0.235)
+    static let blood = Color(red: 0.596, green: 0.031, blue: 0.071)
+    // Kept hot enough to read as a glint on a black silhouette; the iris uses
+    // the deeper reds below it.
+    static let ember = Color(red: 0.882, green: 0.153, blue: 0.153)
 }
 
 // The iris: a hot centre falling off to a dark rim, with the fibres of the eye
@@ -20,10 +22,10 @@ struct SharinganIris: View {
             Circle()
                 .fill(RadialGradient(
                     colors: [
-                        SharinganArt.ember,
+                        Color(red: 0.702, green: 0.063, blue: 0.086),
                         SharinganArt.blood,
-                        Color(red: 0.522, green: 0.031, blue: 0.075),
-                        Color(red: 0.294, green: 0.012, blue: 0.043),
+                        Color(red: 0.365, green: 0.016, blue: 0.043),
+                        Color(red: 0.157, green: 0.008, blue: 0.024),
                     ],
                     center: .center,
                     startRadius: diameter * 0.05,
