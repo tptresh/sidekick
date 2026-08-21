@@ -186,3 +186,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 7f78dd4 Sasuke's entrance now uses the real anime render of him: he arrives, gathers purple chakra, and Rinnegan open across the screen as chakra rings roll out
 - main is now at: 9ee24d0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:29 - OK - claude/search-result-ordering-5adac3
+- "Searching the web now ranks above the guessed homepage, so a query with no obvious site leads with the search instead of an address that may not exist"
+- merged commits:
+  - 4a13791 Searching the web now ranks above the guessed homepage, so a query with no obvious site leads with the search instead of an address that may not exist
+- main is now at: 481ecd0 (build succeeded, app relaunched)
