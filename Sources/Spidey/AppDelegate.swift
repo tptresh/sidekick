@@ -60,6 +60,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         showFirstRunHintIfNeeded()
 
+        // Snapshot and entrance captures are unattended; permission dialogs
+        // would hang them.
+        if snapshotDirectory == nil, entranceDirectory == nil {
+            SetupCenter.shared.runAtLaunch()
+        }
+
         if let query = showOnLaunchQuery {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.showPanel()

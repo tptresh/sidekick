@@ -24,6 +24,7 @@ struct SettingsView: View {
                 mediaSection
                 claudeSection
                 clipboardSection
+                setupSection
                 loginSection
             }
             .padding(24)
@@ -357,6 +358,24 @@ struct SettingsView: View {
         }
     }
 
+    private var setupSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Permissions & Tools").font(.headline)
+            Text("Sidekick asks for everything it needs at launch and installs its command line tools itself. Green means the feature is ready.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            SetupStatusList()
+            HStack {
+                Button("Ask for Missing Permissions Again") {
+                    SetupCenter.shared.requestPermissions()
+                }
+                Button("Retry Tool Install") {
+                    SetupCenter.shared.installMissingTools()
+                }
+            }
+        }
+    }
+
     private var loginSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("General").font(.headline)
@@ -377,6 +396,65 @@ struct SettingsView: View {
             if let launchAtLoginError {
                 Text(launchAtLoginError).font(.caption).foregroundColor(.orange)
             }
+        }
+    }
+}
+
+// Live permission and tool readiness rows. Permission state has no change
+// notification API, so the list re-reads it on a slow tick while visible.
+private struct SetupStatusList: View {
+    @ObservedObject var setup = SetupCenter.shared
+    @State private var rows: [SetupCenter.PermissionRow] = SetupCenter.shared.permissionRows()
+    private let refresh = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(rows) { row in
+                HStack(spacing: 8) {
+                    statusDot(color: color(for: row.state))
+                    Text(row.name)
+                    Text(row.detail).font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    if row.state == .denied {
+                        Button("Open Settings") {
+                            setup.openPrivacySettings(anchor: row.settingsAnchor)
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+            ForEach(SetupCenter.tools, id: \.name) { tool in
+                let state = setup.toolStates[tool.name] ?? .missing
+                HStack(spacing: 8) {
+                    statusDot(color: state == .installed ? .green : (state == .installing ? .yellow : .orange))
+                    Text(tool.name)
+                    Text(toolCaption(state, purpose: tool.purpose))
+                        .font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                }
+            }
+        }
+        .onReceive(refresh) { _ in rows = setup.permissionRows() }
+    }
+
+    private func statusDot(color: Color) -> some View {
+        Circle().fill(color).frame(width: 8, height: 8)
+    }
+
+    private func color(for state: SetupCenter.PermissionState) -> Color {
+        switch state {
+        case .granted: return .green
+        case .pending: return .yellow
+        case .denied: return .orange
+        }
+    }
+
+    private func toolCaption(_ state: SetupCenter.ToolState, purpose: String) -> String {
+        switch state {
+        case .installed: return purpose
+        case .installing: return "installing now for \(purpose)"
+        case .noHomebrew: return "needs Homebrew (brew.sh) for \(purpose)"
+        case .missing: return "install pending for \(purpose)"
         }
     }
 }
