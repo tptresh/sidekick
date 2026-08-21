@@ -65,3 +65,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e059fcc Custom media sites now appear in searches immediately (via a Google site search) instead of staying hidden until a search page is verified
 - main is now at: 8a1d415 (build succeeded, app relaunched)
+
+## 2026-08-20 17:10 - CONFLICT - claude/movie-search-visibility-311aed
+- merge into main conflicted and was aborted; main is untouched.
+- unmerged commits:
+  - 3d79d4e Custom sites' search is now learned by driving the site's real search box; results jump to the top matching title, never a dead Google page
+- fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
