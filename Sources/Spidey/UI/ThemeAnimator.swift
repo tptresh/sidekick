@@ -1,10 +1,11 @@
 import AppKit
 import SwiftUI
 
-// Plays a full screen entrance when the theme changes: the Spidey mask
-// swings in on a web line, or the bat signal lights up the sky. The overlay
-// is a borderless click-through window above everything, and the theme
-// itself flips mid-animation so the app is already dressed when it fades.
+// Plays a full screen entrance when the theme changes: the Spidey mask swings
+// in on a web line, the bat signal lights up the sky, or Sasuke's Sharingan
+// spins out of his eye and swallows the screen. The overlay is a borderless
+// click-through window above everything, and the theme itself flips
+// mid-animation so the app is already dressed when it fades.
 final class ThemeAnimator {
     static let shared = ThemeAnimator()
 
@@ -84,8 +85,8 @@ private struct ThemeEntranceView: View {
                 WebSlingView(size: size, applyTheme: applyTheme, finished: finished)
             case .batman:
                 BatSignalView(size: size, applyTheme: applyTheme, finished: finished)
-            case .ironMan:
-                IronAssembleView(size: size, applyTheme: applyTheme, finished: finished)
+            case .sasuke:
+                SharinganAwakenView(size: size, applyTheme: applyTheme, finished: finished)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -275,168 +276,88 @@ private struct BeamShape: Shape {
     }
 }
 
-// MARK: - Iron Man: the armor pieces fly in and assemble, then the reactor ignites
+// MARK: - Sasuke: his eye ignites and the Sharingan spins out of it
 
-// The bust is drawn from the same 18x18 unit geometry as the menu bar emblem,
-// y flipped for SwiftUI, split into the pieces that fly in separately.
-private struct IronPiece: Shape {
-    enum Kind {
-        case helmet, faceplate, leftShoulder, chest, rightShoulder
-    }
-    let kind: Kind
-
-    func path(in rect: CGRect) -> Path {
-        let u = rect.width / 18
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * u, y: y * u) }
-        var path = Path()
-        switch kind {
-        case .helmet:
-            path.move(to: pt(5.6, 10.4))
-            path.addLine(to: pt(7.2, 11.1))
-            path.addLine(to: pt(10.8, 11.1))
-            path.addLine(to: pt(12.4, 10.4))
-            path.addLine(to: pt(13.0, 8.4))
-            path.addCurve(to: pt(13.5, 6.0), control1: pt(13.4, 7.7), control2: pt(13.5, 6.9))
-            path.addCurve(to: pt(9.0, 1.6), control1: pt(13.5, 3.1), control2: pt(11.6, 1.6))
-            path.addCurve(to: pt(4.5, 6.0), control1: pt(6.4, 1.6), control2: pt(4.5, 3.1))
-            path.addCurve(to: pt(5.0, 8.4), control1: pt(4.5, 6.9), control2: pt(4.6, 7.7))
-            path.closeSubpath()
-        case .faceplate:
-            // The region inside the helmet's faceplate groove, jaw included.
-            path.move(to: pt(5.9, 9.8))
-            path.addLine(to: pt(6.3, 6.1))
-            path.addCurve(to: pt(9.0, 4.6), control1: pt(6.6, 5.1), control2: pt(7.5, 4.6))
-            path.addCurve(to: pt(11.7, 6.1), control1: pt(10.5, 4.6), control2: pt(11.4, 5.1))
-            path.addLine(to: pt(12.1, 9.8))
-            path.addLine(to: pt(10.9, 10.9))
-            path.addLine(to: pt(7.1, 10.9))
-            path.closeSubpath()
-            // Angled eye slits and the mouth slot, punched by the even-odd fill.
-            for mirrored in [false, true] {
-                func mx(_ x: CGFloat) -> CGFloat { mirrored ? (18 - x) * u : x * u }
-                var eye = Path()
-                eye.move(to: CGPoint(x: mx(6.1), y: 6.3 * u))
-                eye.addLine(to: CGPoint(x: mx(8.4), y: 6.7 * u))
-                eye.addLine(to: CGPoint(x: mx(8.4), y: 7.4 * u))
-                eye.addLine(to: CGPoint(x: mx(6.3), y: 7.3 * u))
-                eye.closeSubpath()
-                path.addPath(eye)
-            }
-            path.addRoundedRect(in: CGRect(x: 7.8 * u, y: 9.45 * u, width: 2.4 * u, height: 0.45 * u), cornerSize: CGSize(width: 0.2 * u, height: 0.2 * u))
-        case .leftShoulder:
-            path.move(to: pt(2.0, 17.0))
-            path.addLine(to: pt(2.6, 13.8))
-            path.addCurve(to: pt(4.6, 12.2), control1: pt(2.8, 12.9), control2: pt(3.5, 12.2))
-            path.addLine(to: pt(6.3, 12.2))
-            path.addLine(to: pt(5.6, 17.0))
-            path.closeSubpath()
-        case .chest:
-            path.move(to: pt(5.6, 17.0))
-            path.addLine(to: pt(6.3, 12.2))
-            path.addLine(to: pt(7.3, 12.2))
-            path.addLine(to: pt(7.9, 13.0))
-            path.addLine(to: pt(10.1, 13.0))
-            path.addLine(to: pt(10.7, 12.2))
-            path.addLine(to: pt(11.7, 12.2))
-            path.addLine(to: pt(12.4, 17.0))
-            path.closeSubpath()
-            // Arc reactor socket, punched by the even-odd fill.
-            path.addEllipse(in: CGRect(x: 8.0 * u, y: 13.6 * u, width: 2.0 * u, height: 2.0 * u))
-        case .rightShoulder:
-            path.move(to: pt(16.0, 17.0))
-            path.addLine(to: pt(15.4, 13.8))
-            path.addCurve(to: pt(13.4, 12.2), control1: pt(15.2, 12.9), control2: pt(14.5, 12.2))
-            path.addLine(to: pt(11.7, 12.2))
-            path.addLine(to: pt(12.4, 17.0))
-            path.closeSubpath()
-        }
-        return path
-    }
-}
-
-private struct IronAssembleView: View {
+private struct SharinganAwakenView: View {
     let size: CGSize
     let applyTheme: () -> Void
     let finished: () -> Void
 
-    private let armorRed = Color(red: 0.678, green: 0.106, blue: 0.086)
-    private let armorGold = Color(red: 0.855, green: 0.663, blue: 0.243)
-    private let reactorBlue = Color(red: 0.62, green: 0.90, blue: 1.0)
+    private let headSide: CGFloat
+    private let eyePoint: CGPoint
+    private let discDiameter: CGFloat
 
     @State private var dimmed = false
-    @State private var leftIn = false
-    @State private var rightIn = false
-    @State private var chestIn = false
-    @State private var helmetIn = false
-    @State private var faceOn = false
-    @State private var reactorOn = false
+    @State private var headIn = false
+    @State private var lit = false
+    @State private var opened = false
+    @State private var spin: Double = 0
     @State private var flash = false
     @State private var visible = true
 
+    init(size: CGSize, applyTheme: @escaping () -> Void, finished: @escaping () -> Void) {
+        self.size = size
+        self.applyTheme = applyTheme
+        self.finished = finished
+        let headWidth = min(size.width, size.height) * 0.48
+        headSide = headWidth * 18 / SasukeArt.headWidthUnits
+        // The head sits in the top half of its 18 unit box, so it is centred on
+        // its own head centre; every landmark shifts by the same amount.
+        let unit = headSide / 18
+        eyePoint = CGPoint(
+            x: size.width / 2 + (SasukeArt.sharinganEye.x - SasukeArt.headCentre.x) * unit,
+            y: size.height / 2 + (SasukeArt.sharinganEye.y - SasukeArt.headCentre.y) * unit
+        )
+        discDiameter = min(size.width, size.height) * 0.70
+    }
+
+    // Shrunk to the size of the iris in his eye, so the wheel starts out
+    // sitting exactly on the Sharingan already painted there.
+    private var closedScale: CGFloat {
+        SasukeArt.irisUnits * (headSide / 18) / discDiameter
+    }
+
     var body: some View {
-        let side = min(size.width, size.height) * 0.5
-        let u = side / 18
         ZStack {
-            Color.black.opacity(dimmed ? 0.5 : 0)
-            ZStack {
-                IronPiece(kind: .leftShoulder)
-                    .fill(armorRed)
-                    .rotationEffect(.degrees(leftIn ? 0 : -35))
-                    .offset(x: leftIn ? 0 : -size.width * 0.55)
-                    .opacity(leftIn ? 1 : 0)
-                IronPiece(kind: .rightShoulder)
-                    .fill(armorRed)
-                    .rotationEffect(.degrees(rightIn ? 0 : 35))
-                    .offset(x: rightIn ? 0 : size.width * 0.55)
-                    .opacity(rightIn ? 1 : 0)
-                IronPiece(kind: .chest)
-                    .fill(armorGold, style: FillStyle(eoFill: true))
-                    .offset(y: chestIn ? 0 : size.height * 0.55)
-                    .opacity(chestIn ? 1 : 0)
-                IronPiece(kind: .helmet)
-                    .fill(armorRed)
-                    .rotationEffect(.degrees(helmetIn ? 0 : 10))
-                    .offset(y: helmetIn ? 0 : -size.height * 0.55)
-                    .opacity(helmetIn ? 1 : 0)
-                // The faceplate flies in "toward us": it starts big and settles.
-                IronPiece(kind: .faceplate)
-                    .fill(armorGold, style: FillStyle(eoFill: true))
-                    .scaleEffect(faceOn ? 1 : 2.8)
-                    .opacity(faceOn ? 1 : 0)
-                Circle()
-                    .fill(reactorBlue)
-                    .frame(width: 2.4 * u, height: 2.4 * u)
-                    .position(x: 9.0 * u, y: 14.6 * u)
-                    .shadow(color: reactorBlue.opacity(0.9), radius: reactorOn ? 2.2 * u : 0)
-                    .opacity(reactorOn ? 1 : 0)
-                    .scaleEffect(reactorOn ? 1 : 0.3)
-            }
-            .frame(width: side, height: side)
-            Color.white.opacity(flash ? 0.55 : 0)
+            Color.black.opacity(dimmed ? 0.62 : 0)
+            head
+            SharinganDisc(diameter: discDiameter, spin: spin)
+                .shadow(
+                    color: SasukeArt.sharinganRed.opacity(0.8),
+                    radius: discDiameter * (opened ? 0.09 : 0)
+                )
+                .scaleEffect(opened ? 1 : closedScale)
+                .position(opened ? CGPoint(x: size.width / 2, y: size.height / 2) : eyePoint)
+                .opacity(lit ? 1 : 0)
+            Color(red: 0.85, green: 0.16, blue: 0.16).opacity(flash ? 0.5 : 0)
         }
         .frame(width: size.width, height: size.height)
         .opacity(visible ? 1 : 0)
         .onAppear(perform: run)
     }
 
+    private var head: some View {
+        let unit = headSide / 18
+        return SasukeHeadView(side: headSide, glow: lit)
+            .offset(
+                x: (9 - SasukeArt.headCentre.x) * unit,
+                y: (9 - SasukeArt.headCentre.y) * unit
+            )
+            .scaleEffect(headIn ? 1 : 0.86)
+            .opacity(headIn ? 1 : 0)
+            .position(x: size.width / 2, y: size.height / 2)
+    }
+
     private func run() {
-        let snap = Animation.spring(response: 0.42, dampingFraction: 0.72)
-        step(0.05, .easeIn(duration: 0.2)) { dimmed = true }
-        step(0.20, snap) { leftIn = true }
-        step(0.32, snap) { rightIn = true }
-        step(0.48, snap) { chestIn = true }
-        step(0.66, snap) { helmetIn = true }
-        step(0.90, .spring(response: 0.38, dampingFraction: 0.68)) { faceOn = true }
-        step(1.25, .easeOut(duration: 0.18)) {
-            reactorOn = true
-            flash = true
-        }
-        step(1.30, nil) { applyTheme() }
-        step(1.45, .easeOut(duration: 0.30)) { flash = false }
-        step(2.05, .easeOut(duration: 0.40)) {
-            dimmed = false
-            visible = false
-        }
-        step(2.55, nil) { finished() }
+        step(0.02, .easeOut(duration: 0.30)) { dimmed = true }
+        step(0.10, .spring(response: 0.55, dampingFraction: 0.75)) { headIn = true }
+        step(0.65, .easeInOut(duration: 0.30)) { lit = true }
+        step(1.00, .easeOut(duration: 1.05)) { opened = true }
+        step(1.00, .easeOut(duration: 1.70)) { spin = 400 }
+        step(1.55, .easeOut(duration: 0.16)) { flash = true }
+        step(1.62, nil) { applyTheme() }
+        step(1.75, .easeOut(duration: 0.35)) { flash = false }
+        step(2.45, .easeIn(duration: 0.45)) { visible = false }
+        step(3.00, nil) { finished() }
     }
 }

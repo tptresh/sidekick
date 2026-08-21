@@ -4,13 +4,13 @@ import AppKit
 enum HeroTheme: String, CaseIterable, Codable {
     case spiderman
     case batman
-    case ironMan
+    case sasuke
 
     var displayName: String {
         switch self {
         case .spiderman: return "Spider-Man"
         case .batman: return "Batman"
-        case .ironMan: return "Iron Man"
+        case .sasuke: return "Sasuke"
         }
     }
 
@@ -18,7 +18,7 @@ enum HeroTheme: String, CaseIterable, Codable {
         switch self {
         case .spiderman: return "Spidey Search"
         case .batman: return "Explore the Cave"
-        case .ironMan: return "Hey Jarvis"
+        case .sasuke: return "Awaken the Sharingan"
         }
     }
 
@@ -27,7 +27,7 @@ enum HeroTheme: String, CaseIterable, Codable {
     var isLight: Bool {
         switch self {
         case .spiderman, .batman: return false
-        case .ironMan: return true
+        case .sasuke: return true
         }
     }
 
@@ -53,18 +53,18 @@ enum HeroTheme: String, CaseIterable, Codable {
                 textSecondary: Color(red: 0.510, green: 0.522, blue: 0.541),
                 fieldOutline: Color(red: 0.663, green: 0.678, blue: 0.702)
             )
-        case .ironMan:
-            // Warm white with a faint gold cast, hot-rod red accent, and a
-            // gold field outline for the classic red-and-gold armor duo. Dark
-            // warm text keeps every opacity-derived tint (separators, borders,
-            // placeholder) readable against the light panel.
+        case .sasuke:
+            // Cool grey panel with a lilac cast, deep Uchiha purple accent and
+            // a muted mauve field outline, taken from his lavender shirt and
+            // slate blue trousers. Dark text with the same purple cast keeps
+            // every opacity-derived tint readable on the light panel.
             return ThemePalette(
-                background: Color(red: 0.976, green: 0.961, blue: 0.933),
-                backgroundTop: Color(red: 0.992, green: 0.984, blue: 0.964),
-                accent: Color(red: 0.678, green: 0.106, blue: 0.086),
-                textPrimary: Color(red: 0.157, green: 0.110, blue: 0.094),
-                textSecondary: Color(red: 0.478, green: 0.400, blue: 0.357),
-                fieldOutline: Color(red: 0.788, green: 0.596, blue: 0.196)
+                background: Color(red: 0.918, green: 0.910, blue: 0.933),
+                backgroundTop: Color(red: 0.961, green: 0.957, blue: 0.973),
+                accent: Color(red: 0.396, green: 0.310, blue: 0.573),
+                textPrimary: Color(red: 0.137, green: 0.125, blue: 0.161),
+                textSecondary: Color(red: 0.412, green: 0.396, blue: 0.459),
+                fieldOutline: Color(red: 0.494, green: 0.400, blue: 0.549)
             )
         }
     }

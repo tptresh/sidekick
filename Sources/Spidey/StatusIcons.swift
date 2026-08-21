@@ -34,124 +34,167 @@ enum StatusIcons {
             drawSpideyMask(color: color)
         case .batman:
             batSymbolPath().fill()
-        case .ironMan:
-            drawIronManEmblem()
+        case .sasuke:
+            drawSasukeFigure()
         }
     }
 
-    // Iron Man facing us: helmet over squared shoulders. The silhouette is
-    // filled first, then the faceplate groove, armor seams, and reactor ring
-    // are knocked out with destination-out strokes so the panel lines read
-    // like the real helmet while staying template-friendly.
-    private static func drawIronManEmblem() {
-        let body = NSBezierPath()
-        body.windingRule = .evenOdd
-        body.append(ironHelmetPath())
-        for slit in ironEyeSlitPaths() { body.append(slit) }
-        body.append(ironMouthPath())
-        body.append(ironBustPath())
-        body.append(ironReactorPath())
-        body.fill()
+    // Sasuke standing in miniature: an oversized spiky head over a small
+    // body with one hand on his hip. The hair is a solid silhouette with the
+    // face knocked out of it and the eyes filled back in, so the figure keeps
+    // its shape at menu bar size and still works as a template image.
+    private static func drawSasukeFigure() {
+        // Filled separately rather than as one even-odd path: the arms overlap
+        // the torso, and even-odd would punch holes where they cross.
+        sasukeBodyPaths().forEach { $0.fill() }
+
+        // The face and eyes must sit wholly inside the hair outline: even-odd
+        // counts nesting, so any part that strays outside fills instead of
+        // cutting.
+        let head = NSBezierPath()
+        head.windingRule = .evenOdd
+        head.append(sasukeHairPath())
+        head.append(sasukeFacePath())
+        for eye in sasukeEyePaths() { head.append(eye) }
+        head.fill()
 
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         context.setBlendMode(.destinationOut)
-        let groove = ironFaceplateGroovePath()
-        groove.lineWidth = 0.4
-        groove.stroke()
-        for seam in ironShoulderSeamPaths() {
+        for seam in sasukeSeamPaths() {
             seam.lineWidth = 0.4
+            seam.lineCapStyle = .round
             seam.stroke()
         }
-        let ring = NSBezierPath(ovalIn: NSRect(x: 7.4, y: 1.8, width: 3.2, height: 3.2))
-        ring.lineWidth = 0.35
-        ring.stroke()
         context.restoreGState()
     }
 
-    // Helmet: rounded crown, temple flare, angular chamfered jaw.
-    static func ironHelmetPath() -> NSBezierPath {
+    // The whole head: a rounded jaw under a crown of spikes, with the two long
+    // bangs dropping past the cheeks.
+    static func sasukeHairPath() -> NSBezierPath {
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: 5.6, y: 7.6))
-        path.line(to: NSPoint(x: 7.2, y: 6.9))
-        path.line(to: NSPoint(x: 10.8, y: 6.9))
-        path.line(to: NSPoint(x: 12.4, y: 7.6))
-        path.line(to: NSPoint(x: 13.0, y: 9.6))
-        path.curve(to: NSPoint(x: 13.5, y: 12.0), controlPoint1: NSPoint(x: 13.4, y: 10.3), controlPoint2: NSPoint(x: 13.5, y: 11.1))
-        path.curve(to: NSPoint(x: 9.0, y: 16.4), controlPoint1: NSPoint(x: 13.5, y: 14.9), controlPoint2: NSPoint(x: 11.6, y: 16.4))
-        path.curve(to: NSPoint(x: 4.5, y: 12.0), controlPoint1: NSPoint(x: 6.4, y: 16.4), controlPoint2: NSPoint(x: 4.5, y: 14.9))
-        path.curve(to: NSPoint(x: 5.0, y: 9.6), controlPoint1: NSPoint(x: 4.5, y: 11.1), controlPoint2: NSPoint(x: 4.6, y: 10.3))
+        path.move(to: NSPoint(x: 5.8, y: 11.0))
+        path.curve(to: NSPoint(x: 9.0, y: 10.1), controlPoint1: NSPoint(x: 6.0, y: 10.5), controlPoint2: NSPoint(x: 7.4, y: 10.1))
+        path.curve(to: NSPoint(x: 12.2, y: 11.0), controlPoint1: NSPoint(x: 10.6, y: 10.1), controlPoint2: NSPoint(x: 12.0, y: 10.5))
+        // Spikes up the right side, over the crown, and back down the left.
+        let spikes: [NSPoint] = [
+            NSPoint(x: 13.6, y: 12.0), NSPoint(x: 12.6, y: 12.8),
+            NSPoint(x: 15.1, y: 13.3), NSPoint(x: 13.3, y: 14.2),
+            NSPoint(x: 15.3, y: 15.6), NSPoint(x: 12.9, y: 15.6),
+            NSPoint(x: 14.0, y: 17.4), NSPoint(x: 11.5, y: 16.0),
+            NSPoint(x: 10.9, y: 17.9), NSPoint(x: 9.2, y: 16.2),
+            NSPoint(x: 7.4, y: 17.8), NSPoint(x: 6.6, y: 15.8),
+            NSPoint(x: 4.4, y: 16.9), NSPoint(x: 5.5, y: 15.0),
+            NSPoint(x: 3.0, y: 14.5), NSPoint(x: 5.1, y: 13.5),
+            NSPoint(x: 3.4, y: 12.2), NSPoint(x: 5.3, y: 11.8),
+        ]
+        for point in spikes { path.line(to: point) }
         path.close()
         return path
     }
 
-    // The groove separating the faceplate from the helmet shell.
-    static func ironFaceplateGroovePath() -> NSBezierPath {
+    // The opening the face shows through: bangs down each side and a fringe
+    // that parts in the middle and dips between the eyes.
+    static func sasukeFacePath() -> NSBezierPath {
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: 5.9, y: 8.2))
-        path.line(to: NSPoint(x: 6.3, y: 11.9))
-        path.curve(to: NSPoint(x: 9.0, y: 13.4), controlPoint1: NSPoint(x: 6.6, y: 12.9), controlPoint2: NSPoint(x: 7.5, y: 13.4))
-        path.curve(to: NSPoint(x: 11.7, y: 11.9), controlPoint1: NSPoint(x: 10.5, y: 13.4), controlPoint2: NSPoint(x: 11.4, y: 12.9))
-        path.line(to: NSPoint(x: 12.1, y: 8.2))
+        path.move(to: NSPoint(x: 6.5, y: 11.4))
+        path.line(to: NSPoint(x: 6.9, y: 13.4))
+        path.line(to: NSPoint(x: 7.7, y: 15.4))
+        path.line(to: NSPoint(x: 9.0, y: 14.5))
+        path.line(to: NSPoint(x: 10.3, y: 15.4))
+        path.line(to: NSPoint(x: 11.1, y: 13.4))
+        path.line(to: NSPoint(x: 11.5, y: 11.4))
+        path.curve(to: NSPoint(x: 6.5, y: 11.4), controlPoint1: NSPoint(x: 11.0, y: 10.8), controlPoint2: NSPoint(x: 7.0, y: 10.8))
+        path.close()
         return path
     }
 
-    // Angled eye slits, higher at the outer corners like the movie helmets.
-    static func ironEyeSlitPaths() -> [NSBezierPath] {
-        func slit(mirrored: Bool) -> NSBezierPath {
+    // Narrow eyes set low on the face, slanting down toward the nose.
+    static func sasukeEyePaths() -> [NSBezierPath] {
+        func eye(mirrored: Bool) -> NSBezierPath {
             func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
                 NSPoint(x: mirrored ? 18 - x : x, y: y)
             }
             let path = NSBezierPath()
-            path.move(to: point(6.1, 11.7))
-            path.line(to: point(8.4, 11.3))
-            path.line(to: point(8.4, 10.6))
-            path.line(to: point(6.3, 10.7))
+            path.move(to: point(7.1, 13.5))
+            path.line(to: point(8.6, 13.1))
+            path.line(to: point(8.7, 12.5))
+            path.line(to: point(7.2, 12.6))
             path.close()
             return path
         }
-        return [slit(mirrored: false), slit(mirrored: true)]
+        return [eye(mirrored: false), eye(mirrored: true)]
     }
 
-    // Thin mouth slot low on the faceplate.
-    static func ironMouthPath() -> NSBezierPath {
-        NSBezierPath(roundedRect: NSRect(x: 7.8, y: 8.1, width: 2.4, height: 0.45), xRadius: 0.2, yRadius: 0.2)
-    }
+    // Torso, trousers, sandals and both arms, the near one cocked on his hip.
+    static func sasukeBodyPaths() -> [NSBezierPath] {
+        let torso = NSBezierPath()
+        torso.move(to: NSPoint(x: 6.0, y: 10.6))
+        torso.line(to: NSPoint(x: 12.0, y: 10.6))
+        torso.line(to: NSPoint(x: 12.3, y: 5.3))
+        torso.line(to: NSPoint(x: 5.7, y: 5.3))
+        torso.close()
 
-    // Shoulders and chest with an angular collar notch under the helmet.
-    static func ironBustPath() -> NSBezierPath {
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: 2.0, y: 1.0))
-        path.line(to: NSPoint(x: 2.6, y: 4.2))
-        path.curve(to: NSPoint(x: 4.6, y: 5.8), controlPoint1: NSPoint(x: 2.8, y: 5.1), controlPoint2: NSPoint(x: 3.5, y: 5.8))
-        path.line(to: NSPoint(x: 7.3, y: 5.8))
-        path.line(to: NSPoint(x: 7.9, y: 5.0))
-        path.line(to: NSPoint(x: 10.1, y: 5.0))
-        path.line(to: NSPoint(x: 10.7, y: 5.8))
-        path.line(to: NSPoint(x: 13.4, y: 5.8))
-        path.curve(to: NSPoint(x: 15.4, y: 4.2), controlPoint1: NSPoint(x: 14.5, y: 5.8), controlPoint2: NSPoint(x: 15.2, y: 5.1))
-        path.line(to: NSPoint(x: 16.0, y: 1.0))
-        path.close()
-        return path
-    }
+        let trousers = NSBezierPath()
+        trousers.move(to: NSPoint(x: 5.8, y: 5.4))
+        trousers.line(to: NSPoint(x: 12.2, y: 5.4))
+        trousers.line(to: NSPoint(x: 11.9, y: 1.5))
+        trousers.line(to: NSPoint(x: 6.1, y: 1.5))
+        trousers.close()
 
-    // Seams splitting the pauldrons from the chest plate.
-    static func ironShoulderSeamPaths() -> [NSBezierPath] {
-        func seam(mirrored: Bool) -> NSBezierPath {
-            func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
-                NSPoint(x: mirrored ? 18 - x : x, y: y)
-            }
-            let path = NSBezierPath()
-            path.move(to: point(6.3, 5.8))
-            path.line(to: point(5.6, 1.0))
-            return path
+        let sandals = [false, true].map { mirrored -> NSBezierPath in
+            let x: CGFloat = mirrored ? 9.5 : 5.1
+            return NSBezierPath(roundedRect: NSRect(x: x, y: 0.3, width: 3.4, height: 1.3), xRadius: 0.5, yRadius: 0.5)
         }
-        return [seam(mirrored: false), seam(mirrored: true)]
+
+        // Hand on the hip: the forearm cuts back in to the waist, leaving a
+        // wedge of daylight that gives the pose away at a glance.
+        let hipArm = NSBezierPath()
+        hipArm.move(to: NSPoint(x: 6.0, y: 10.5))
+        hipArm.line(to: NSPoint(x: 4.5, y: 9.7))
+        hipArm.line(to: NSPoint(x: 3.3, y: 7.6))
+        hipArm.line(to: NSPoint(x: 3.7, y: 5.9))
+        hipArm.line(to: NSPoint(x: 5.2, y: 5.0))
+        hipArm.line(to: NSPoint(x: 6.4, y: 5.5))
+        hipArm.line(to: NSPoint(x: 5.4, y: 6.2))
+        hipArm.line(to: NSPoint(x: 4.5, y: 7.5))
+        hipArm.line(to: NSPoint(x: 5.1, y: 9.1))
+        hipArm.close()
+
+        let hangingArm = NSBezierPath()
+        hangingArm.move(to: NSPoint(x: 12.0, y: 10.5))
+        hangingArm.line(to: NSPoint(x: 13.3, y: 9.7))
+        hangingArm.line(to: NSPoint(x: 13.6, y: 6.3))
+        hangingArm.line(to: NSPoint(x: 13.4, y: 4.4))
+        hangingArm.line(to: NSPoint(x: 12.5, y: 4.4))
+        hangingArm.line(to: NSPoint(x: 12.6, y: 6.3))
+        hangingArm.line(to: NSPoint(x: 12.3, y: 9.7))
+        hangingArm.close()
+
+        return [torso, trousers] + sandals + [hipArm, hangingArm]
     }
 
-    // The reactor core; a knocked-out ring around it suggests the housing.
-    static func ironReactorPath() -> NSBezierPath {
-        NSBezierPath(ovalIn: NSRect(x: 8.0, y: 2.4, width: 2.0, height: 2.0))
+    // Knocked out of the silhouette: the shirt collar, the sash at his waist,
+    // the gap beside the hanging arm, and the split between the legs.
+    static func sasukeSeamPaths() -> [NSBezierPath] {
+        let collar = NSBezierPath()
+        collar.move(to: NSPoint(x: 8.0, y: 10.6))
+        collar.line(to: NSPoint(x: 9.0, y: 9.7))
+        collar.line(to: NSPoint(x: 10.0, y: 10.6))
+
+        let sash = NSBezierPath()
+        sash.move(to: NSPoint(x: 5.8, y: 5.4))
+        sash.line(to: NSPoint(x: 12.2, y: 5.4))
+
+        let armGap = NSBezierPath()
+        armGap.move(to: NSPoint(x: 12.3, y: 10.0))
+        armGap.line(to: NSPoint(x: 12.5, y: 5.5))
+
+        let legs = NSBezierPath()
+        legs.move(to: NSPoint(x: 9.0, y: 1.6))
+        legs.line(to: NSPoint(x: 9.0, y: 4.1))
+
+        return [collar, sash, armGap, legs]
     }
 
     // Line-art mask like the classic emblem: stroked rim, thin web, solid eyes.
