@@ -78,3 +78,9 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 19546f0 Merge main: keep demotion ranking, add learned-search open actions
   - 3d79d4e Custom sites' search is now learned by driving the site's real search box; results jump to the top matching title, never a dead Google page
 - main is now at: 580c60f (build succeeded, app relaunched)
+
+## 2026-08-20 17:17 - OK - claude/movie-search-visibility-311aed
+- "Sites whose search could not be learned on the first try now retry automatically and on Check Now"
+- merged commits:
+  - adf4672 Sites whose search could not be learned on the first try now retry automatically and on Check Now
+- main is now at: 18a6e58 (build succeeded, app relaunched)
