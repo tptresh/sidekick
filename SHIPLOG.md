@@ -96,3 +96,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 08352f8 Sites behind bot-protection walls are detected and open in Brave with the search copied to paste, instead of failing silently
 - main is now at: c9a5a9a (build succeeded, app relaunched)
+
+## 2026-08-20 18:04 - OK - claude/movie-search-visibility-311aed
+- "Learned site searches are re-proved against the live site every check cycle; broken ones clear and relearn automatically"
+- merged commits:
+  - a08288f Learned site searches are re-proved against the live site every check cycle; broken ones clear and relearn automatically
+- main is now at: 6787a9e (build succeeded, app relaunched)
