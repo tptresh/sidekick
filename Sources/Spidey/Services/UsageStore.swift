@@ -175,6 +175,19 @@ final class UsageStore {
         return result.filter { $0.value > 0 }
     }
 
+    /// Keys beginning with `prefix`, most-used first. Lets a bare keyword
+    /// ("contact") list the things the field has actually been used to reach.
+    func topKeys(prefix: String, limit: Int, now: Date = Date()) -> [String] {
+        var ranked: [(key: String, frecency: Double)] = []
+        for (key, entry) in snapshot.global where key.hasPrefix(prefix) {
+            let value = Self.frecency(count: entry.count, lastUsed: entry.lastUsed, now: now)
+            guard value > 0 else { continue }
+            ranked.append((key, value))
+        }
+        ranked.sort { $0.frecency == $1.frecency ? $0.key < $1.key : $0.frecency > $1.frecency }
+        return ranked.prefix(limit).map(\.key)
+    }
+
     // MARK: - Persistence
 
     private func save() {

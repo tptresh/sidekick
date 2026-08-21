@@ -165,6 +165,9 @@ final class SetupCenter: ObservableObject {
             return
         }
         CNContactStore().requestAccess(for: .contacts) { _, _ in
+            // Load the address book as soon as the grant lands, so the first
+            // name typed after setup is already searchable.
+            ContactIndex.shared.reload()
             DispatchQueue.main.async(execute: next)
         }
     }
