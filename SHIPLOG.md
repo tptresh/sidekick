@@ -126,3 +126,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - a2d0bf5 Typing a contact's name puts the person first with Message, Call, FaceTime, and Email actions that learn which one you use
 - main is now at: c327be6 (build succeeded, app relaunched)
+
+## 2026-08-20 18:52 - OK - claude/duplicate-spidey-processes-40c37c
+- "Only one Sidekick runs at a time: a launching copy retires older ones, and worktrees can no longer build rival app bundles"
+- merged commits:
+  - 6767fbe Only one Sidekick runs at a time: a launching copy retires older ones, and worktrees can no longer build rival app bundles
+- main is now at: b107bc2 (build succeeded, app relaunched)
