@@ -199,12 +199,27 @@ final class URLBuildingTests: XCTestCase {
 
         // A single-word unknown name reads as a site, so its homepage guess
         // also outranks streaming; multi-word queries read as show titles.
-        let single = SiteDirectoryProvider.results(for: "kagi")
-        XCTAssertGreaterThan(single.first?.score ?? 0, 200)
-        let multi = SiteDirectoryProvider.results(for: "the last of us")
-        if let guess = multi.first(where: { $0.title.hasPrefix("Open www.") }) {
-            XCTAssertLessThan(guess.score, 200)
+        let single = SiteDirectoryProvider.guessResult(for: "kagi")
+        XCTAssertGreaterThan(single?.score ?? 0, 200)
+        let multi = SiteDirectoryProvider.guessResult(for: "the last of us")
+        XCTAssertEqual(multi?.title, "Open www.thelastofus.com")
+        XCTAssertLessThan(multi?.score ?? 0, 200)
+    }
+
+    func testWebSearchRanksAboveGuessedHomepage() {
+        // A guessed address may not exist, so the search sits above it.
+        for query in ["nissan", "some obscure brand"] {
+            guard let guess = SiteDirectoryProvider.guessResult(for: query) else {
+                return XCTFail("\(query) should offer a homepage guess")
+            }
+            let search = WebSearchProvider.googleFallback(for: query, score: guess.score + 5)
+            XCTAssertGreaterThan(search?.score ?? 0, guess.score)
         }
+
+        // A directory site is the real answer, so there is no guess to lift
+        // the search above, and it stays at the bottom of the list.
+        XCTAssertNil(SiteDirectoryProvider.guessResult(for: "outlook"))
+        XCTAssertEqual(WebSearchProvider.googleFallback(for: "outlook")?.score, 100)
     }
 
     func testNoEmDashInBuiltInSites() {

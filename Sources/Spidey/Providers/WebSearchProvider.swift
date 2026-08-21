@@ -52,7 +52,12 @@ enum WebSearchProvider {
         )]
     }
 
-    static func googleFallback(for query: String) -> ResultItem? {
+    // Sits at the bottom of the list, under anything Spidey recognised. The
+    // engine raises `score` when the list also holds a guessed homepage, so
+    // the search that always lands somewhere stays above the guess.
+    static let fallbackScore: Double = 100
+
+    static func googleFallback(for query: String, score: Double = fallbackScore) -> ResultItem? {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty,
               let url = URL(string: "https://www.google.com/search?q=\(BrowserLauncher.encodeQuery(trimmed))")
@@ -61,7 +66,7 @@ enum WebSearchProvider {
             title: "Search Google for \"\(trimmed)\"",
             subtitle: "Opens in \(BrowserLauncher.targetName)",
             icon: FaviconStore.shared.resultIcon(for: "https://www.google.com", fallbackSymbol: "magnifyingglass"),
-            score: 100,
+            score: score,
             action: { BrowserLauncher.open(url) }
         )
     }
