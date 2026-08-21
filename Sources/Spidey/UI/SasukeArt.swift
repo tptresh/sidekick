@@ -1,72 +1,163 @@
 import AppKit
 import SwiftUI
 
-// Sasuke's head and his Sharingan, for the theme entrance. The head reuses the
-// menu bar emblem's geometry rather than restating it, so the figure in the
-// status bar and the face on screen are the same drawing.
+// Sasuke drawn for the theme entrance: a close up portrait in the style of the
+// anime rather than the stubby figure in the menu bar. The two are separate
+// drawings on purpose. The status item has to survive being 18 points wide, so
+// it is a bold silhouette; this one is seen full screen, so it can carry a
+// proper face, layered hair and the Sharingan spinning in his eye.
 enum SasukeArt {
-    static let hair = Color(red: 0.106, green: 0.114, blue: 0.161)
-    static let skin = Color(red: 0.949, green: 0.827, blue: 0.725)
-    static let sharinganRed = Color(red: 0.784, green: 0.149, blue: 0.157)
-    static let rinneganPurple = Color(red: 0.478, green: 0.451, blue: 0.671)
+    static let hairDark = Color(red: 0.075, green: 0.086, blue: 0.137)
+    static let hairLight = Color(red: 0.243, green: 0.267, blue: 0.376)
+    static let skin = Color(red: 0.976, green: 0.894, blue: 0.831)
+    static let skinShade = Color(red: 0.894, green: 0.776, blue: 0.706)
+    static let ink = Color(red: 0.086, green: 0.071, blue: 0.098)
+    static let shirt = Color(red: 0.788, green: 0.780, blue: 0.824)
+    static let sharinganRed = Color(red: 0.741, green: 0.118, blue: 0.129)
+    static let rinneganPurple = Color(red: 0.616, green: 0.596, blue: 0.784)
 
-    // Landmarks inside the 18 unit emblem box, y already flipped for SwiftUI.
-    // The head fills only the top half of that box, since the rest of it holds
-    // the body, so callers centre on headCentre rather than on the box.
-    static let sharinganEye = CGPoint(x: 8.15, y: 6.0)
-    static let rinneganEye = CGPoint(x: 9.85, y: 6.0)
-    static let headCentre = CGPoint(x: 9.3, y: 5.0)
-    static let headWidthUnits: CGFloat = 11.8
-    static let irisUnits: CGFloat = 1.45
+    // Landmarks in the 18 unit portrait box, y pointing down. The head fills
+    // only part of that box, so callers centre on headCentre.
+    static let sharinganEye = CGPoint(x: 7.75, y: 8.35)
+    static let rinneganEye = CGPoint(x: 10.25, y: 8.35)
+    static let headCentre = CGPoint(x: 9.3, y: 7.3)
+    static let headWidthUnits: CGFloat = 10.2
+    static let irisUnits: CGFloat = 1.15
 }
 
-// NSBezierPath.cgPath needs macOS 14, so walk the elements by hand. The 18x18
-// emblem space has y pointing up; SwiftUI's points down, hence the flip.
-private func flipped(_ bezier: NSBezierPath, unit: CGFloat) -> Path {
+// Everything below is drawn in the same 18 unit space, y pointing down.
+private func unitPath(_ rect: CGRect, _ build: (inout Path, (CGFloat, CGFloat) -> CGPoint) -> Void) -> Path {
+    let unit = rect.width / 18
     var path = Path()
-    var points = [NSPoint](repeating: .zero, count: 3)
-    for index in 0..<bezier.elementCount {
-        let kind = bezier.element(at: index, associatedPoints: &points)
-        func at(_ slot: Int) -> CGPoint {
-            CGPoint(x: points[slot].x * unit, y: (18 - points[slot].y) * unit)
-        }
-        switch kind {
-        case .moveTo: path.move(to: at(0))
-        case .lineTo: path.addLine(to: at(0))
-        case .curveTo: path.addCurve(to: at(2), control1: at(0), control2: at(1))
-        case .closePath: path.closeSubpath()
-        default: break
-        }
-    }
+    build(&path, { CGPoint(x: $0 * unit, y: $1 * unit) })
     return path
 }
 
-// The spiky silhouette with the face opening cut out of it.
-struct SasukeHairShape: Shape {
+// The mass at the back of his head, spiking up and out behind everything else.
+struct SasukeBackHair: Shape {
     func path(in rect: CGRect) -> Path {
-        let unit = rect.width / 18
-        var path = flipped(StatusIcons.sasukeHairPath(), unit: unit)
-        path.addPath(flipped(StatusIcons.sasukeFacePath(), unit: unit))
-        return path
+        unitPath(rect) { path, point in
+            path.move(to: point(5.6, 10.4))
+            for spike in [
+                (4.4, 8.4), (5.6, 7.4), (3.9, 5.8), (5.7, 5.2),
+                (4.7, 2.9), (6.5, 4.0), (6.9, 1.5), (8.3, 3.2),
+                (9.5, 1.1), (10.6, 3.2), (12.3, 1.4), (12.7, 3.8),
+                (14.5, 2.7), (13.4, 5.2), (14.9, 6.0), (13.2, 7.2),
+                (14.1, 8.8), (12.6, 9.6), (12.4, 10.4),
+            ] {
+                path.addLine(to: point(spike.0, spike.1))
+            }
+            path.addCurve(
+                to: point(5.6, 10.4),
+                control1: point(11.4, 11.6),
+                control2: point(6.6, 11.6)
+            )
+            path.closeSubpath()
+        }
     }
 }
 
-// The face opening on its own, filled with skin behind the hair.
-struct SasukeFaceShape: Shape {
+// His face: temples at the widest, cheeks running down to a soft pointed chin.
+struct SasukeFace: Shape {
     func path(in rect: CGRect) -> Path {
-        flipped(StatusIcons.sasukeFacePath(), unit: rect.width / 18)
+        unitPath(rect) { path, point in
+            path.move(to: point(6.35, 6.5))
+            path.addCurve(to: point(9.0, 11.9), control1: point(6.4, 9.4), control2: point(8.0, 11.9))
+            path.addCurve(to: point(11.65, 6.5), control1: point(10.0, 11.9), control2: point(11.6, 9.4))
+            path.addCurve(to: point(6.35, 6.5), control1: point(11.7, 3.9), control2: point(6.3, 3.9))
+            path.closeSubpath()
+        }
     }
 }
 
-// The open front of his collar.
-struct Triangle: Shape {
+// The hair over his crown, hanging onto his forehead as separate pointed
+// strands with forehead showing between them.
+struct SasukeFrontHair: Shape {
     func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-        return path
+        unitPath(rect) { path, point in
+            path.move(to: point(5.4, 6.5))
+            path.addCurve(to: point(9.0, 3.0), control1: point(5.2, 4.0), control2: point(7.0, 3.0))
+            path.addCurve(to: point(12.6, 6.5), control1: point(11.0, 3.0), control2: point(12.8, 4.0))
+            path.addCurve(to: point(5.4, 6.5), control1: point(11.4, 6.9), control2: point(6.6, 6.9))
+            path.closeSubpath()
+        }
+    }
+}
+
+// The strands of fringe hanging onto his forehead, all sweeping to his left.
+struct SasukeFringe: Shape {
+    func path(in rect: CGRect) -> Path {
+        unitPath(rect) { path, point in
+            for strand in [
+                (base: (CGFloat(6.1), CGFloat(5.2)), width: CGFloat(1.6), tip: (CGFloat(7.9), CGFloat(7.4))),
+                (base: (CGFloat(8.0), CGFloat(5.0)), width: CGFloat(1.5), tip: (CGFloat(9.7), CGFloat(7.6))),
+                (base: (CGFloat(9.9), CGFloat(5.2)), width: CGFloat(1.5), tip: (CGFloat(11.4), CGFloat(7.2))),
+            ] {
+                let left = strand.base.0
+                let right = left + strand.width
+                path.move(to: point(left, strand.base.1))
+                path.addLine(to: point(right, strand.base.1))
+                path.addCurve(
+                    to: point(strand.tip.0, strand.tip.1),
+                    control1: point(right + 0.35, strand.base.1 + 0.9),
+                    control2: point(strand.tip.0 + 0.2, strand.tip.1 - 0.8)
+                )
+                path.addCurve(
+                    to: point(left, strand.base.1),
+                    control1: point(right - 0.5, strand.base.1 + 1.5),
+                    control2: point(left + 0.4, strand.base.1 + 0.7)
+                )
+                path.closeSubpath()
+            }
+        }
+    }
+}
+
+// A long bang, wide at the temple and tapering to a point below his jaw.
+struct SasukeBang: Shape {
+    let mirrored: Bool
+
+    func path(in rect: CGRect) -> Path {
+        unitPath(rect) { path, raw in
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                raw(mirrored ? 18 - x : x, y)
+            }
+            path.move(to: point(4.7, 5.4))
+            path.addCurve(to: point(5.9, 12.9), control1: point(4.8, 8.4), control2: point(5.3, 11.2))
+            path.addCurve(to: point(6.5, 6.3), control1: point(6.2, 10.2), control2: point(6.6, 8.0))
+            path.closeSubpath()
+        }
+    }
+}
+
+// One eye opening: a long lens, the upper lid heavier than the lower.
+struct SasukeEye: Shape {
+    let mirrored: Bool
+
+    func path(in rect: CGRect) -> Path {
+        unitPath(rect) { path, raw in
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                raw(mirrored ? 18 - x : x, y)
+            }
+            path.move(to: point(6.9, 8.5))
+            path.addCurve(to: point(8.6, 8.2), control1: point(7.4, 7.75), control2: point(8.1, 7.8))
+            path.addCurve(to: point(6.9, 8.5), control1: point(8.25, 8.85), control2: point(7.5, 9.0))
+            path.closeSubpath()
+        }
+    }
+}
+
+// The high collar of his wrap top, open at the throat.
+struct SasukeCollar: Shape {
+    func path(in rect: CGRect) -> Path {
+        unitPath(rect) { path, point in
+            path.move(to: point(3.2, 18.0))
+            path.addCurve(to: point(7.6, 12.9), control1: point(3.9, 15.2), control2: point(5.9, 13.2))
+            path.addLine(to: point(9.0, 15.0))
+            path.addLine(to: point(10.4, 12.9))
+            path.addCurve(to: point(14.8, 18.0), control1: point(12.1, 13.2), control2: point(14.1, 15.2))
+            path.closeSubpath()
+        }
     }
 }
 
@@ -97,16 +188,14 @@ struct SharinganDisc: View {
     let diameter: CGFloat
     var spin: Double = 0
 
-    private let inkColor = Color(red: 0.09, green: 0.05, blue: 0.06)
-
     var body: some View {
         ZStack {
             Circle()
                 .fill(RadialGradient(
                     colors: [
-                        Color(red: 0.98, green: 0.35, blue: 0.30),
+                        Color(red: 0.937, green: 0.302, blue: 0.267),
                         SasukeArt.sharinganRed,
-                        Color(red: 0.42, green: 0.05, blue: 0.07),
+                        Color(red: 0.361, green: 0.043, blue: 0.063),
                     ],
                     center: .center,
                     startRadius: 0,
@@ -115,18 +204,18 @@ struct SharinganDisc: View {
             ZStack {
                 ForEach(0..<3, id: \.self) { index in
                     Tomoe()
-                        .fill(inkColor)
+                        .fill(SasukeArt.ink)
                         .frame(width: diameter * 0.26, height: diameter * 0.26)
                         .offset(y: -diameter * 0.30)
                         .rotationEffect(.degrees(Double(index) * 120))
                 }
                 Circle()
-                    .fill(inkColor)
+                    .fill(SasukeArt.ink)
                     .frame(width: diameter * 0.17, height: diameter * 0.17)
             }
             .rotationEffect(.degrees(spin))
             Circle()
-                .stroke(inkColor, lineWidth: diameter * 0.05)
+                .stroke(SasukeArt.ink, lineWidth: diameter * 0.05)
         }
         .frame(width: diameter, height: diameter)
     }
@@ -136,122 +225,206 @@ struct SharinganDisc: View {
 struct RinneganDisc: View {
     let diameter: CGFloat
 
-    private let inkColor = Color(red: 0.09, green: 0.05, blue: 0.06)
-
     var body: some View {
         ZStack {
             Circle()
                 .fill(RadialGradient(
                     colors: [
-                        Color(red: 0.694, green: 0.667, blue: 0.831),
+                        Color(red: 0.788, green: 0.769, blue: 0.898),
                         SasukeArt.rinneganPurple,
-                        Color(red: 0.286, green: 0.259, blue: 0.435),
+                        Color(red: 0.243, green: 0.216, blue: 0.408),
                     ],
                     center: .center,
                     startRadius: 0,
                     endRadius: diameter * 0.52
                 ))
-            ForEach([0.72, 0.48], id: \.self) { fraction in
+            ForEach([0.76, 0.52], id: \.self) { fraction in
                 Circle()
-                    .stroke(inkColor.opacity(0.75), lineWidth: diameter * 0.045)
+                    .stroke(SasukeArt.ink.opacity(0.85), lineWidth: diameter * 0.055)
                     .frame(width: diameter * fraction, height: diameter * fraction)
             }
             Circle()
-                .fill(inkColor)
-                .frame(width: diameter * 0.17, height: diameter * 0.17)
+                .fill(SasukeArt.ink)
+                .frame(width: diameter * 0.18, height: diameter * 0.18)
             Circle()
-                .stroke(inkColor, lineWidth: diameter * 0.05)
+                .stroke(SasukeArt.ink, lineWidth: diameter * 0.07)
         }
         .frame(width: diameter, height: diameter)
     }
 }
 
-// The head as it appears during the entrance: skin, hair, brows, and the two
-// mismatched eyes from the figure, the left one already burning red.
+// The portrait: hair, face, and the two mismatched eyes from the figure, the
+// left one already burning red.
 struct SasukeHeadView: View {
     let side: CGFloat
     var glow: Bool = false
 
     private var unit: CGFloat { side / 18 }
 
+    private var backHairFill: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0.129, green: 0.145, blue: 0.216),
+                Color(red: 0.055, green: 0.063, blue: 0.106),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var frontHairFill: LinearGradient {
+        LinearGradient(
+            colors: [SasukeArt.hairLight, SasukeArt.hairDark],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    // The sheen the anime paints across the top of his hair.
+    private var hairSheen: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 6.7 * unit, y: 5.0 * unit))
+            path.addQuadCurve(
+                to: CGPoint(x: 11.3 * unit, y: 5.0 * unit),
+                control: CGPoint(x: 9.0 * unit, y: 2.9 * unit)
+            )
+        }
+        .stroke(
+            Color(red: 0.435, green: 0.475, blue: 0.616).opacity(0.32),
+            style: StrokeStyle(lineWidth: 0.3 * unit, lineCap: .round)
+        )
+        .mask(SasukeFrontHair().fill(Color.white))
+    }
+
     var body: some View {
         ZStack {
-            // A hint of his collar, so the portrait reads as a bust rather than
-            // a head floating with its bangs hanging off the bottom.
-            shoulders
-            SasukeFaceShape().fill(SasukeArt.skin)
-            // Both eyes as the figure paints them: a Sharingan on one side, a
-            // Rinnegan on the other, sitting straight on the skin.
-            eye(at: SasukeArt.sharinganEye, lit: glow, tint: SasukeArt.sharinganRed) {
+            SasukeBackHair().fill(backHairFill)
+            neck
+            SasukeFace().fill(SasukeArt.skin)
+            cheekShadow
+            collar
+            eye(mirrored: false, centre: SasukeArt.sharinganEye, lit: glow, tint: SasukeArt.sharinganRed) {
                 SharinganDisc(diameter: SasukeArt.irisUnits * unit)
             }
-            eye(at: SasukeArt.rinneganEye, lit: false, tint: SasukeArt.rinneganPurple) {
+            eye(mirrored: true, centre: SasukeArt.rinneganEye, lit: glow, tint: SasukeArt.rinneganPurple) {
                 RinneganDisc(diameter: SasukeArt.irisUnits * unit)
             }
-            mouth
-            // Under the hair, so the fringe overlaps the inner ends of the brows.
             brows
-            // A lit top edge and a rim: flat black hair would vanish into the
-            // dimmed desktop behind the entrance.
-            SasukeHairShape()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.204, green: 0.216, blue: 0.290),
-                            SasukeArt.hair,
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    style: FillStyle(eoFill: true)
-                )
-            SasukeHairShape()
-                .stroke(Color(red: 0.416, green: 0.376, blue: 0.529).opacity(0.4),
-                        lineWidth: 0.1 * unit)
+            nose
+            mouth
+            SasukeFrontHair().fill(frontHairFill)
+            SasukeFringe().fill(frontHairFill)
+            hairSheen
+            SasukeBang(mirrored: false).fill(frontHairFill)
+            SasukeBang(mirrored: true).fill(frontHairFill)
         }
         .frame(width: side, height: side)
     }
 
-    // The wrap top, open at the chest, running off the bottom of the frame.
-    private var shoulders: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 2.2 * unit)
-                .fill(Color(red: 0.608, green: 0.561, blue: 0.749))
-                .frame(width: 9.4 * unit, height: 6.4 * unit)
-            Triangle()
-                .fill(SasukeArt.skin)
-                .frame(width: 2.0 * unit, height: 1.6 * unit)
-                .offset(y: -2.4 * unit)
+    // A soft shade under each cheekbone, the way the anime shades his face.
+    private var cheekShadow: some View {
+        ForEach([false, true], id: \.self) { mirrored in
+            Path { path in
+                func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                    CGPoint(x: (mirrored ? 18 - x : x) * unit, y: y * unit)
+                }
+                path.move(to: point(6.75, 8.9))
+                path.addQuadCurve(to: point(8.0, 11.3), control: point(7.2, 10.4))
+            }
+            .stroke(
+                SasukeArt.skinShade.opacity(0.55),
+                style: StrokeStyle(lineWidth: 0.45 * unit, lineCap: .round)
+            )
+            .mask(SasukeFace().fill(Color.white))
         }
-        .position(x: 9.0 * unit, y: 11.9 * unit)
     }
 
+    private var neck: some View {
+        ZStack {
+            Path { path in
+                path.addRect(CGRect(x: 8.25 * unit, y: 10.9 * unit, width: 1.5 * unit, height: 2.4 * unit))
+            }
+            .fill(SasukeArt.skinShade)
+            // The shadow his jaw throws, so the neck is not a bare post.
+            Ellipse()
+                .fill(Color(red: 0.784, green: 0.655, blue: 0.584))
+                .frame(width: 1.6 * unit, height: 0.7 * unit)
+                .position(x: 9.0 * unit, y: 11.35 * unit)
+        }
+    }
+
+    private var collar: some View {
+        ZStack {
+            SasukeCollar().fill(SasukeArt.shirt)
+            SasukeCollar().stroke(SasukeArt.ink.opacity(0.55), lineWidth: 0.09 * unit)
+        }
+    }
+
+    // Eye white, iris clipped to the opening, then the heavy upper lid.
     private func eye<Disc: View>(
-        at centre: CGPoint,
+        mirrored: Bool,
+        centre: CGPoint,
         lit: Bool,
         tint: Color,
         @ViewBuilder disc: () -> Disc
     ) -> some View {
-        disc()
-            .shadow(color: tint.opacity(lit ? 0.95 : 0), radius: lit ? 1.8 * unit : 0)
-            .position(x: centre.x * unit, y: centre.y * unit)
+        let shape = SasukeEye(mirrored: mirrored)
+        return ZStack {
+            shape.fill(Color(red: 0.965, green: 0.949, blue: 0.949))
+            disc().position(x: centre.x * unit, y: centre.y * unit)
+            shape.stroke(SasukeArt.ink, lineWidth: 0.1 * unit)
+            upperLid(mirrored: mirrored)
+        }
+        .compositingGroup()
+        .shadow(color: tint.opacity(lit ? 0.95 : 0), radius: lit ? 1.4 * unit : 0)
+        .mask(shape.fill(Color.white).overlay(upperLid(mirrored: mirrored)))
     }
 
-    // The flat, unimpressed line he wears instead of an expression.
-    private var mouth: some View {
-        Capsule()
-            .fill(Color(red: 0.60, green: 0.40, blue: 0.38))
-            .frame(width: 1.1 * unit, height: 0.19 * unit)
-            .position(x: 9.0 * unit, y: 7.4 * unit)
+    private func upperLid(mirrored: Bool) -> some View {
+        let unitSize = unit
+        return Path { path in
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                CGPoint(x: (mirrored ? 18 - x : x) * unitSize, y: y * unitSize)
+            }
+            path.move(to: point(6.7, 8.4))
+            path.addCurve(to: point(8.6, 8.15), control1: point(7.4, 7.65), control2: point(8.1, 7.7))
+        }
+        .stroke(SasukeArt.ink, style: StrokeStyle(lineWidth: 0.22 * unit, lineCap: .round))
     }
 
     private var brows: some View {
         ForEach([false, true], id: \.self) { mirrored in
-            Capsule()
-                .fill(SasukeArt.hair)
-                .frame(width: 1.4 * unit, height: 0.22 * unit)
-                .rotationEffect(.degrees(mirrored ? -10 : 10))
-                .position(x: (mirrored ? 18 - 8.15 : 8.15) * unit, y: 4.9 * unit)
+            Path { path in
+                func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                    CGPoint(x: (mirrored ? 18 - x : x) * unit, y: y * unit)
+                }
+                path.move(to: point(6.95, 7.15))
+                path.addQuadCurve(to: point(8.5, 7.5), control: point(7.75, 7.08))
+            }
+            .stroke(SasukeArt.hairDark, style: StrokeStyle(lineWidth: 0.2 * unit, lineCap: .round))
         }
+    }
+
+    // Just the shadow down one side of it, the way the anime draws his nose.
+    private var nose: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 8.85 * unit, y: 9.4 * unit))
+            path.addQuadCurve(
+                to: CGPoint(x: 9.25 * unit, y: 10.3 * unit),
+                control: CGPoint(x: 8.7 * unit, y: 10.1 * unit)
+            )
+        }
+        .stroke(SasukeArt.skinShade, style: StrokeStyle(lineWidth: 0.12 * unit, lineCap: .round))
+    }
+
+    private var mouth: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 8.35 * unit, y: 11.0 * unit))
+            path.addQuadCurve(
+                to: CGPoint(x: 9.65 * unit, y: 11.0 * unit),
+                control: CGPoint(x: 9.0 * unit, y: 11.13 * unit)
+            )
+        }
+        .stroke(SasukeArt.ink.opacity(0.8), style: StrokeStyle(lineWidth: 0.11 * unit, lineCap: .round))
     }
 }
