@@ -502,7 +502,7 @@ private struct SharinganMoonView: View {
             moon
             shock
             silhouette
-            Color(red: 0.741, green: 0.043, blue: 0.078).opacity(flash ? 0.45 : 0)
+            Color(red: 0.573, green: 0.020, blue: 0.047).opacity(flash ? 0.50 : 0)
         }
         .frame(width: size.width, height: size.height)
         .opacity(visible ? 1 : 0)
@@ -583,8 +583,8 @@ private struct SharinganMoonView: View {
         Circle()
             .fill(RadialGradient(
                 colors: [
-                    Color(red: 0.898, green: 0.086, blue: 0.161).opacity(0.75),
-                    Color(red: 0.898, green: 0.086, blue: 0.161).opacity(0.28),
+                    Color(red: 0.706, green: 0.039, blue: 0.086).opacity(0.80),
+                    Color(red: 0.706, green: 0.039, blue: 0.086).opacity(0.30),
                     .clear,
                 ],
                 center: .center,
@@ -623,7 +623,7 @@ private struct SharinganMoonView: View {
     // Chakra thrown off the eye when it spins up.
     private var shock: some View {
         Circle()
-            .stroke(Color(red: 0.937, green: 0.106, blue: 0.161).opacity(0.7), lineWidth: shortSide * 0.010)
+            .stroke(Color(red: 0.784, green: 0.063, blue: 0.106).opacity(0.75), lineWidth: shortSide * 0.010)
             .frame(width: moonDiameter, height: moonDiameter)
             .scaleEffect(shockwave ? 2.6 : 0.9)
             // Only there once the eye is, so the pale moon keeps a clean rim.

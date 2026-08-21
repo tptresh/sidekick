@@ -76,10 +76,10 @@ enum HeroTheme: String, CaseIterable, Codable {
             return ThemePalette(
                 background: Color(red: 0.035, green: 0.020, blue: 0.024),
                 backgroundTop: Color(red: 0.098, green: 0.035, blue: 0.043),
-                accent: Color(red: 0.847, green: 0.110, blue: 0.161),
+                accent: Color(red: 0.741, green: 0.071, blue: 0.114),
                 textPrimary: Color(red: 0.976, green: 0.941, blue: 0.937),
-                textSecondary: Color(red: 0.663, green: 0.514, blue: 0.522),
-                fieldOutline: Color(red: 0.741, green: 0.118, blue: 0.165)
+                textSecondary: Color(red: 0.643, green: 0.494, blue: 0.502),
+                fieldOutline: Color(red: 0.635, green: 0.075, blue: 0.114)
             )
         }
     }

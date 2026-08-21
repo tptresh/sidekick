@@ -20,8 +20,8 @@ struct NightSky: View {
                 colors: [
                     Color(red: 0.020, green: 0.004, blue: 0.012),
                     Color(red: 0.114, green: 0.012, blue: 0.043),
-                    Color(red: 0.310, green: 0.020, blue: 0.063),
-                    Color(red: 0.502, green: 0.024, blue: 0.075),
+                    Color(red: 0.243, green: 0.012, blue: 0.047),
+                    Color(red: 0.396, green: 0.016, blue: 0.055),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -52,8 +52,8 @@ struct NightSky: View {
             Ellipse()
                 .fill(RadialGradient(
                     colors: [
-                        Color(red: 0.925, green: 0.114, blue: 0.204).opacity(0.55),
-                        Color(red: 0.612, green: 0.031, blue: 0.098).opacity(0.20),
+                        Color(red: 0.741, green: 0.055, blue: 0.129).opacity(0.55),
+                        Color(red: 0.478, green: 0.016, blue: 0.071).opacity(0.20),
                         .clear,
                     ],
                     center: .center,
