@@ -198,3 +198,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 134dbf9 The web search row now shows the Brave icon instead of Google's, matching the browser it opens in
 - main is now at: 0714ec9 (build succeeded, app relaunched)
+
+## 2026-08-20 22:32 - OK - claude/sasuke-theme-replacement-74c118
+- "Sasuke's entrance is now the anime close-up of his Rinnegan filling the screen, with the tomoe turning in his eye, chakra rolling out of it and more Rinnegan opening around the edges"
+- merged commits:
+  - c1c3334 Sasuke's entrance is now the anime close-up of his Rinnegan filling the screen, with the tomoe turning in his eye, chakra rolling out of it and more Rinnegan opening around the edges
+- main is now at: d114eb7 (build succeeded, app relaunched)
