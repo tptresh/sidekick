@@ -229,3 +229,9 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 3d0513c Merge main into last-watched-episode-memory
   - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
 - main is now at: db719ad (build succeeded, app relaunched)
+
+## 2026-08-20 22:49 - OK - claude/sasuke-theme-icon-f6eb90
+- "Sasuke's search field now reads Awaken the Rinnegan, matching the eye beside it"
+- merged commits:
+  - cacab6c Sasuke's search field now reads Awaken the Rinnegan, matching the eye beside it
+- main is now at: 6d4aa46 (build succeeded, app relaunched)
