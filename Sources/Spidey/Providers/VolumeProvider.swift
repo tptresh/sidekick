@@ -11,10 +11,7 @@ enum VolumeProvider {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
 
         if lowered == "mute" || lowered == "volume mute" {
-            return [row(
-                title: "Mute", subtitle: "Silences the output volume", symbol: "speaker.slash.fill",
-                script: "set volume output muted true"
-            )]
+            return [muteRow]
         }
         if lowered == "unmute" || lowered == "volume unmute" {
             return [row(
@@ -23,28 +20,32 @@ enum VolumeProvider {
             )]
         }
 
-        if lowered.hasPrefix("volume") || lowered.hasPrefix("vol ") {
+        if lowered.hasPrefix("volume") || lowered.hasPrefix("vol ") || lowered == "vol" {
             let rest = lowered.hasPrefix("volume")
                 ? String(lowered.dropFirst("volume".count)).trimmingCharacters(in: .whitespaces)
-                : String(lowered.dropFirst("vol ".count)).trimmingCharacters(in: .whitespaces)
+                : String(lowered.dropFirst("vol".count)).trimmingCharacters(in: .whitespaces)
+            let upRow = row(
+                title: "Volume Up", subtitle: "Raises the output volume by 10", symbol: "speaker.wave.3.fill",
+                script: "set volume output volume ((output volume of (get volume settings)) + 10)"
+            )
+            let downRow = row(
+                title: "Volume Down", subtitle: "Lowers the output volume by 10", symbol: "speaker.wave.1.fill",
+                script: "set volume output volume ((output volume of (get volume settings)) - 10)"
+            )
             switch rest {
             case "up":
-                return [row(
-                    title: "Volume Up", subtitle: "Raises the output volume by 10", symbol: "speaker.wave.3.fill",
-                    script: "set volume output volume ((output volume of (get volume settings)) + 10)"
-                )]
+                return [upRow]
             case "down":
-                return [row(
-                    title: "Volume Down", subtitle: "Lowers the output volume by 10", symbol: "speaker.wave.1.fill",
-                    script: "set volume output volume ((output volume of (get volume settings)) - 10)"
-                )]
+                return [downRow]
+            case "":
+                // Bare "volume" offers the whole set rather than nothing.
+                return [upRow, downRow, muteRow]
             default:
-                if let level = Int(rest) {
-                    let clamped = min(max(level, 0), 100)
+                if let level = percentage(rest) {
                     return [row(
-                        title: "Set Volume to \(clamped)%",
+                        title: "Set Volume to \(level)%",
                         subtitle: "Sets the output volume", symbol: "speaker.wave.2.fill",
-                        script: "set volume output volume \(clamped)"
+                        script: "set volume output volume \(level)"
                     )]
                 }
             }
@@ -57,6 +58,26 @@ enum VolumeProvider {
             return brightnessResults(for: rest)
         }
         return []
+    }
+
+    private static var muteRow: ResultItem {
+        row(
+            title: "Mute", subtitle: "Silences the output volume", symbol: "speaker.slash.fill",
+            script: "set volume output muted true"
+        )
+    }
+
+    // "50", "50%", "max" and "min" all name a level from 0 to 100.
+    static func percentage(_ text: String) -> Int? {
+        let cleaned = text.replacingOccurrences(of: "%", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        switch cleaned {
+        case "max", "maximum", "full": return 100
+        case "min", "minimum", "zero", "off": return 0
+        default:
+            guard let value = Double(cleaned) else { return nil }
+            return min(max(Int(value.rounded()), 0), 100)
+        }
     }
 
     private static func row(
@@ -72,7 +93,7 @@ enum VolumeProvider {
 
     private static func brightnessResults(for rest: String) -> [ResultItem] {
         guard let cli = brightnessCLI else {
-            guard rest.isEmpty || rest == "up" || rest == "down" || Double(rest) != nil else {
+            guard rest.isEmpty || rest == "up" || rest == "down" || percentage(rest) != nil else {
                 return []
             }
             return [ResultItem(
@@ -105,16 +126,29 @@ enum VolumeProvider {
             )
         }
 
+        let up = setRow(title: "Brightness Up", subtitle: "Raises display brightness by 10%",
+                        symbol: "sun.max.fill", delta: 0.1, level: nil)
+        let down = setRow(title: "Brightness Down", subtitle: "Lowers display brightness by 10%",
+                          symbol: "sun.min.fill", delta: -0.1, level: nil)
         switch rest {
         case "up":
-            return [setRow(title: "Brightness Up", subtitle: "Raises display brightness by 10%",
-                           symbol: "sun.max.fill", delta: 0.1, level: nil)]
+            return [up]
         case "down":
-            return [setRow(title: "Brightness Down", subtitle: "Lowers display brightness by 10%",
-                           symbol: "sun.min.fill", delta: -0.1, level: nil)]
+            return [down]
+        case "":
+            // Bare "brightness" offers both directions rather than nothing.
+            return [up, down]
         default:
-            guard var value = Double(rest) else { return [] }
-            // "brightness 80" reads as a percentage.
+            // "brightness 80", "brightness 80%" and "brightness max" all work;
+            // "brightness 0.8" is taken as a fraction.
+            var value: Double
+            if let percent = percentage(rest), !rest.contains(".") {
+                value = Double(percent)
+            } else if let raw = Double(rest.replacingOccurrences(of: "%", with: "")) {
+                value = raw
+            } else {
+                return []
+            }
             if value > 1 { value /= 100 }
             let clamped = min(max(value, 0), 1)
             return [setRow(

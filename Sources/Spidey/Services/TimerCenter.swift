@@ -28,13 +28,16 @@ final class TimerCenter {
 
     private init() {}
 
-    // Parses "10m tea", "1h30m pasta", "90s", "10 minutes laundry".
+    // Parses "10m tea", "1h30m pasta", "90s", "10 minutes laundry", and the
+    // spoken forms the phrasing layer passes through: "5 minutes", "an hour",
+    // "half an hour", "for 5 minutes for pasta".
     // Returns the duration and whatever text is left over as the label.
     static func parse(_ text: String) -> (seconds: TimeInterval, label: String)? {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        let trimmed = spellOutDurations(text.trimmingCharacters(in: .whitespaces))
         guard !trimmed.isEmpty else { return nil }
-        // (?![a-z]) instead of \b so "1h30m" still matches the "1h" part.
-        let pattern = #"(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)(?![a-z])"#
+        // (?![a-z]) instead of \b so "1h30m" still matches the "1h" part, and
+        // [\s-]* so a hyphenated "25-minute" reads the same as "25 minute".
+        let pattern = #"(\d+(?:\.\d+)?)[\s-]*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)(?![a-z])"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return nil
         }
@@ -67,9 +70,47 @@ final class TimerCenter {
             label = parts.count > 1 ? String(parts[1]) : ""
         }
 
-        let cleanLabel = label.trimmingCharacters(in: .whitespaces)
         guard total > 0, total <= 24 * 3600 else { return nil }
+        let cleanLabel = cleanUpLabel(label)
         return (total, cleanLabel.isEmpty ? "Timer" : cleanLabel)
+    }
+
+    // Spoken durations the digit-and-unit regex cannot see on its own.
+    private static func spellOutDurations(_ text: String) -> String {
+        var working = text
+        let replacements: [(String, String)] = [
+            ("an hour and a half", "90 minutes"),
+            ("a minute and a half", "90 seconds"),
+            ("half an hour", "30 minutes"),
+            ("half a minute", "30 seconds"),
+            ("quarter of an hour", "15 minutes"),
+            ("an hour", "1 hour"),
+            ("a hour", "1 hour"),
+            ("a minute", "1 minute"),
+            ("a second", "1 second"),
+        ]
+        for (phrase, digits) in replacements {
+            guard let range = working.range(of: phrase, options: [.caseInsensitive]) else { continue }
+            working.replaceSubrange(range, with: digits)
+            break
+        }
+        return working
+    }
+
+    // Filler left behind once the duration is removed: "timer 5m for pasta"
+    // should be labelled "pasta", not "for pasta".
+    private static func cleanUpLabel(_ label: String) -> String {
+        var words = label
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        let filler: Set<String> = ["for", "to", "on", "in", "about", "and", "called", "named", "labeled", "labelled", "a", "an", "the", "my"]
+        while let first = words.first, filler.contains(first.lowercased()) {
+            words.removeFirst()
+        }
+        while let last = words.last, filler.contains(last.lowercased()) {
+            words.removeLast()
+        }
+        return words.joined(separator: " ")
     }
 
     func start(seconds: TimeInterval, label: String) {

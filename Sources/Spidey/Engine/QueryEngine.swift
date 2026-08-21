@@ -135,26 +135,33 @@ final class SpideyViewModel: ObservableObject {
             return
         }
 
+        // Everyday phrasing rewritten into the terse syntax the machine
+        // commands expect, so "set a timer for 5 minutes" reaches the timer.
+        // Identical to the query whenever nothing needed rewriting, and only
+        // the system providers below see it: apps, bookmarks, streaming and
+        // web search always get exactly what was typed.
+        let systemQuery = Phrasing.normalize(trimmed)
+
         var commandItems: [ResultItem] = []
         commandItems += ThemeProvider.results(for: trimmed)
         commandItems += CalculatorProvider.results(for: trimmed)
         commandItems += ConvertProvider.results(for: trimmed)
-        commandItems += TimeProvider.results(for: trimmed)
+        commandItems += TimeProvider.results(for: systemQuery)
         commandItems += EmojiProvider.results(for: trimmed)
         commandItems += ColorProvider.results(for: trimmed)
         commandItems += PasswordProvider.results(for: trimmed)
-        commandItems += TimerProvider.results(for: trimmed)
+        commandItems += TimerProvider.results(for: systemQuery)
         commandItems += SnippetProvider.results(for: trimmed)
-        commandItems += ProcessProvider.results(for: trimmed)
-        commandItems += MusicProvider.results(for: trimmed)
+        commandItems += ProcessProvider.results(for: systemQuery)
+        commandItems += MusicProvider.results(for: systemQuery)
         commandItems += ScriptCommandsProvider.results(for: trimmed)
-        commandItems += WindowProvider.results(for: trimmed)
+        commandItems += WindowProvider.results(for: systemQuery)
         commandItems += MenuItemsProvider.results(for: trimmed)
         commandItems += TabsProvider.results(for: trimmed)
-        commandItems += ToggleProvider.results(for: trimmed)
+        commandItems += ToggleProvider.results(for: systemQuery)
         commandItems += DevToolsProvider.results(for: trimmed)
-        commandItems += SystemInfoProvider.results(for: trimmed)
-        commandItems += VolumeProvider.results(for: trimmed)
+        commandItems += SystemInfoProvider.results(for: systemQuery)
+        commandItems += VolumeProvider.results(for: systemQuery)
         commandItems += QRProvider.results(for: trimmed)
         commandItems += LargeTypeProvider.results(for: trimmed)
         commandItems += FindMyProvider.results(for: trimmed)
@@ -164,9 +171,9 @@ final class SpideyViewModel: ObservableObject {
         commandItems += CustomSearchProvider.results(for: trimmed)
         commandItems += WebSearchProvider.results(for: trimmed)
         commandItems += MediaProvider.results(for: trimmed)
-        commandItems += FocusProvider.results(for: trimmed)
-        commandItems += PasteboardToolsProvider.results(for: trimmed)
-        let systemItems = SystemProvider.results(for: trimmed, armedCommand: armedCommand) { [weak self] title in
+        commandItems += FocusProvider.results(for: systemQuery)
+        commandItems += PasteboardToolsProvider.results(for: systemQuery)
+        let systemItems = SystemProvider.results(for: systemQuery, armedCommand: armedCommand) { [weak self] title in
             guard let self else { return }
             self.armedCommand = title
             self.refresh()
