@@ -133,7 +133,10 @@ struct SettingsView: View {
                     Text(lastCheckDescription)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Button("Check Now") { linkChecker.checkNow() }
+                    Button("Check Now") {
+                        linkChecker.checkNow()
+                        linkChecker.retryFailedDiscoveries()
+                    }
                 }
             }
         }

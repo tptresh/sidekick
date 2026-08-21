@@ -58,14 +58,23 @@ final class LinkChecker: ObservableObject {
         runIfDue()
         timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
             self?.runIfDue()
+            self?.retryFailedDiscoveries()
         }
         // Whenever a plain custom link is added or edited (debounced past the
-        // keystrokes), try to find the site's own search page for it.
+        // keystrokes), learn how to search it.
         sitesSubscription = SettingsStore.shared.$customMediaSites
             .debounce(for: .seconds(1.5), scheduler: DispatchQueue.main)
             .sink { [weak self] sites in
                 self?.discoverSearchTemplates(for: sites)
             }
+    }
+
+    // A site whose learning attempt failed (down, slow, or mid-redesign) gets
+    // another chance at every poll and whenever the user checks links by
+    // hand, instead of staying unlearned until the next launch.
+    func retryFailedDiscoveries() {
+        undiscoverableHosts.removeAll()
+        discoverSearchTemplates(for: SettingsStore.shared.customMediaSites)
     }
 
     // Learn how to search the site, preferring what a real visit teaches:
