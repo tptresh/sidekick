@@ -198,15 +198,22 @@ final class SpideyViewModel: ObservableObject {
         items += AppProvider.shared.results(for: trimmed)
         items += ContactsProvider.results(for: trimmed)
         items += WindowSwitcherProvider.results(for: trimmed)
-        items += SiteDirectoryProvider.results(for: trimmed, includeGuess: !isCommand)
+        items += SiteDirectoryProvider.results(for: trimmed)
         items += BookmarksProvider.results(for: trimmed)
         // Where you got to in a show sits above the "Watch ..." rows, and is
         // not a command itself, so typing a show name still offers the sites.
         items += WatchProvider.resumeResults(for: trimmed)
+        var searchScore = WebSearchProvider.fallbackScore
         if !isCommand {
             items += StreamingProvider.results(for: trimmed)
+            // Nothing verifies that a guessed homepage exists, so the web
+            // search - which always lands somewhere - goes right above it.
+            if let guess = SiteDirectoryProvider.guessResult(for: trimmed) {
+                items.append(guess)
+                searchScore = max(searchScore, guess.score + 5)
+            }
         }
-        if let fallback = WebSearchProvider.googleFallback(for: trimmed) {
+        if let fallback = WebSearchProvider.googleFallback(for: trimmed, score: searchScore) {
             items.append(fallback)
         }
         syncResults = items

@@ -276,20 +276,33 @@ private struct BeamShape: Shape {
     }
 }
 
-// MARK: - Sasuke: he arrives and opens Rinnegan all over the screen
+// MARK: - Sasuke: his Rinnegan fills the screen and starts turning
 
-// Where each eye opens, as fractions of the screen, with the size it opens to
-// as a fraction of the shorter side. Ordered from the middle outwards so they
-// bloom away from him as he casts, and kept off his figure so he stays clear.
+// Where the Rinnegan sits inside the picture, measured off the artwork itself:
+// the centre of the iris, and its half width and half height as fractions of
+// the image. His eye is turned away from us, so the iris is an ellipse rather
+// than a circle, which the spin has to account for.
+private enum EyeArt {
+    // Where his Rinnegan sits in the picture, fitted to the artwork: the middle
+    // of the iris, its semi-major axis as a fraction of the picture's width,
+    // how far the minor axis is squashed against it, and how far it leans. His
+    // eye is turned away from us, so the iris is a tilted ellipse.
+    static let centre = UnitPoint(x: 0.4950, y: 0.5704)
+    static let major: CGFloat = 0.2620
+    static let squash: CGFloat = 0.560
+    static let tilt: Double = -16.0
+}
+
+// Where each smaller eye opens, as fractions of the screen, with the size it
+// opens to as a fraction of the shorter side. Pushed out to the edges so his
+// own Rinnegan keeps the middle of the screen.
 private let rinneganScatter: [(x: CGFloat, y: CGFloat, size: CGFloat, spin: Double)] = [
-    (0.34, 0.30, 0.10, 12), (0.66, 0.30, 0.09, -18),
-    (0.30, 0.68, 0.09, -22), (0.70, 0.66, 0.10, 16),
-    (0.17, 0.19, 0.14, 24), (0.83, 0.21, 0.13, -8),
-    (0.20, 0.79, 0.12, 6), (0.80, 0.81, 0.13, -14),
-    (0.06, 0.45, 0.09, 20), (0.94, 0.49, 0.10, -6),
-    (0.41, 0.09, 0.07, 10), (0.59, 0.92, 0.08, -20),
-    (0.10, 0.90, 0.06, 4), (0.90, 0.10, 0.07, -12),
-    (0.03, 0.66, 0.05, 18), (0.97, 0.72, 0.06, -4),
+    (0.10, 0.15, 0.11, 12), (0.89, 0.13, 0.10, -18),
+    (0.06, 0.80, 0.09, -22), (0.93, 0.83, 0.11, 16),
+    (0.22, 0.90, 0.07, 24), (0.77, 0.92, 0.08, -8),
+    (0.04, 0.45, 0.07, 6), (0.96, 0.50, 0.08, -14),
+    (0.31, 0.06, 0.06, 20), (0.66, 0.05, 0.07, -6),
+    (0.16, 0.62, 0.06, 10), (0.84, 0.66, 0.06, -20),
 ]
 
 private struct RinneganAwakenView: View {
@@ -302,7 +315,7 @@ private struct RinneganAwakenView: View {
 
     @State private var dimmed = false
     @State private var arrived = false
-    @State private var charged = false
+    @State private var spin: Double = 0
     @State private var pulseOne = false
     @State private var pulseTwo = false
     @State private var opened = 0
@@ -317,15 +330,31 @@ private struct RinneganAwakenView: View {
         portrait = SasukePortrait.image()
     }
 
-    private var figureHeight: CGFloat { shortSide * 0.82 }
+    // The picture is scaled to cover the screen, so its own size only matters
+    // for the aspect ratio.
+    private var displaySize: CGSize {
+        guard let portrait, portrait.size.height > 0 else { return size }
+        let aspect = portrait.size.width / portrait.size.height
+        let height = max(size.height, size.width / aspect)
+        return CGSize(width: height * aspect, height: height)
+    }
+
+    // Middle of his iris in screen coordinates, which is where the chakra rings
+    // roll out from.
+    private var irisCentre: CGPoint {
+        let display = displaySize
+        return CGPoint(
+            x: size.width / 2 + (EyeArt.centre.x - 0.5) * display.width,
+            y: size.height / 2 + (EyeArt.centre.y - 0.5) * display.height
+        )
+    }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(dimmed ? 0.74 : 0)
-            aura
+            Color.black.opacity(dimmed ? 0.85 : 0)
+            eye
             pulse(out: pulseOne)
             pulse(out: pulseTwo)
-            figure
             eyes
             SasukeArt.rinneganPurple.opacity(flash ? 0.45 : 0)
         }
@@ -335,58 +364,58 @@ private struct RinneganAwakenView: View {
     }
 
     @ViewBuilder
-    private var figure: some View {
+    private var eye: some View {
         if let portrait {
-            let aspect = portrait.size.width / max(portrait.size.height, 1)
-            Image(nsImage: portrait)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: figureHeight * aspect, height: figureHeight)
-                .shadow(
-                    color: SasukeArt.rinneganPurple.opacity(charged ? 0.9 : 0),
-                    radius: charged ? shortSide * 0.05 : 0
+            let display = displaySize
+            ZStack {
+                picture(portrait, display)
+                // A Rinnegan drawn to match the one in the picture, laid over
+                // it and turned. Rotating the artwork itself instead means
+                // fighting the ellipse: the rings slide out of true and beat
+                // against the ones underneath, and his eyelid comes round with
+                // them. Drawing it means only the tomoe move, which is the part
+                // that should.
+                SasukeIris(
+                    diameter: EyeArt.major * display.width * 2,
+                    squash: EyeArt.squash,
+                    tilt: EyeArt.tilt,
+                    spin: spin
                 )
-                .scaleEffect(arrived ? 1 : 0.94)
-                .opacity(arrived ? 1 : 0)
-                .position(x: size.width / 2, y: size.height / 2)
+                    .position(
+                        x: EyeArt.centre.x * display.width,
+                        y: EyeArt.centre.y * display.height
+                    )
+            }
+            .frame(width: display.width, height: display.height)
+            .scaleEffect(arrived ? 1 : 1.1)
+            .opacity(arrived ? 1 : 0)
+            .frame(width: size.width, height: size.height)
+            .clipped()
         }
     }
 
-    // The chakra he gathers before the eyes open.
-    private var aura: some View {
-        Circle()
-            .fill(RadialGradient(
-                colors: [
-                    SasukeArt.rinneganPurple.opacity(0.5),
-                    SasukeArt.rinneganPurple.opacity(0.12),
-                    .clear,
-                ],
-                center: .center,
-                startRadius: 0,
-                endRadius: shortSide * 0.5
-            ))
-            .frame(width: shortSide, height: shortSide)
-            .scaleEffect(charged ? 1 : 0.35)
-            .opacity(charged ? 1 : 0)
-            .position(x: size.width / 2, y: size.height / 2)
+    private func picture(_ image: NSImage, _ display: CGSize) -> some View {
+        Image(nsImage: image)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: display.width, height: display.height)
     }
 
-    // A ring of chakra thrown outwards, thinning as it goes.
+    // A ring of chakra thrown out of his eye, thinning as it goes.
     private func pulse(out: Bool) -> some View {
         Circle()
-            .stroke(SasukeArt.rinneganPurple.opacity(0.75), lineWidth: shortSide * 0.012)
+            .stroke(SasukeArt.rinneganPurple.opacity(0.7), lineWidth: shortSide * 0.012)
             .frame(width: shortSide * 0.5, height: shortSide * 0.5)
-            .scaleEffect(out ? 3.2 : 0.15)
-            .opacity(out ? 0 : 0.9)
-            .position(x: size.width / 2, y: size.height / 2)
+            .scaleEffect(out ? 3.4 : 0.2)
+            .opacity(out ? 0 : 0.85)
+            .position(irisCentre)
     }
 
     private var eyes: some View {
         ForEach(Array(rinneganScatter.enumerated()), id: \.offset) { index, eye in
             let diameter = eye.size * shortSide
             RinneganDisc(diameter: diameter)
-                .rotationEffect(.degrees(eye.spin))
+                .rotationEffect(.degrees(eye.spin + spin * 0.4))
                 .shadow(color: SasukeArt.rinneganPurple.opacity(0.85), radius: diameter * 0.22)
                 .scaleEffect(index < opened ? 1 : 0.15)
                 .opacity(index < opened ? 1 : 0)
@@ -395,20 +424,21 @@ private struct RinneganAwakenView: View {
     }
 
     private func run() {
-        step(0.02, .easeOut(duration: 0.32)) { dimmed = true }
-        step(0.10, .spring(response: 0.6, dampingFraction: 0.82)) { arrived = true }
-        step(0.62, .easeInOut(duration: 0.45)) { charged = true }
-        step(0.95, .easeOut(duration: 1.10)) { pulseOne = true }
-        step(1.25, .easeOut(duration: 1.10)) { pulseTwo = true }
+        step(0.02, .easeOut(duration: 0.30)) { dimmed = true }
+        step(0.08, .easeOut(duration: 0.75)) { arrived = true }
+        // One long ease in, so the Rinnegan winds up rather than snapping round.
+        step(0.55, .easeIn(duration: 2.45)) { spin = 1260 }
+        step(1.05, .easeOut(duration: 1.15)) { pulseOne = true }
+        step(1.40, .easeOut(duration: 1.15)) { pulseTwo = true }
         for index in rinneganScatter.indices {
-            step(1.00 + Double(index) * 0.055, .spring(response: 0.34, dampingFraction: 0.62)) {
+            step(1.10 + Double(index) * 0.06, .spring(response: 0.34, dampingFraction: 0.62)) {
                 opened = index + 1
             }
         }
-        step(1.98, .easeOut(duration: 0.16)) { flash = true }
-        step(2.04, nil) { applyTheme() }
-        step(2.18, .easeOut(duration: 0.38)) { flash = false }
-        step(2.80, .easeIn(duration: 0.50)) { visible = false }
-        step(3.40, nil) { finished() }
+        step(2.10, .easeOut(duration: 0.16)) { flash = true }
+        step(2.16, nil) { applyTheme() }
+        step(2.30, .easeOut(duration: 0.38)) { flash = false }
+        step(2.85, .easeIn(duration: 0.50)) { visible = false }
+        step(3.45, nil) { finished() }
     }
 }

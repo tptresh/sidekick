@@ -23,6 +23,17 @@ enum BrowserLauncher {
 
     static var targetName: String { braveInstalled ? "Brave" : "your default browser" }
 
+    // Rows that just hand a URL to the browser show Brave's own icon. Looked up
+    // once because the web-search fallback rebuilds on every keystroke.
+    private static let cachedBraveIcon: ResultIcon? = {
+        guard let brave = braveURL else { return nil }
+        return .appIcon(NSWorkspace.shared.icon(forFile: brave.path))
+    }()
+
+    static func targetIcon(fallbackSymbol: String) -> ResultIcon {
+        cachedBraveIcon ?? .symbol(fallbackSymbol)
+    }
+
     static func encodeQuery(_ query: String) -> String {
         query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)?
             .replacingOccurrences(of: "&", with: "%26") ?? query
