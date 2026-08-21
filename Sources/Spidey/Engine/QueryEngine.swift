@@ -158,6 +158,7 @@ final class SpideyViewModel: ObservableObject {
         commandItems += WindowProvider.results(for: systemQuery)
         commandItems += MenuItemsProvider.results(for: trimmed)
         commandItems += TabsProvider.results(for: trimmed)
+        commandItems += WatchProvider.results(for: trimmed)
         commandItems += ToggleProvider.results(for: systemQuery)
         commandItems += DevToolsProvider.results(for: trimmed)
         commandItems += SystemInfoProvider.results(for: systemQuery)
@@ -199,6 +200,9 @@ final class SpideyViewModel: ObservableObject {
         items += WindowSwitcherProvider.results(for: trimmed)
         items += SiteDirectoryProvider.results(for: trimmed)
         items += BookmarksProvider.results(for: trimmed)
+        // Where you got to in a show sits above the "Watch ..." rows, and is
+        // not a command itself, so typing a show name still offers the sites.
+        items += WatchProvider.resumeResults(for: trimmed)
         var searchScore = WebSearchProvider.fallbackScore
         if !isCommand {
             items += StreamingProvider.results(for: trimmed)
