@@ -138,3 +138,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 2c92d8b Typing "full screen" now really puts the front window into macOS full screen (and back out again); "maximize" stays a plain screen-filling resize
 - main is now at: e4ba1bb (build succeeded, app relaunched)
+
+## 2026-08-20 19:13 - OK - claude/spidey-fullscreen-2d2826
+- "Typing "minimize" sends the front window to the Dock, and it works from full screen too"
+- merged commits:
+  - 936e050 Typing "minimize" sends the front window to the Dock, and it works from full screen too
+- main is now at: 4284c45 (build succeeded, app relaunched)
