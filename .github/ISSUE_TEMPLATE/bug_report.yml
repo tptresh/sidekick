@@ -1,0 +1,92 @@
+name: Bug report
+description: Something in Sidekick behaves differently than it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Screenshots of the panel help a lot.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you typed, what appeared, and what you expected instead.
+      placeholder: |
+        I typed "100 usd to gbp" and no conversion row appeared, only the Google search row.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1. Open the panel
+        2. Type ...
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of Sidekick
+      options:
+        - Panel, hotkey, or menu bar
+        - App or file search
+        - Calculator, conversion, or other text tools
+        - Contacts, Calendar, or Reminders
+        - Windows, menu search, or the window switcher
+        - Music, media, or streaming
+        - Clipboard, snippets, or script commands
+        - Themes and appearance
+        - Permissions and setup
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "14.5"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Sidekick version or commit
+      description: Release tag from the download, or `git rev-parse --short HEAD` if you built it.
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - Downloaded a release
+        - Built it with `make app`
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Permissions granted (only the ones the feature needs)
+      options:
+        - label: Accessibility
+        - label: Contacts, Calendar, or Reminders
+        - label: Automation (System Events, Finder, a browser, a music player)
+        - label: Files and Folders, or Full Disk Access
+        - label: Not sure
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output, if any
+      description: Console.app, filtered to "Sidekick". Pasted here it is formatted as code automatically.
+      render: text

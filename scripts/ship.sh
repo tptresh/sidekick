@@ -60,6 +60,13 @@ if git -C "$WT_ROOT" grep -nI --untracked -e "$EMDASH" -- Sources >&2; then
   echo "ship: em dash (U+2014) found under Sources/ (listed above). The UI must never show one (see CLAUDE.md) - use a plain hyphen or rewrite, then re-run scripts/ship.sh." >&2
   exit 1
 fi
+# The same character written as a Swift escape reads straight past the grep
+# above, and reaches the UI just the same. EpisodeParser is the one legitimate
+# use: it strips separators, em dash included, out of show titles.
+if git -C "$WT_ROOT" grep -nI --untracked -e 'u{2014}' -- Sources ':!Sources/Spidey/Services/EpisodeParser.swift' >&2; then
+  echo "ship: em dash written as a \\u{2014} escape found under Sources/ (listed above) - use a plain hyphen or rewrite, then re-run scripts/ship.sh." >&2
+  exit 1
+fi
 
 # ---- 1. commit everything in the current checkout ----
 if [ -n "$(git -C "$WT_ROOT" status --porcelain)" ]; then

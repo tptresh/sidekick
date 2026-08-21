@@ -111,7 +111,7 @@ enum MusicProvider {
         guard let entry = cachedNowPlaying(player) else {
             scheduleNowPlayingFetch(player)
             return ResultItem(
-                title: "Now Playing \u{2014} fetching\u{2026}",
+                title: "Now Playing - fetching\u{2026}",
                 subtitle: "Asking \(player.name) for the current track",
                 icon: icon(for: player, running: app),
                 score: score,
@@ -190,7 +190,7 @@ enum MusicProvider {
             // osascript instead of NSAppleScript: NSAppleScript is documented
             // main-thread-only, and a subprocess can be timed out safely.
             // Generous timeout: the first run blocks on the Automation consent.
-            let source = "tell application \"\(player.name)\" to name of current track & \" \u{2014} \" & artist of current track"
+            let source = "tell application \"\(player.name)\" to name of current track & \" - \" & artist of current track"
             let output = Shell.run("/usr/bin/osascript", ["-e", source], timeout: 15)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             nowPlayingLock.lock()

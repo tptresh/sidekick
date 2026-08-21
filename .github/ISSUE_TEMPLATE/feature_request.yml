@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a command, provider, or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sidekick aims to stay small, native, and dependency free. Ideas that fit
+        that shape land fastest.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The task, not the solution. What do you do today instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would type, and what should appear
+      placeholder: |
+        Typing "weather london" shows a row with the current temperature; Return copies it.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Does it fit the project
+      options:
+        - label: It needs no third-party dependency
+        - label: It works offline, or degrades gracefully without a network
+        - label: It needs no permission beyond the ones Sidekick already asks for (or you have said below which one it needs)
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Prior art in Alfred or Raycast, links, edge cases.

@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Spidey has no package dependencies on purpose, so the only thing to keep
+  # current is the actions the workflows pin.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
