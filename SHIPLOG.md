@@ -216,3 +216,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 91c2d53 Show the actual purple Rinnegan next to the search field in the Sasuke theme, instead of the flat menu-bar badge
 - main is now at: 75655f0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:43 - CONFLICT - claude/last-watched-episode-memory-c418cb
+- merge into main conflicted and was aborted; main is untouched.
+- unmerged commits:
+  - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
+- fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
