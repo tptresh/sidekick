@@ -57,6 +57,11 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--snapshot"),
    CommandLine.arguments.count > flagIndex + 1 {
     delegate.snapshotDirectory = CommandLine.arguments[flagIndex + 1]
 }
+// Capture modes are extra, short-lived instances launched with `open -n`
+// while the real app keeps running, so they must not evict it.
+if delegate.snapshotDirectory == nil, delegate.entranceDirectory == nil {
+    SingleInstance.enforce()
+}
 app.delegate = delegate
 app.setActivationPolicy(.accessory)
 app.run()

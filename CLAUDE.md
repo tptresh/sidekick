@@ -8,9 +8,15 @@ unmerged, or unbuilt.
 
 ## Build & run
 
+- `make build` - compile check; run it from anywhere, including a worktree
 - `make app` - release build into `build/Sidekick.app` (the app is named
   Sidekick; the binary/repo is Spidey)
 - `make test` - run the test suite (`swift test`)
+- **`make app` only works in the main checkout.** Every bundle it produces
+  carries the same bundle id, so a second one built in a worktree makes macOS
+  run two Sidekicks at once. In a worktree use `make build` to check it
+  compiles, and `scripts/ship.sh` to actually put your change in the running
+  app. `make prune` cleans up bundles a worktree left behind.
 - `make app` ad-hoc signs each build, so the Makefile resets the stale
   Accessibility grant; features needing Accessibility re-prompt after a
   rebuild. That is expected, not a bug.
