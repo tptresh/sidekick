@@ -132,3 +132,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 6767fbe Only one Sidekick runs at a time: a launching copy retires older ones, and worktrees can no longer build rival app bundles
 - main is now at: b107bc2 (build succeeded, app relaunched)
+
+## 2026-08-20 19:10 - OK - claude/spidey-fullscreen-2d2826
+- "Typing "full screen" now really puts the front window into macOS full screen (and back out again); "maximize" stays a plain screen-filling resize"
+- merged commits:
+  - 2c92d8b Typing "full screen" now really puts the front window into macOS full screen (and back out again); "maximize" stays a plain screen-filling resize
+- main is now at: e4ba1bb (build succeeded, app relaunched)
