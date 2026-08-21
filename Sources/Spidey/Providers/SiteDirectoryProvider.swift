@@ -340,16 +340,14 @@ enum SiteDirectoryProvider {
         return combined
     }
 
-    static func results(for query: String, includeGuess: Bool = true) -> [ResultItem] {
+    static func results(for query: String) -> [ResultItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard trimmed.count >= 2 else { return [] }
         var items: [ResultItem] = []
-        var hadStrongMatch = false
 
         for (name, urlString) in merged {
             guard let match = matchScore(query: trimmed, name: name), match >= 0.6,
                   let url = URL(string: urlString) else { continue }
-            if match >= 0.9 { hadStrongMatch = true }
             let host = url.host ?? urlString
             items.append(ResultItem(
                 title: "Open \(name.capitalized)",
@@ -360,24 +358,36 @@ enum SiteDirectoryProvider {
                 action: { BrowserLauncher.open(url) }
             ))
         }
-        items = Array(items.sorted { $0.score > $1.score }.prefix(3))
+        return Array(items.sorted { $0.score > $1.score }.prefix(3))
+    }
 
-        // Unknown name: offer a homepage guess like grandseiko.com.
-        if includeGuess, !hadStrongMatch, trimmed.count >= 3, trimmed.rangeOfCharacter(from: .letters) != nil,
-           let guess = guessURL(for: trimmed) {
-            // A single word reads as a site name, so it outranks the streaming
-            // suggestions (score 200); multi-word queries read as show titles
-            // and stay below them.
-            let looksLikeSiteName = !trimmed.contains(" ")
-            items.append(ResultItem(
-                title: "Open \(guess.host ?? trimmed)",
-                subtitle: "Guess the homepage in \(BrowserLauncher.targetName)",
-                icon: .symbol("globe"),
-                score: looksLikeSiteName ? 220 : 150,
-                action: { BrowserLauncher.open(guess) }
-            ))
+    // Scores for the guessed homepage. A single word reads as a site name, so
+    // the guess outranks the streaming suggestions (score 200); multi-word
+    // queries read as show titles and stay below them.
+    static let guessSiteNameScore: Double = 220
+    static let guessPhraseScore: Double = 150
+
+    // Unknown name: offer a homepage guess like grandseiko.com. Nothing checks
+    // that the address exists, so the engine keeps a web search just above it.
+    // Skipped when a directory site already matches strongly: that row is the
+    // real answer.
+    static func guessResult(for query: String) -> ResultItem? {
+        let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard trimmed.count >= 3, trimmed.rangeOfCharacter(from: .letters) != nil,
+              !hasStrongDirectoryMatch(trimmed), let guess = guessURL(for: trimmed) else { return nil }
+        return ResultItem(
+            title: "Open \(guess.host ?? trimmed)",
+            subtitle: "Guess the homepage in \(BrowserLauncher.targetName)",
+            icon: .symbol("globe"),
+            score: trimmed.contains(" ") ? guessPhraseScore : guessSiteNameScore,
+            action: { BrowserLauncher.open(guess) }
+        )
+    }
+
+    private static func hasStrongDirectoryMatch(_ trimmed: String) -> Bool {
+        merged.contains { name, urlString in
+            (matchScore(query: trimmed, name: name) ?? 0) >= 0.9 && URL(string: urlString) != nil
         }
-        return items
     }
 
     static func guessURL(for name: String) -> URL? {
