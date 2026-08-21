@@ -15,7 +15,7 @@ jobs:
     name: Build and test
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Swift version
         run: swift --version
@@ -32,7 +32,7 @@ jobs:
     name: House rules
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The UI must never show an em dash (see CONTRIBUTING.md). Every
       # user-visible string lives under Sources/, and the character is built
