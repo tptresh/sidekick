@@ -128,7 +128,10 @@ final class SettingsStore: ObservableObject {
     @Published var activeHotKey: HotKeyCombo?
 
     private init() {
-        theme = HeroTheme(rawValue: defaults.string(forKey: "theme") ?? "") ?? .spiderman
+        let storedTheme = defaults.string(forKey: "theme") ?? ""
+        // Sasuke took the Iron Man slot, so anyone left on it lands there
+        // rather than being bumped back to the default.
+        theme = HeroTheme(rawValue: storedTheme) ?? (storedTheme == "ironMan" ? .sasuke : .spiderman)
         if let stored = defaults.stringArray(forKey: "enabledServices") {
             enabledServices = Set(stored)
         } else {
