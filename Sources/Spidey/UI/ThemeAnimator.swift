@@ -276,20 +276,20 @@ private struct BeamShape: Shape {
     }
 }
 
-// MARK: - Sasuke: his face appears and Rinnegan open all over the screen
+// MARK: - Sasuke: he arrives and opens Rinnegan all over the screen
 
 // Where each eye opens, as fractions of the screen, with the size it opens to
-// as a fraction of the shorter side. Kept off the middle so his face stays
-// readable underneath, and ordered so they spread outwards as they fire.
+// as a fraction of the shorter side. Ordered from the middle outwards so they
+// bloom away from him as he casts, and kept off his figure so he stays clear.
 private let rinneganScatter: [(x: CGFloat, y: CGFloat, size: CGFloat, spin: Double)] = [
-    (0.30, 0.34, 0.11, 12), (0.70, 0.31, 0.10, -18),
-    (0.15, 0.20, 0.15, 24), (0.84, 0.22, 0.13, -8),
-    (0.22, 0.71, 0.14, -22), (0.78, 0.74, 0.12, 16),
-    (0.07, 0.48, 0.09, 6), (0.93, 0.52, 0.10, -14),
-    (0.38, 0.11, 0.08, 20), (0.62, 0.90, 0.09, -6),
-    (0.13, 0.87, 0.07, 10), (0.88, 0.85, 0.08, -20),
-    (0.47, 0.93, 0.06, 4), (0.55, 0.07, 0.07, -12),
-    (0.04, 0.68, 0.05, 18), (0.96, 0.34, 0.06, -4),
+    (0.34, 0.30, 0.10, 12), (0.66, 0.30, 0.09, -18),
+    (0.30, 0.68, 0.09, -22), (0.70, 0.66, 0.10, 16),
+    (0.17, 0.19, 0.14, 24), (0.83, 0.21, 0.13, -8),
+    (0.20, 0.79, 0.12, 6), (0.80, 0.81, 0.13, -14),
+    (0.06, 0.45, 0.09, 20), (0.94, 0.49, 0.10, -6),
+    (0.41, 0.09, 0.07, 10), (0.59, 0.92, 0.08, -20),
+    (0.10, 0.90, 0.06, 4), (0.90, 0.10, 0.07, -12),
+    (0.03, 0.66, 0.05, 18), (0.97, 0.72, 0.06, -4),
 ]
 
 private struct RinneganAwakenView: View {
@@ -297,14 +297,14 @@ private struct RinneganAwakenView: View {
     let applyTheme: () -> Void
     let finished: () -> Void
 
-    private let headSide: CGFloat
     private let shortSide: CGFloat
-    // Whatever picture of him is installed; nil falls back to the drawn face.
     private let portrait: NSImage?
 
     @State private var dimmed = false
-    @State private var faceIn = false
-    @State private var lit = false
+    @State private var arrived = false
+    @State private var charged = false
+    @State private var pulseOne = false
+    @State private var pulseTwo = false
     @State private var opened = 0
     @State private var flash = false
     @State private var visible = true
@@ -314,14 +314,18 @@ private struct RinneganAwakenView: View {
         self.applyTheme = applyTheme
         self.finished = finished
         shortSide = min(size.width, size.height)
-        headSide = shortSide * 0.62 * 18 / SasukeArt.headWidthUnits
         portrait = SasukePortrait.image()
     }
 
+    private var figureHeight: CGFloat { shortSide * 0.82 }
+
     var body: some View {
         ZStack {
-            Color.black.opacity(dimmed ? 0.72 : 0)
-            head
+            Color.black.opacity(dimmed ? 0.74 : 0)
+            aura
+            pulse(out: pulseOne)
+            pulse(out: pulseTwo)
+            figure
             eyes
             SasukeArt.rinneganPurple.opacity(flash ? 0.45 : 0)
         }
@@ -331,35 +335,50 @@ private struct RinneganAwakenView: View {
     }
 
     @ViewBuilder
-    private var head: some View {
+    private var figure: some View {
         if let portrait {
+            let aspect = portrait.size.width / max(portrait.size.height, 1)
             Image(nsImage: portrait)
                 .resizable()
+                .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
-                .frame(width: shortSide * 0.78, height: shortSide * 0.78)
+                .frame(width: figureHeight * aspect, height: figureHeight)
                 .shadow(
-                    color: SasukeArt.rinneganPurple.opacity(lit ? 0.85 : 0),
-                    radius: lit ? shortSide * 0.06 : 0
+                    color: SasukeArt.rinneganPurple.opacity(charged ? 0.9 : 0),
+                    radius: charged ? shortSide * 0.05 : 0
                 )
-                .scaleEffect(faceIn ? 1 : 0.9)
-                .opacity(faceIn ? 1 : 0)
+                .scaleEffect(arrived ? 1 : 0.94)
+                .opacity(arrived ? 1 : 0)
                 .position(x: size.width / 2, y: size.height / 2)
-        } else {
-            drawnHead
         }
     }
 
-    // The drawn head sits in the top half of its own box, so it is centred on
-    // its head centre rather than on the box.
-    private var drawnHead: some View {
-        let unit = headSide / 18
-        return SasukeHeadView(side: headSide, glow: lit)
-            .offset(
-                x: (9 - SasukeArt.headCentre.x) * unit,
-                y: (9 - SasukeArt.headCentre.y) * unit
-            )
-            .scaleEffect(faceIn ? 1 : 0.9)
-            .opacity(faceIn ? 1 : 0)
+    // The chakra he gathers before the eyes open.
+    private var aura: some View {
+        Circle()
+            .fill(RadialGradient(
+                colors: [
+                    SasukeArt.rinneganPurple.opacity(0.5),
+                    SasukeArt.rinneganPurple.opacity(0.12),
+                    .clear,
+                ],
+                center: .center,
+                startRadius: 0,
+                endRadius: shortSide * 0.5
+            ))
+            .frame(width: shortSide, height: shortSide)
+            .scaleEffect(charged ? 1 : 0.35)
+            .opacity(charged ? 1 : 0)
+            .position(x: size.width / 2, y: size.height / 2)
+    }
+
+    // A ring of chakra thrown outwards, thinning as it goes.
+    private func pulse(out: Bool) -> some View {
+        Circle()
+            .stroke(SasukeArt.rinneganPurple.opacity(0.75), lineWidth: shortSide * 0.012)
+            .frame(width: shortSide * 0.5, height: shortSide * 0.5)
+            .scaleEffect(out ? 3.2 : 0.15)
+            .opacity(out ? 0 : 0.9)
             .position(x: size.width / 2, y: size.height / 2)
     }
 
@@ -377,17 +396,19 @@ private struct RinneganAwakenView: View {
 
     private func run() {
         step(0.02, .easeOut(duration: 0.32)) { dimmed = true }
-        step(0.10, .spring(response: 0.55, dampingFraction: 0.8)) { faceIn = true }
-        step(0.62, .easeInOut(duration: 0.30)) { lit = true }
+        step(0.10, .spring(response: 0.6, dampingFraction: 0.82)) { arrived = true }
+        step(0.62, .easeInOut(duration: 0.45)) { charged = true }
+        step(0.95, .easeOut(duration: 1.10)) { pulseOne = true }
+        step(1.25, .easeOut(duration: 1.10)) { pulseTwo = true }
         for index in rinneganScatter.indices {
-            step(0.82 + Double(index) * 0.055, .spring(response: 0.34, dampingFraction: 0.62)) {
+            step(1.00 + Double(index) * 0.055, .spring(response: 0.34, dampingFraction: 0.62)) {
                 opened = index + 1
             }
         }
-        step(1.80, .easeOut(duration: 0.16)) { flash = true }
-        step(1.86, nil) { applyTheme() }
-        step(2.00, .easeOut(duration: 0.38)) { flash = false }
-        step(2.60, .easeIn(duration: 0.50)) { visible = false }
-        step(3.20, nil) { finished() }
+        step(1.98, .easeOut(duration: 0.16)) { flash = true }
+        step(2.04, nil) { applyTheme() }
+        step(2.18, .easeOut(duration: 0.38)) { flash = false }
+        step(2.80, .easeIn(duration: 0.50)) { visible = false }
+        step(3.40, nil) { finished() }
     }
 }

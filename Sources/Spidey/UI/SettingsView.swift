@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import AppKit
 import ServiceManagement
 import Carbon.HIToolbox
@@ -45,39 +44,6 @@ struct SettingsView: View {
                     )
                 }
             }
-            sasukePortraitRow
-        }
-    }
-
-    private var sasukePortraitRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(settings.sasukePortraitName.isEmpty
-                     ? "Sasuke entrance: using the drawn face"
-                     : "Sasuke entrance: \(settings.sasukePortraitName)")
-                    .font(.caption)
-                Spacer()
-                Button("Choose Picture…") {
-                    let panel = NSOpenPanel()
-                    panel.canChooseFiles = true
-                    panel.canChooseDirectories = false
-                    panel.allowsMultipleSelection = false
-                    panel.allowedContentTypes = [.image]
-                    if panel.runModal() == .OK, let url = panel.url,
-                       SasukePortrait.install(from: url) {
-                        settings.sasukePortraitName = url.lastPathComponent
-                    }
-                }
-                if !settings.sasukePortraitName.isEmpty {
-                    Button("Clear") {
-                        SasukePortrait.clear()
-                        settings.sasukePortraitName = ""
-                    }
-                }
-            }
-            Text("Pick any picture of him and the entrance uses it instead of the drawing. It is copied into \(SasukePortrait.folderPath) rather than into the app, so the repo never carries someone else's artwork.")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
 

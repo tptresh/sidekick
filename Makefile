@@ -18,6 +18,7 @@ app: guard-main-checkout build
 	cp $(BUILD_DIR)/$(BIN_NAME) $(APP_DIR)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(APP_DIR)/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(APP_DIR)/Contents/Resources/; fi
+	@if [ -f Resources/sasuke.png ]; then cp Resources/sasuke.png $(APP_DIR)/Contents/Resources/; fi
 	codesign --force --sign - $(APP_DIR)
 	@# Ad-hoc signing gives every build a new code identity, so the old
 	@# Accessibility grant (needed to drive Find My) goes stale but lingers
