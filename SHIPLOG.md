@@ -278,3 +278,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: e296440 (build succeeded, app relaunched)
+
+## 2026-08-21 00:52 - OK - main
+- "Disclaimer no longer claims the theme artwork is original"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 384bda3 (build succeeded, app relaunched)
