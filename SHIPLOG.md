@@ -241,3 +241,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 8ab57cb Leave Sasuke's eye exactly as the artwork has it and spin only the six commas on the spot, instead of pasting a drawn Rinnegan over it
 - main is now at: e821197 (build succeeded, app relaunched)
+
+## 2026-08-20 23:38 - CONFLICT - claude/sharingan-theme-animation-632707
+- merge into main conflicted and was aborted; main is untouched.
+- unmerged commits:
+  - abf61f7 New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan
+- fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
