@@ -266,3 +266,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 5e60383 Open source scaffolding: CI, release workflow, contributing and security docs, screenshots in the README
 - main is now at: 84bf003 (build succeeded, app relaunched)
+
+## 2026-08-21 00:31 - OK - main
+- "Point the open source docs at github.com/tptresh/sidekick and make ship.sh push main to the public repo"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 604f18c (build succeeded, app relaunched)
