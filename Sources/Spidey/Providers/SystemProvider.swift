@@ -12,9 +12,17 @@ enum SystemProvider {
 
     static let commands: [Command] = [
         Command(
-            names: ["sleep"], title: "Sleep", subtitle: "Put the Mac to sleep",
+            names: ["sleep"], title: "Sleep",
+            subtitle: "Put the Mac to sleep, saving any episode you are watching",
             symbol: "moon.zzz.fill", destructive: false,
-            run: { runAppleScript("tell application \"System Events\" to sleep") }
+            // Stopping for the night is when the episode is worth
+            // remembering, so the browser is read before the Mac goes down.
+            // The short timeout keeps a slow read from delaying sleep.
+            run: {
+                WatchCapture.captureNow(timeout: 4) {
+                    runAppleScript("tell application \"System Events\" to sleep")
+                }
+            }
         ),
         Command(
             names: ["lock", "lock screen"], title: "Lock Screen", subtitle: "Lock this Mac",

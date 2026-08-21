@@ -186,3 +186,64 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 7f78dd4 Sasuke's entrance now uses the real anime render of him: he arrives, gathers purple chakra, and Rinnegan open across the screen as chakra rings roll out
 - main is now at: 9ee24d0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:29 - OK - claude/search-result-ordering-5adac3
+- "Searching the web now ranks above the guessed homepage, so a query with no obvious site leads with the search instead of an address that may not exist"
+- merged commits:
+  - 4a13791 Searching the web now ranks above the guessed homepage, so a query with no obvious site leads with the search instead of an address that may not exist
+- main is now at: 481ecd0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:31 - OK - claude/google-brave-icon-664463
+- "The web search row now shows the Brave icon instead of Google's, matching the browser it opens in"
+- merged commits:
+  - 134dbf9 The web search row now shows the Brave icon instead of Google's, matching the browser it opens in
+- main is now at: 0714ec9 (build succeeded, app relaunched)
+
+## 2026-08-20 22:32 - OK - claude/sasuke-theme-replacement-74c118
+- "Sasuke's entrance is now the anime close-up of his Rinnegan filling the screen, with the tomoe turning in his eye, chakra rolling out of it and more Rinnegan opening around the edges"
+- merged commits:
+  - c1c3334 Sasuke's entrance is now the anime close-up of his Rinnegan filling the screen, with the tomoe turning in his eye, chakra rolling out of it and more Rinnegan opening around the edges
+- main is now at: d114eb7 (build succeeded, app relaunched)
+
+## 2026-08-20 22:36 - OK - claude/sasuke-theme-replacement-74c118
+- "Keep the tomoe in Sasuke's eye their proper comma shape while it spins, instead of stretching them as they come round"
+- merged commits:
+  - 99d548c Keep the tomoe in Sasuke's eye their proper comma shape while it spins, instead of stretching them as they come round
+- main is now at: 6c295ed (build succeeded, app relaunched)
+
+## 2026-08-20 22:41 - OK - claude/sasuke-theme-icon-f6eb90
+- "Show the actual purple Rinnegan next to the search field in the Sasuke theme, instead of the flat menu-bar badge"
+- merged commits:
+  - 91c2d53 Show the actual purple Rinnegan next to the search field in the Sasuke theme, instead of the flat menu-bar badge
+- main is now at: 75655f0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:43 - CONFLICT - claude/last-watched-episode-memory-c418cb
+- merge into main conflicted and was aborted; main is untouched.
+- unmerged commits:
+  - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
+- fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
+
+## 2026-08-20 22:44 - OK - claude/last-watched-episode-memory-c418cb
+- "Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up"
+- merged commits:
+  - 3d0513c Merge main into last-watched-episode-memory
+  - beebd8b Spidey remembers where you got to in a show: watching the pitt s1e6 saves it, an open episode page or the Mac going to sleep saves it by itself, and typing the show name offers Resume and Next up
+- main is now at: db719ad (build succeeded, app relaunched)
+
+## 2026-08-20 22:49 - OK - claude/sasuke-theme-icon-f6eb90
+- "Sasuke's search field now reads Awaken the Rinnegan, matching the eye beside it"
+- merged commits:
+  - cacab6c Sasuke's search field now reads Awaken the Rinnegan, matching the eye beside it
+- main is now at: 6d4aa46 (build succeeded, app relaunched)
+
+## 2026-08-20 22:50 - OK - claude/sasuke-theme-replacement-74c118
+- "Leave Sasuke's eye exactly as the artwork has it and spin only the six commas on the spot, instead of pasting a drawn Rinnegan over it"
+- merged commits:
+  - 8ab57cb Leave Sasuke's eye exactly as the artwork has it and spin only the six commas on the spot, instead of pasting a drawn Rinnegan over it
+- main is now at: e821197 (build succeeded, app relaunched)
+
+## 2026-08-20 23:38 - CONFLICT - claude/sharingan-theme-animation-632707
+- merge into main conflicted and was aborted; main is untouched.
+- unmerged commits:
+  - abf61f7 New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan
+- fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh

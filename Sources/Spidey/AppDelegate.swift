@@ -49,6 +49,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.hidePanel()
         }
 
+        // The Mac going to sleep is when people actually stop watching, so
+        // save whichever episode is open in the browser before it goes dark.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { _ in
+            WatchCapture.captureNow(timeout: 3) {}
+        }
+
         // If we fell back (e.g. Spotlight owned Cmd+Space at launch), retry the
         // preferred combo whenever the app is brought forward - the user may
         // have freed it up in System Settings since.

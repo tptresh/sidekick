@@ -20,7 +20,7 @@ enum HeroTheme: String, CaseIterable, Codable {
         switch self {
         case .spiderman: return "Spidey Search"
         case .batman: return "Explore the Cave"
-        case .sasuke: return "Open the Rinnegan"
+        case .sasuke: return "Awaken the Rinnegan"
         case .sharingan: return "Awaken the Sharingan"
         }
     }

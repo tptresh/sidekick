@@ -163,7 +163,7 @@ enum TabsProvider {
         lastFetchStart = Date()
         lastFetchQuery = query
         fetchQueue.async {
-            let tabs = fetchTabs(browser)
+            let tabs = fetchTabs(browser, timeout: 15)
             DispatchQueue.main.async {
                 fetching = false
                 cache = (browser.bundleID, Date(), tabs)
@@ -174,7 +174,21 @@ enum TabsProvider {
         }
     }
 
-    private static func fetchTabs(_ browser: Browser) -> [Tab] {
+    // One-shot read of the open tabs for callers outside the tab switcher
+    // (the watch tracker). Hands back an empty list when no supported browser
+    // is running. The completion always runs, on the main thread.
+    static func readOpenTabs(timeout: TimeInterval, completion: @escaping ([Tab]) -> Void) {
+        guard let (browser, _) = runningBrowser() else {
+            DispatchQueue.main.async { completion([]) }
+            return
+        }
+        fetchQueue.async {
+            let tabs = fetchTabs(browser, timeout: timeout)
+            DispatchQueue.main.async { completion(tabs) }
+        }
+    }
+
+    private static func fetchTabs(_ browser: Browser, timeout: TimeInterval) -> [Tab] {
         // sep/nl are computed outside the tell block because "tab" is a class
         // name inside it, and AppleScript strings have no escape sequences.
         let script = """
@@ -200,9 +214,11 @@ enum TabsProvider {
         process.standardOutput = pipe
         process.standardError = Pipe()
         guard (try? process.run()) != nil else { return [] }
-        // Generous timeout: the first run blocks on the Automation consent.
+        // Generous timeout by default: the first run blocks on the Automation
+        // consent. A caller with something waiting on it (the Mac going to
+        // sleep) passes a short one instead.
         let killer = DispatchWorkItem { if process.isRunning { process.terminate() } }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 15, execute: killer)
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         killer.cancel()
