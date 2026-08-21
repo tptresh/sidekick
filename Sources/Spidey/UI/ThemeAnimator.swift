@@ -84,8 +84,8 @@ private struct ThemeEntranceView: View {
                 WebSlingView(size: size, applyTheme: applyTheme, finished: finished)
             case .batman:
                 BatSignalView(size: size, applyTheme: applyTheme, finished: finished)
-            case .fantasticFour:
-                FourFlareView(size: size, applyTheme: applyTheme, finished: finished)
+            case .ironMan:
+                IronAssembleView(size: size, applyTheme: applyTheme, finished: finished)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -275,47 +275,129 @@ private struct BeamShape: Shape {
     }
 }
 
-// MARK: - Fantastic Four: a flare bursts and the 4 lights up the sky
+// MARK: - Iron Man: the armor pieces fly in and assemble, then the reactor ignites
 
-private struct FourFlareView: View {
+// The bust is drawn from the same 18x18 unit geometry as the menu bar emblem,
+// y flipped for SwiftUI, split into the pieces that fly in separately.
+private struct IronPiece: Shape {
+    enum Kind {
+        case helmet, faceplate, leftShoulder, chest, rightShoulder
+    }
+    let kind: Kind
+
+    func path(in rect: CGRect) -> Path {
+        let u = rect.width / 18
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * u, y: y * u) }
+        var path = Path()
+        switch kind {
+        case .helmet:
+            path.move(to: pt(5.6, 11.0))
+            path.addLine(to: pt(12.4, 11.0))
+            path.addCurve(to: pt(13.1, 6.0), control1: pt(13.0, 10.4), control2: pt(13.1, 8.2))
+            path.addCurve(to: pt(9.0, 1.2), control1: pt(13.1, 3.0), control2: pt(11.5, 1.2))
+            path.addCurve(to: pt(4.9, 6.0), control1: pt(6.5, 1.2), control2: pt(4.9, 3.0))
+            path.addCurve(to: pt(5.6, 11.0), control1: pt(4.9, 8.2), control2: pt(5.0, 10.4))
+            path.closeSubpath()
+        case .faceplate:
+            path.move(to: pt(6.3, 10.6))
+            path.addLine(to: pt(11.7, 10.6))
+            path.addCurve(to: pt(12.2, 6.4), control1: pt(12.1, 10.0), control2: pt(12.2, 8.2))
+            path.addCurve(to: pt(9.0, 4.1), control1: pt(12.2, 5.0), control2: pt(10.8, 4.1))
+            path.addCurve(to: pt(5.8, 6.4), control1: pt(7.2, 4.1), control2: pt(5.8, 5.0))
+            path.addCurve(to: pt(6.3, 10.6), control1: pt(5.8, 8.2), control2: pt(5.9, 10.0))
+            path.closeSubpath()
+            // Eye slits, punched by the even-odd fill.
+            path.addRoundedRect(in: CGRect(x: 6.4 * u, y: 6.0 * u, width: 2.2 * u, height: 1.0 * u), cornerSize: CGSize(width: 0.5 * u, height: 0.5 * u))
+            path.addRoundedRect(in: CGRect(x: 9.4 * u, y: 6.0 * u, width: 2.2 * u, height: 1.0 * u), cornerSize: CGSize(width: 0.5 * u, height: 0.5 * u))
+        case .leftShoulder:
+            path.move(to: pt(2.3, 17.0))
+            path.addLine(to: pt(2.8, 13.6))
+            path.addCurve(to: pt(4.9, 12.1), control1: pt(3.0, 12.7), control2: pt(3.8, 12.1))
+            path.addLine(to: pt(6.5, 12.1))
+            path.addLine(to: pt(6.5, 17.0))
+            path.closeSubpath()
+        case .chest:
+            path.move(to: pt(6.5, 17.0))
+            path.addLine(to: pt(6.5, 12.1))
+            path.addLine(to: pt(7.3, 12.1))
+            path.addCurve(to: pt(9.0, 12.9), control1: pt(8.0, 12.1), control2: pt(8.5, 12.9))
+            path.addCurve(to: pt(10.7, 12.1), control1: pt(9.5, 12.9), control2: pt(10.0, 12.1))
+            path.addLine(to: pt(11.5, 12.1))
+            path.addLine(to: pt(11.5, 17.0))
+            path.closeSubpath()
+            // Arc reactor socket, punched by the even-odd fill.
+            path.addEllipse(in: CGRect(x: 7.65 * u, y: 13.25 * u, width: 2.7 * u, height: 2.7 * u))
+        case .rightShoulder:
+            path.move(to: pt(15.7, 17.0))
+            path.addLine(to: pt(15.2, 13.6))
+            path.addCurve(to: pt(13.1, 12.1), control1: pt(15.0, 12.7), control2: pt(14.2, 12.1))
+            path.addLine(to: pt(11.5, 12.1))
+            path.addLine(to: pt(11.5, 17.0))
+            path.closeSubpath()
+        }
+        return path
+    }
+}
+
+private struct IronAssembleView: View {
     let size: CGSize
     let applyTheme: () -> Void
     let finished: () -> Void
 
-    private let emblemImage: NSImage
-    private let emblemRadius: CGFloat
+    private let armorRed = Color(red: 0.678, green: 0.106, blue: 0.086)
+    private let armorGold = Color(red: 0.855, green: 0.663, blue: 0.243)
+    private let reactorBlue = Color(red: 0.62, green: 0.90, blue: 1.0)
 
-    @State private var brightened = false
-    @State private var emblemShown = false
-    @State private var glowSpread = false
+    @State private var dimmed = false
+    @State private var leftIn = false
+    @State private var rightIn = false
+    @State private var chestIn = false
+    @State private var helmetIn = false
+    @State private var faceOn = false
+    @State private var reactorOn = false
+    @State private var flash = false
     @State private var visible = true
 
-    init(size: CGSize, applyTheme: @escaping () -> Void, finished: @escaping () -> Void) {
-        self.size = size
-        self.applyTheme = applyTheme
-        self.finished = finished
-        emblemRadius = min(size.width, size.height) * 0.20
-        emblemImage = StatusIcons.watermark(
-            for: .fantasticFour,
-            size: emblemRadius * 1.8,
-            color: NSColor(HeroTheme.fantasticFour.palette.accent)
-        )
-    }
-
     var body: some View {
+        let side = min(size.width, size.height) * 0.5
+        let u = side / 18
         ZStack {
-            Color.white.opacity(brightened ? 0.45 : 0)
-            Circle()
-                .fill(RadialGradient(
-                    colors: [HeroTheme.fantasticFour.palette.accent.opacity(0.55), .clear],
-                    center: .center, startRadius: 0, endRadius: emblemRadius * 2.4
-                ))
-                .frame(width: emblemRadius * 4.8, height: emblemRadius * 4.8)
-                .scaleEffect(glowSpread ? 1 : 0.2)
-                .opacity(glowSpread ? 1 : 0)
-            Image(nsImage: emblemImage)
-                .opacity(emblemShown ? 1 : 0)
-                .scaleEffect(emblemShown ? 1 : 0.4)
+            Color.black.opacity(dimmed ? 0.5 : 0)
+            ZStack {
+                IronPiece(kind: .leftShoulder)
+                    .fill(armorRed)
+                    .rotationEffect(.degrees(leftIn ? 0 : -35))
+                    .offset(x: leftIn ? 0 : -size.width * 0.55)
+                    .opacity(leftIn ? 1 : 0)
+                IronPiece(kind: .rightShoulder)
+                    .fill(armorRed)
+                    .rotationEffect(.degrees(rightIn ? 0 : 35))
+                    .offset(x: rightIn ? 0 : size.width * 0.55)
+                    .opacity(rightIn ? 1 : 0)
+                IronPiece(kind: .chest)
+                    .fill(armorGold, style: FillStyle(eoFill: true))
+                    .offset(y: chestIn ? 0 : size.height * 0.55)
+                    .opacity(chestIn ? 1 : 0)
+                IronPiece(kind: .helmet)
+                    .fill(armorRed)
+                    .rotationEffect(.degrees(helmetIn ? 0 : 10))
+                    .offset(y: helmetIn ? 0 : -size.height * 0.55)
+                    .opacity(helmetIn ? 1 : 0)
+                // The faceplate flies in "toward us": it starts big and settles.
+                IronPiece(kind: .faceplate)
+                    .fill(armorGold, style: FillStyle(eoFill: true))
+                    .scaleEffect(faceOn ? 1 : 2.8)
+                    .opacity(faceOn ? 1 : 0)
+                Circle()
+                    .fill(reactorBlue)
+                    .frame(width: 2.7 * u, height: 2.7 * u)
+                    .position(x: 9.0 * u, y: 14.6 * u)
+                    .shadow(color: reactorBlue.opacity(0.9), radius: reactorOn ? 2.2 * u : 0)
+                    .opacity(reactorOn ? 1 : 0)
+                    .scaleEffect(reactorOn ? 1 : 0.3)
+            }
+            .frame(width: side, height: side)
+            Color.white.opacity(flash ? 0.55 : 0)
         }
         .frame(width: size.width, height: size.height)
         .opacity(visible ? 1 : 0)
@@ -323,14 +405,23 @@ private struct FourFlareView: View {
     }
 
     private func run() {
-        step(0.05, .easeIn(duration: 0.25)) { brightened = true }
-        step(0.30, .spring(response: 0.45, dampingFraction: 0.65)) {
-            emblemShown = true
-            glowSpread = true
+        let snap = Animation.spring(response: 0.42, dampingFraction: 0.72)
+        step(0.05, .easeIn(duration: 0.2)) { dimmed = true }
+        step(0.20, snap) { leftIn = true }
+        step(0.32, snap) { rightIn = true }
+        step(0.48, snap) { chestIn = true }
+        step(0.66, snap) { helmetIn = true }
+        step(0.90, .spring(response: 0.38, dampingFraction: 0.68)) { faceOn = true }
+        step(1.25, .easeOut(duration: 0.18)) {
+            reactorOn = true
+            flash = true
         }
-        step(0.75, nil) { applyTheme() }
-        step(0.80, .easeOut(duration: 0.35)) { brightened = false }
-        step(1.45, .easeOut(duration: 0.4)) { visible = false }
-        step(1.90, nil) { finished() }
+        step(1.30, nil) { applyTheme() }
+        step(1.45, .easeOut(duration: 0.30)) { flash = false }
+        step(2.05, .easeOut(duration: 0.40)) {
+            dimmed = false
+            visible = false
+        }
+        step(2.55, nil) { finished() }
     }
 }

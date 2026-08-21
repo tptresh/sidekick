@@ -15,8 +15,8 @@ enum ThemeProvider {
         if matches(lowered, ["the bat", "batman", "bat man", "batman theme", "dark knight", "gotham"]) {
             items.append(item(for: .batman))
         }
-        if matches(lowered, ["fantastic", "fantastic four", "fantastic 4", "the four", "fantastic four theme"]) {
-            items.append(item(for: .fantasticFour))
+        if matches(lowered, ["iron man", "ironman", "iron-man", "iron man theme", "stark", "tony stark", "jarvis"]) {
+            items.append(item(for: .ironMan))
         }
         return items
     }
@@ -39,8 +39,8 @@ enum ThemeProvider {
                 subtitle = "Thwip. The mask swings in from the top of the screen"
             case .batman:
                 subtitle = "Lights the signal and summons the Dark Knight"
-            case .fantasticFour:
-                subtitle = "A flare bursts and the 4 lights up the sky"
+            case .ironMan:
+                subtitle = "The armor flies in and assembles, piece by piece"
             }
         }
         return ResultItem(

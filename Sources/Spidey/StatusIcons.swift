@@ -34,41 +34,64 @@ enum StatusIcons {
             drawSpideyMask(color: color)
         case .batman:
             batSymbolPath().fill()
-        case .fantasticFour:
-            drawFourEmblem(color: color)
+        case .ironMan:
+            drawIronManEmblem()
         }
     }
 
-    // Classic FF badge: a circle rim with a bold numeral 4, its triangular
-    // counter punched out so it stays crisp at menu bar size.
-    private static func drawFourEmblem(color: NSColor) {
-        color.setStroke()
-        let rim = NSBezierPath(ovalIn: NSRect(x: 1, y: 1, width: 16, height: 16))
-        rim.lineWidth = 1.0
-        rim.stroke()
-        fourGlyphPath().fill()
-    }
-
-    // Block "4" in the 18x18 unit space, y pointing up. The outer outline and
-    // the counter triangle are one path filled with the even-odd rule.
-    private static func fourGlyphPath() -> NSBezierPath {
+    // Cartoon Iron Man facing us: rounded helmet over squared shoulders, with
+    // the eye slits and arc reactor punched out so they stay crisp at menu
+    // bar size. One even-odd path keeps the cutouts template-friendly.
+    private static func drawIronManEmblem() {
         let path = NSBezierPath()
         path.windingRule = .evenOdd
-        // Outer outline: tip, stem, foot, crossbar, then the diagonal back up.
-        path.move(to: NSPoint(x: 9.4, y: 13.6))
-        path.line(to: NSPoint(x: 11.9, y: 13.6))
-        path.line(to: NSPoint(x: 11.9, y: 4.4))
-        path.line(to: NSPoint(x: 9.8, y: 4.4))
-        path.line(to: NSPoint(x: 9.8, y: 6.4))
-        path.line(to: NSPoint(x: 4.9, y: 6.4))
-        path.line(to: NSPoint(x: 4.9, y: 8.3))
-        path.close()
-        // Counter: the open triangle between the diagonal, stem, and crossbar.
-        path.move(to: NSPoint(x: 6.8, y: 8.3))
-        path.line(to: NSPoint(x: 9.8, y: 8.3))
-        path.line(to: NSPoint(x: 9.8, y: 11.6))
+        path.append(ironHelmetPath())
+        for slit in ironEyeSlitPaths() { path.append(slit) }
+        path.append(ironBustPath())
+        path.append(ironReactorPath())
+        path.fill()
+    }
+
+    // Helmet: flat jaw, cheeks tapering up into a big rounded crown.
+    static func ironHelmetPath() -> NSBezierPath {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 5.3, y: 7.2))
+        path.line(to: NSPoint(x: 12.7, y: 7.2))
+        path.curve(to: NSPoint(x: 13.6, y: 11.6), controlPoint1: NSPoint(x: 13.4, y: 7.9), controlPoint2: NSPoint(x: 13.6, y: 9.6))
+        path.curve(to: NSPoint(x: 9.0, y: 16.2), controlPoint1: NSPoint(x: 13.6, y: 14.6), controlPoint2: NSPoint(x: 11.7, y: 16.2))
+        path.curve(to: NSPoint(x: 4.4, y: 11.6), controlPoint1: NSPoint(x: 6.3, y: 16.2), controlPoint2: NSPoint(x: 4.4, y: 14.6))
+        path.curve(to: NSPoint(x: 5.3, y: 7.2), controlPoint1: NSPoint(x: 4.4, y: 9.6), controlPoint2: NSPoint(x: 4.6, y: 7.9))
         path.close()
         return path
+    }
+
+    // Wide cartoon eye slits, the visor's only openings.
+    static func ironEyeSlitPaths() -> [NSBezierPath] {
+        [
+            NSBezierPath(roundedRect: NSRect(x: 5.9, y: 10.9, width: 2.5, height: 1.05), xRadius: 0.5, yRadius: 0.5),
+            NSBezierPath(roundedRect: NSRect(x: 9.6, y: 10.9, width: 2.5, height: 1.05), xRadius: 0.5, yRadius: 0.5),
+        ]
+    }
+
+    // Shoulders and chest in one slab, with a shallow neck dip under the helmet.
+    static func ironBustPath() -> NSBezierPath {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 2.3, y: 1.0))
+        path.line(to: NSPoint(x: 2.8, y: 4.4))
+        path.curve(to: NSPoint(x: 4.9, y: 5.9), controlPoint1: NSPoint(x: 3.0, y: 5.3), controlPoint2: NSPoint(x: 3.8, y: 5.9))
+        path.line(to: NSPoint(x: 7.3, y: 5.9))
+        path.curve(to: NSPoint(x: 9.0, y: 5.1), controlPoint1: NSPoint(x: 8.0, y: 5.9), controlPoint2: NSPoint(x: 8.5, y: 5.1))
+        path.curve(to: NSPoint(x: 10.7, y: 5.9), controlPoint1: NSPoint(x: 9.5, y: 5.1), controlPoint2: NSPoint(x: 10.0, y: 5.9))
+        path.line(to: NSPoint(x: 13.1, y: 5.9))
+        path.curve(to: NSPoint(x: 15.2, y: 4.4), controlPoint1: NSPoint(x: 14.2, y: 5.9), controlPoint2: NSPoint(x: 15.0, y: 5.3))
+        path.line(to: NSPoint(x: 15.7, y: 1.0))
+        path.close()
+        return path
+    }
+
+    // The chest light.
+    static func ironReactorPath() -> NSBezierPath {
+        NSBezierPath(ovalIn: NSRect(x: 7.65, y: 2.05, width: 2.7, height: 2.7))
     }
 
     // Line-art mask like the classic emblem: stroked rim, thin web, solid eyes.

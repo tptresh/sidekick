@@ -52,7 +52,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Snippets**: `snip add addr 123 Main Street` saves a canned-text snippet, `snip` lists them (Return copies one to the clipboard, Cmd+Return deletes it), `snip rm addr` deletes by keyword, and typing a snippet's keyword on its own surfaces it directly
 - **Drag and drop**: drop files onto the panel to open them, reveal them, copy them, or copy their paths; dropped files are also recorded into clipboard history
 - **Site logos**: web rows show the real favicon of the site (Netflix, Crunchyroll, Disney+, ...), fetched once and cached locally
-- **Hero themes**: Spider-Man (black and deep red), Batman (black and silver grey), and Fantastic Four (a bright white/pale-blue light theme with the classic FF blue accent and a "4" badge in the menu bar), switchable in Preferences along with the menu bar emblem
+- **Hero themes**: Spider-Man (black and deep red), Batman (black and silver grey), and Iron Man (a warm white light theme with hot-rod red and gold, and a cartoon helmet-and-bust badge in the menu bar), switchable in Preferences along with the menu bar emblem. Typing a hero's name switches themes with a full screen entrance; for Iron Man the armor pieces fly in and assemble
 
 Everything that opens a website prefers [Brave](https://brave.com/); if Brave is not installed, your default browser is used.
 
@@ -83,7 +83,7 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 
 Click the mask icon in the menu bar > Preferences:
 
-- Hero theme (Spider-Man, Batman, Fantastic Four)
+- Hero theme (Spider-Man, Batman, Iron Man)
 - The hotkey that opens Spidey
 - Which streaming services appear for show searches
 - Custom media sites, with a per-site link health dot and a Check Now button
