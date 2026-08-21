@@ -90,3 +90,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - bb96c60 Search learning now rides out Cloudflare walls, learns title links straight from API responses, and runtime searches work on protected sites
 - main is now at: 328a62e (build succeeded, app relaunched)
+
+## 2026-08-20 17:55 - OK - claude/movie-search-visibility-311aed
+- "Sites behind bot-protection walls are detected and open in Brave with the search copied to paste, instead of failing silently"
+- merged commits:
+  - 08352f8 Sites behind bot-protection walls are detected and open in Brave with the search copied to paste, instead of failing silently
+- main is now at: c9a5a9a (build succeeded, app relaunched)
