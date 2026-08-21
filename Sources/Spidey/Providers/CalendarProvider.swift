@@ -179,7 +179,7 @@ enum CalendarProvider {
         }
         let title: String
         if let due = parsed.due {
-            title = "Reminder: \(parsed.task) \u{2014} \(dueDescription(due))"
+            title = "Reminder: \(parsed.task) - \(dueDescription(due))"
         } else {
             title = "Reminder: \(parsed.task)"
         }
@@ -240,7 +240,7 @@ enum CalendarProvider {
         guard Bundle.main.bundleIdentifier != nil else {
             return ResultItem(
                 title: "\(feature) requires the bundled app",
-                subtitle: "Run make app \u{2014} a bare swift build binary can't be granted \(kind) access",
+                subtitle: "Run make app - a bare swift build binary can't be granted \(kind) access",
                 icon: .symbol("shippingbox"),
                 score: 950,
                 action: {}
@@ -258,7 +258,7 @@ enum CalendarProvider {
         case .denied, .restricted:
             return ResultItem(
                 title: "\(feature): \(kind) access denied",
-                subtitle: "Return opens Privacy settings \u{2014} enable the app, then try again",
+                subtitle: "Return opens Privacy settings - enable the app, then try again",
                 icon: .symbol("lock.shield"),
                 score: 950,
                 action: { openPrivacySettings(type) }
@@ -269,7 +269,7 @@ enum CalendarProvider {
             if hasAccess(type) { return nil }
             return ResultItem(
                 title: "\(feature): needs full \(kind) access",
-                subtitle: "Return opens Privacy settings \u{2014} switch to Full Access, then try again",
+                subtitle: "Return opens Privacy settings - switch to Full Access, then try again",
                 icon: .symbol("lock.shield"),
                 score: 950,
                 action: { openPrivacySettings(type) }

@@ -1,8 +1,28 @@
 # Spidey
 
+[![CI](https://github.com/tptresh/spidey/actions/workflows/ci.yml/badge.svg)](https://github.com/tptresh/spidey/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/tptresh/spidey?sort=semver&label=release)](https://github.com/tptresh/spidey/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-lightgrey)
+![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-orange)
+
 An open source, superhero-themed launcher for macOS, inspired by [Alfred](https://www.alfredapp.com/) and Spotlight. Press your hotkey, type, and go.
 
 Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
+
+<p align="center">
+  <img src="docs/screenshots/panel.png" width="760" alt="The Spidey panel, empty and waiting for a query">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/show-search.png" width="380" alt="Typing a show name offers it on Netflix, Crunchyroll, Prime Video and Disney+">
+  <img src="docs/screenshots/color.png" width="380" alt="A hex code shows a live swatch with hex, RGB and HSL rows">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/convert.png" width="380" alt="100 usd to gbp converts with cached daily rates">
+  <img src="docs/screenshots/theme-sharingan.png" width="380" alt="The Sharingan theme in black and red">
+</p>
 
 ## Features
 
@@ -23,7 +43,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Large type**: `large <text>` or `lt <text>` fills the screen with the text; any key or click dismisses it
 - **System commands**: sleep, lock, restart, shut down, log out, empty trash, screen saver, eject (destructive ones ask for a confirming second Return)
 - **Quit and force-kill**: `quit chrome` asks an app to quit; `kill chrome` force-quits it, and `kill node` also reaches background processes by name
-- **Music controls**: `play`, `pause`, `play pause` (toggle), `next`/`skip`, `prev`/`back`, and `now playing` control whichever of Spotify or Music is running (one row per app if both are); `now playing` shows the current track and Return copies "track — artist"; with neither running, `play` offers to launch whichever is installed. First use triggers the standard macOS Automation prompt
+- **Music controls**: `play`, `pause`, `play pause` (toggle), `next`/`skip`, `prev`/`back`, and `now playing` control whichever of Spotify or Music is running (one row per app if both are); `now playing` shows the current track and Return copies "track - artist"; with neither running, `play` offers to launch whichever is installed. First use triggers the standard macOS Automation prompt
 - **Window snapping**: `left half`, `right half`, quarters, `maximize`, `minimize`, `center` move the front window, and `full screen` toggles real macOS full screen (one-time Accessibility permission; the row walks you through granting it)
 - **Menu search**: `menu export` searches the front app's menu bar and runs the matching item (Accessibility permission)
 - **Window switcher**: `win mail` lists on-screen windows across apps and raises the one you pick; strong title matches also appear on plain queries
@@ -59,16 +79,30 @@ Everything that opens a website prefers [Brave](https://brave.com/); if Brave is
 
 ## Install
 
+### Download a build
+
+Grab the latest `Sidekick.zip` from [Releases](https://github.com/tptresh/spidey/releases/latest), unzip it, and move `Sidekick.app` to /Applications.
+
+Builds are ad-hoc signed rather than notarized, so macOS quarantines the download and refuses to open it until you clear that flag once:
+
+```
+xattr -dr com.apple.quarantine /Applications/Sidekick.app
+```
+
+### Or build it yourself
+
 Requires macOS 13+ and Xcode (or the Command Line Tools with a Swift 5.9+ toolchain).
 
 ```
-git clone <this repo>
-cd Spidey
+git clone https://github.com/tptresh/spidey.git
+cd spidey
 make app
 open build/Sidekick.app
 ```
 
 Optional: copy `build/Sidekick.app` into /Applications and enable "Launch Spidey at login" in Preferences.
+
+There is no menu bar window on first launch beyond the emblem: Sidekick is a background agent, so it lives in the menu bar and opens on the hotkey.
 
 ## The Cmd+Space hotkey
 
@@ -116,7 +150,7 @@ it in Finder. Non-executable files are ignored (`chmod +x` to enable one), and
 the folder is rescanned automatically whenever its contents change.
 
 Typing `<keyword> [args...]` shows a single **Run** row. Because scripts can be
-slow, nothing executes while you type — the script runs only when you press
+slow, nothing executes while you type; the script runs only when you press
 Return. Arguments are split on spaces and passed as `argv` directly to the file
 (never through a shell, so there is no quoting or injection to worry about; a
 shebang line like `#!/bin/bash` or `#!/usr/bin/env python3` picks the
@@ -126,13 +160,13 @@ Finder instead of running it.
 
 When the script finishes, Spidey posts a notification and acts on the output:
 
-1. **JSON mode** — if stdout parses as
+1. **JSON mode**: if stdout parses as
    `{"items": [{"title": "...", "subtitle": "...", "arg": "...", "action": "copy"}]}`,
    the first item is acted on: `"action": "copy"` (the default) puts `arg` on the
    clipboard, `"action": "open"` opens `arg` as a URL or file path. `arg`
    defaults to the title. The notification summarizes the first item and how
    many more the script returned.
-2. **Plain mode** — otherwise the full stdout is copied to the clipboard and the
+2. **Plain mode**: otherwise the full stdout is copied to the clipboard and the
    notification shows its first line.
 
 A non-zero exit shows a failure notification with the first line of stderr; a
@@ -154,7 +188,7 @@ list.
 
 Spidey learns from what you pick. Every time you run a result, it remembers the
 query you typed and the result you chose; next time, that result rises toward the
-top — strongly for the same or a prefix of that query, mildly everywhere for
+top, strongly for the same or a prefix of that query and mildly everywhere for
 things you use a lot. Recency matters (Mozilla-style frecency: picks within the
 hour count 4x, today 2x, this week 1x, older 0.5x), so old habits fade on their
 own. History lives in `~/Library/Application Support/Spidey/usage.json`
@@ -174,7 +208,7 @@ shorthand:
 ```
 
 When you type an alias (or start your query with it), the app it names is scored
-as an exact match. The file is re-read automatically whenever it changes — no
+as an exact match. The file is re-read automatically whenever it changes, no
 restart needed.
 
 ## Permissions & setup
@@ -206,6 +240,27 @@ make icon          # regenerate Resources/AppIcon.icns
 Only one Sidekick runs at a time: a launching copy terminates any older one, because two instances would each claim the menu bar item and the global hotkey. `make app` refuses to run in a git worktree for the same reason - a second bundle with the same bundle id is what lets macOS start a stale copy alongside the real app.
 
 Dev flags: `Spidey --show "query"` opens the panel on launch; `Spidey --snapshot <dir>` renders sample panels to PNGs and exits.
+
+## Themes
+
+<p align="center">
+  <img src="docs/screenshots/theme-batman.png" width="600" alt="The Batman theme in black and silver grey">
+</p>
+
+Type a hero's name to switch themes, or pick one in Preferences. Each theme sets the panel colours and the menu bar emblem, and switching plays a full screen entrance.
+
+## Contributing
+
+Bug reports, fixes, new providers, and additions to the website directory are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), which covers how the query engine and providers fit together and what the house rules are.
+
+- [Report a bug](https://github.com/tptresh/spidey/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/tptresh/spidey/issues/new?template=feature_request.yml)
+- [Report a security issue privately](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+
+## Changelog
+
+Every change that reaches the app is recorded in [SHIPLOG.md](SHIPLOG.md), newest at the bottom, with the commit it landed as. Tagged builds and their notes are on the [Releases](https://github.com/tptresh/spidey/releases) page.
 
 ## Disclaimer
 

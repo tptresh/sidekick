@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Swift version
+        run: swift --version
+
+      # The same two entry points the README documents, so CI and a fresh
+      # checkout cannot drift apart.
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+  house-rules:
+    name: House rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The UI must never show an em dash (see CONTRIBUTING.md). Every
+      # user-visible string lives under Sources/, and the character is built
+      # with printf so this file never contains one itself.
+      - name: No em dashes in user-visible strings
+        run: |
+          emdash=$(printf '\342\200\224')
+          fail=0
+          if git grep -nI -e "$emdash" -- Sources; then fail=1; fi
+          # The same character written as a Swift escape reads straight past
+          # the line above. EpisodeParser is the one legitimate use: it strips
+          # separators, em dash included, out of show titles.
+          if git grep -nI -e 'u{2014}' -- Sources \
+            ':!Sources/Spidey/Services/EpisodeParser.swift'; then fail=1; fi
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Em dash (U+2014) found under Sources/. Use a plain hyphen or rewrite the sentence."
+            exit 1
+          fi
