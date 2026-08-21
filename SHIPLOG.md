@@ -210,3 +210,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 99d548c Keep the tomoe in Sasuke's eye their proper comma shape while it spins, instead of stretching them as they come round
 - main is now at: 6c295ed (build succeeded, app relaunched)
+
+## 2026-08-20 22:41 - OK - claude/sasuke-theme-icon-f6eb90
+- "Show the actual purple Rinnegan next to the search field in the Sasuke theme, instead of the flat menu-bar badge"
+- merged commits:
+  - 91c2d53 Show the actual purple Rinnegan next to the search field in the Sasuke theme, instead of the flat menu-bar badge
+- main is now at: 75655f0 (build succeeded, app relaunched)
