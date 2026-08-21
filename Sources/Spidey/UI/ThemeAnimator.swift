@@ -299,7 +299,7 @@ private struct SharinganAwakenView: View {
         self.size = size
         self.applyTheme = applyTheme
         self.finished = finished
-        let headWidth = min(size.width, size.height) * 0.48
+        let headWidth = min(size.width, size.height) * 0.56
         headSide = headWidth * 18 / SasukeArt.headWidthUnits
         // The head sits in the top half of its 18 unit box, so it is centred on
         // its own head centre; every landmark shifts by the same amount.

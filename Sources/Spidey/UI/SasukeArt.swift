@@ -13,11 +13,11 @@ enum SasukeArt {
     // Landmarks inside the 18 unit emblem box, y already flipped for SwiftUI.
     // The head fills only the top half of that box, since the rest of it holds
     // the body, so callers centre on headCentre rather than on the box.
-    static let sharinganEye = CGPoint(x: 7.9, y: 5.0)
-    static let rinneganEye = CGPoint(x: 10.1, y: 5.0)
-    static let headCentre = CGPoint(x: 9.15, y: 4.15)
-    static let headWidthUnits: CGFloat = 12.3
-    static let irisUnits: CGFloat = 1.5
+    static let sharinganEye = CGPoint(x: 8.15, y: 6.0)
+    static let rinneganEye = CGPoint(x: 9.85, y: 6.0)
+    static let headCentre = CGPoint(x: 9.3, y: 5.0)
+    static let headWidthUnits: CGFloat = 11.8
+    static let irisUnits: CGFloat = 1.45
 }
 
 // NSBezierPath.cgPath needs macOS 14, so walk the elements by hand. The 18x18
@@ -55,6 +55,18 @@ struct SasukeHairShape: Shape {
 struct SasukeFaceShape: Shape {
     func path(in rect: CGRect) -> Path {
         flipped(StatusIcons.sasukeFacePath(), unit: rect.width / 18)
+    }
+}
+
+// The open front of his collar.
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -164,6 +176,9 @@ struct SasukeHeadView: View {
 
     var body: some View {
         ZStack {
+            // A hint of his collar, so the portrait reads as a bust rather than
+            // a head floating with its bangs hanging off the bottom.
+            shoulders
             SasukeFaceShape().fill(SasukeArt.skin)
             // Both eyes as the figure paints them: a Sharingan on one side, a
             // Rinnegan on the other, sitting straight on the skin.
@@ -173,7 +188,6 @@ struct SasukeHeadView: View {
             eye(at: SasukeArt.rinneganEye, lit: false, tint: SasukeArt.rinneganPurple) {
                 RinneganDisc(diameter: SasukeArt.irisUnits * unit)
             }
-            nose
             mouth
             // Under the hair, so the fringe overlaps the inner ends of the brows.
             brows
@@ -192,10 +206,24 @@ struct SasukeHeadView: View {
                     style: FillStyle(eoFill: true)
                 )
             SasukeHairShape()
-                .stroke(Color(red: 0.416, green: 0.376, blue: 0.529).opacity(0.55),
-                        lineWidth: 0.16 * unit)
+                .stroke(Color(red: 0.416, green: 0.376, blue: 0.529).opacity(0.4),
+                        lineWidth: 0.1 * unit)
         }
         .frame(width: side, height: side)
+    }
+
+    // The wrap top, open at the chest, running off the bottom of the frame.
+    private var shoulders: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 2.2 * unit)
+                .fill(Color(red: 0.608, green: 0.561, blue: 0.749))
+                .frame(width: 9.4 * unit, height: 6.4 * unit)
+            Triangle()
+                .fill(SasukeArt.skin)
+                .frame(width: 2.0 * unit, height: 1.6 * unit)
+                .offset(y: -2.4 * unit)
+        }
+        .position(x: 9.0 * unit, y: 11.9 * unit)
     }
 
     private func eye<Disc: View>(
@@ -209,28 +237,21 @@ struct SasukeHeadView: View {
             .position(x: centre.x * unit, y: centre.y * unit)
     }
 
-    // A soft shadow for the nose and a flat, unimpressed mouth.
-    private var nose: some View {
-        Capsule()
-            .fill(Color(red: 0.78, green: 0.63, blue: 0.55))
-            .frame(width: 0.30 * unit, height: 0.55 * unit)
-            .position(x: 9.0 * unit, y: 5.9 * unit)
-    }
-
+    // The flat, unimpressed line he wears instead of an expression.
     private var mouth: some View {
         Capsule()
             .fill(Color(red: 0.60, green: 0.40, blue: 0.38))
-            .frame(width: 1.5 * unit, height: 0.22 * unit)
-            .position(x: 9.0 * unit, y: 6.6 * unit)
+            .frame(width: 1.1 * unit, height: 0.19 * unit)
+            .position(x: 9.0 * unit, y: 7.4 * unit)
     }
 
     private var brows: some View {
         ForEach([false, true], id: \.self) { mirrored in
             Capsule()
                 .fill(SasukeArt.hair)
-                .frame(width: 1.6 * unit, height: 0.24 * unit)
-                .rotationEffect(.degrees(mirrored ? -8 : 8))
-                .position(x: (mirrored ? 18 - 7.9 : 7.9) * unit, y: 4.05 * unit)
+                .frame(width: 1.4 * unit, height: 0.22 * unit)
+                .rotationEffect(.degrees(mirrored ? -10 : 10))
+                .position(x: (mirrored ? 18 - 8.15 : 8.15) * unit, y: 4.9 * unit)
         }
     }
 }

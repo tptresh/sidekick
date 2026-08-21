@@ -39,162 +39,129 @@ enum StatusIcons {
         }
     }
 
-    // Sasuke standing in miniature: an oversized spiky head over a small
-    // body with one hand on his hip. The hair is a solid silhouette with the
-    // face knocked out of it and the eyes filled back in, so the figure keeps
-    // its shape at menu bar size and still works as a template image.
+    // Sasuke as a chibi figure: a wide mass of hair over a small body with one
+    // hand on his hip. The hair is a solid silhouette with the face knocked out
+    // of it and the eyes filled back in, so the figure keeps its shape at menu
+    // bar size and still works as a template image.
     private static func drawSasukeFigure() {
-        // Filled separately rather than as one even-odd path: the arms overlap
-        // the torso, and even-odd would punch holes where they cross.
-        sasukeBodyPaths().forEach { $0.fill() }
+        // Torso and sandals are filled; the arms and legs are stroked with round
+        // caps, so the limbs come out as soft capsules instead of hand-built
+        // outlines with hard corners.
+        NSBezierPath(roundedRect: NSRect(x: 6.8, y: 6.4, width: 4.4, height: 3.4), xRadius: 0.75, yRadius: 0.75).fill()
+        for sandal in sasukeSandalPaths() { sandal.fill() }
+        for limb in sasukeLimbPaths() {
+            limb.path.lineWidth = limb.width
+            limb.path.lineCapStyle = .round
+            limb.path.lineJoinStyle = .round
+            limb.path.stroke()
+        }
 
-        // The face and eyes must sit wholly inside the hair outline: even-odd
-        // counts nesting, so any part that strays outside fills instead of
-        // cutting.
-        let head = NSBezierPath()
-        head.windingRule = .evenOdd
-        head.append(sasukeHairPath())
-        head.append(sasukeFacePath())
-        for eye in sasukeEyePaths() { head.append(eye) }
-        head.fill()
+        // Non-zero, not even-odd: neighbouring spikes overlap where the hair
+        // sweeps, and even-odd would punch holes through them.
+        let hair = sasukeHairPath()
+        hair.windingRule = .nonZero
+        hair.fill()
 
+        // Only the eyes and the belt are cut out. Knocking the whole face out
+        // leaves a pale mask floating in the hair, which reads as a skull rather
+        // than as him; a solid figure with two lit eyes keeps the shape bold.
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         context.setBlendMode(.destinationOut)
-        for seam in sasukeSeamPaths() {
-            seam.lineWidth = 0.4
-            seam.lineCapStyle = .round
-            seam.stroke()
-        }
+        sasukeEyePaths().forEach { $0.fill() }
+        let belt = NSBezierPath()
+        belt.move(to: NSPoint(x: 6.8, y: 6.6))
+        belt.line(to: NSPoint(x: 11.2, y: 6.6))
+        belt.lineWidth = 0.4
+        belt.stroke()
         context.restoreGState()
+
+        // The knot he ties the rope belt with, put back over the cut line.
+        NSBezierPath(ovalIn: NSRect(x: 8.5, y: 6.1, width: 1.0, height: 1.0)).fill()
     }
 
-    // The whole head: a rounded jaw under a crown of spikes, with the two long
-    // bangs dropping past the cheeks.
+    // The head, which is nearly all hair: a big smooth bang framing each side of
+    // the face, and a jagged crown that sweeps up and back to his left.
     static func sasukeHairPath() -> NSBezierPath {
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: 5.8, y: 11.0))
-        path.curve(to: NSPoint(x: 9.0, y: 10.1), controlPoint1: NSPoint(x: 6.0, y: 10.5), controlPoint2: NSPoint(x: 7.4, y: 10.1))
-        path.curve(to: NSPoint(x: 12.2, y: 11.0), controlPoint1: NSPoint(x: 10.6, y: 10.1), controlPoint2: NSPoint(x: 12.0, y: 10.5))
-        // Spikes up the right side, over the crown, and back down the left.
-        let spikes: [NSPoint] = [
-            NSPoint(x: 13.6, y: 12.0), NSPoint(x: 12.6, y: 12.8),
-            NSPoint(x: 15.1, y: 13.3), NSPoint(x: 13.3, y: 14.2),
-            NSPoint(x: 15.3, y: 15.6), NSPoint(x: 12.9, y: 15.6),
-            NSPoint(x: 14.0, y: 17.4), NSPoint(x: 11.5, y: 16.0),
-            NSPoint(x: 10.9, y: 17.9), NSPoint(x: 9.2, y: 16.2),
-            NSPoint(x: 7.4, y: 17.8), NSPoint(x: 6.6, y: 15.8),
-            NSPoint(x: 4.4, y: 16.9), NSPoint(x: 5.5, y: 15.0),
-            NSPoint(x: 3.0, y: 14.5), NSPoint(x: 5.1, y: 13.5),
-            NSPoint(x: 3.4, y: 12.2), NSPoint(x: 5.3, y: 11.8),
+        path.move(to: NSPoint(x: 5.6, y: 8.8))
+        // Up the outside of the near bang to the temple, the widest part.
+        path.curve(to: NSPoint(x: 3.6, y: 12.6), controlPoint1: NSPoint(x: 4.4, y: 10.4), controlPoint2: NSPoint(x: 3.5, y: 11.2))
+        let crown: [NSPoint] = [
+            NSPoint(x: 5.0, y: 13.6), NSPoint(x: 3.4, y: 15.0),
+            NSPoint(x: 5.4, y: 15.4), NSPoint(x: 5.8, y: 17.3),
+            NSPoint(x: 7.4, y: 16.4), NSPoint(x: 8.8, y: 17.8),
+            NSPoint(x: 10.4, y: 16.6), NSPoint(x: 12.2, y: 17.5),
+            NSPoint(x: 12.6, y: 15.7), NSPoint(x: 14.8, y: 15.2),
+            NSPoint(x: 13.6, y: 13.8), NSPoint(x: 15.2, y: 12.4),
+            NSPoint(x: 13.4, y: 11.6),
         ]
-        for point in spikes { path.line(to: point) }
+        for point in crown { path.line(to: point) }
+        // Down the outside of the far bang.
+        path.curve(to: NSPoint(x: 12.4, y: 8.8), controlPoint1: NSPoint(x: 13.3, y: 10.4), controlPoint2: NSPoint(x: 13.0, y: 9.6))
+        // The jaw arcs up between the bang tips, so the bangs hang past it and
+        // over his collar the way they do on the figure.
+        path.curve(to: NSPoint(x: 5.6, y: 8.8), controlPoint1: NSPoint(x: 11.4, y: 10.0), controlPoint2: NSPoint(x: 6.6, y: 10.0))
         path.close()
         return path
     }
 
-    // The opening the face shows through: bangs down each side and a fringe
-    // that parts in the middle and dips between the eyes.
+    // The opening his face shows through when the head is drawn in colour for
+    // the theme entrance: full cheeks down to a soft chin, with his centre
+    // parting dipping between the eyes. The menu bar figure stays solid, so
+    // this shape is cut for the portrait rather than for the silhouette.
     static func sasukeFacePath() -> NSBezierPath {
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: 6.5, y: 11.4))
-        path.line(to: NSPoint(x: 6.9, y: 13.4))
-        path.line(to: NSPoint(x: 7.7, y: 15.4))
-        path.line(to: NSPoint(x: 9.0, y: 14.5))
-        path.line(to: NSPoint(x: 10.3, y: 15.4))
-        path.line(to: NSPoint(x: 11.1, y: 13.4))
-        path.line(to: NSPoint(x: 11.5, y: 11.4))
-        path.curve(to: NSPoint(x: 6.5, y: 11.4), controlPoint1: NSPoint(x: 11.0, y: 10.8), controlPoint2: NSPoint(x: 7.0, y: 10.8))
+        path.move(to: NSPoint(x: 6.7, y: 13.4))
+        path.curve(to: NSPoint(x: 9.0, y: 10.1), controlPoint1: NSPoint(x: 6.6, y: 11.8), controlPoint2: NSPoint(x: 7.5, y: 10.1))
+        path.curve(to: NSPoint(x: 11.3, y: 13.4), controlPoint1: NSPoint(x: 10.5, y: 10.1), controlPoint2: NSPoint(x: 11.4, y: 11.8))
+        path.line(to: NSPoint(x: 10.7, y: 14.1))
+        path.line(to: NSPoint(x: 9.0, y: 13.2))
+        path.line(to: NSPoint(x: 7.3, y: 14.1))
         path.close()
         return path
     }
 
-    // Narrow eyes set low on the face, slanting down toward the nose.
+    // Angled almond eyes, big the way a chibi's are but still slanting down
+    // toward his nose. No mouth: a dark one on a light face turns into a skull
+    // once the figure is down at menu bar size.
     static func sasukeEyePaths() -> [NSBezierPath] {
-        func eye(mirrored: Bool) -> NSBezierPath {
+        [false, true].map { mirrored in
             func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
                 NSPoint(x: mirrored ? 18 - x : x, y: y)
             }
             let path = NSBezierPath()
-            path.move(to: point(7.1, 13.5))
-            path.line(to: point(8.6, 13.1))
-            path.line(to: point(8.7, 12.5))
-            path.line(to: point(7.2, 12.6))
+            path.move(to: point(7.45, 12.4))
+            path.curve(to: point(8.8, 11.75), controlPoint1: point(8.0, 13.2), controlPoint2: point(8.6, 12.5))
+            path.curve(to: point(7.45, 12.4), controlPoint1: point(8.4, 11.2), controlPoint2: point(7.6, 11.4))
             path.close()
             return path
         }
-        return [eye(mirrored: false), eye(mirrored: true)]
     }
 
-    // Torso, trousers, sandals and both arms, the near one cocked on his hip.
-    static func sasukeBodyPaths() -> [NSBezierPath] {
-        let torso = NSBezierPath()
-        torso.move(to: NSPoint(x: 6.0, y: 10.6))
-        torso.line(to: NSPoint(x: 12.0, y: 10.6))
-        torso.line(to: NSPoint(x: 12.3, y: 5.3))
-        torso.line(to: NSPoint(x: 5.7, y: 5.3))
-        torso.close()
-
-        let trousers = NSBezierPath()
-        trousers.move(to: NSPoint(x: 5.8, y: 5.4))
-        trousers.line(to: NSPoint(x: 12.2, y: 5.4))
-        trousers.line(to: NSPoint(x: 11.9, y: 1.5))
-        trousers.line(to: NSPoint(x: 6.1, y: 1.5))
-        trousers.close()
-
-        let sandals = [false, true].map { mirrored -> NSBezierPath in
-            let x: CGFloat = mirrored ? 9.5 : 5.1
-            return NSBezierPath(roundedRect: NSRect(x: x, y: 0.3, width: 3.4, height: 1.3), xRadius: 0.5, yRadius: 0.5)
+    // His sandals. The legs are stroked down into these, so the join is hidden.
+    static func sasukeSandalPaths() -> [NSBezierPath] {
+        [false, true].map { mirrored in
+            let x: CGFloat = mirrored ? 9.2 : 6.1
+            return NSBezierPath(roundedRect: NSRect(x: x, y: 0.5, width: 2.7, height: 1.3), xRadius: 0.45, yRadius: 0.45)
         }
-
-        // Hand on the hip: the forearm cuts back in to the waist, leaving a
-        // wedge of daylight that gives the pose away at a glance.
-        let hipArm = NSBezierPath()
-        hipArm.move(to: NSPoint(x: 6.0, y: 10.5))
-        hipArm.line(to: NSPoint(x: 4.5, y: 9.7))
-        hipArm.line(to: NSPoint(x: 3.3, y: 7.6))
-        hipArm.line(to: NSPoint(x: 3.7, y: 5.9))
-        hipArm.line(to: NSPoint(x: 5.2, y: 5.0))
-        hipArm.line(to: NSPoint(x: 6.4, y: 5.5))
-        hipArm.line(to: NSPoint(x: 5.4, y: 6.2))
-        hipArm.line(to: NSPoint(x: 4.5, y: 7.5))
-        hipArm.line(to: NSPoint(x: 5.1, y: 9.1))
-        hipArm.close()
-
-        let hangingArm = NSBezierPath()
-        hangingArm.move(to: NSPoint(x: 12.0, y: 10.5))
-        hangingArm.line(to: NSPoint(x: 13.3, y: 9.7))
-        hangingArm.line(to: NSPoint(x: 13.6, y: 6.3))
-        hangingArm.line(to: NSPoint(x: 13.4, y: 4.4))
-        hangingArm.line(to: NSPoint(x: 12.5, y: 4.4))
-        hangingArm.line(to: NSPoint(x: 12.6, y: 6.3))
-        hangingArm.line(to: NSPoint(x: 12.3, y: 9.7))
-        hangingArm.close()
-
-        return [torso, trousers] + sandals + [hipArm, hangingArm]
     }
 
-    // Knocked out of the silhouette: the shirt collar, the sash at his waist,
-    // the gap beside the hanging arm, and the split between the legs.
-    static func sasukeSeamPaths() -> [NSBezierPath] {
-        let collar = NSBezierPath()
-        collar.move(to: NSPoint(x: 8.0, y: 10.6))
-        collar.line(to: NSPoint(x: 9.0, y: 9.7))
-        collar.line(to: NSPoint(x: 10.0, y: 10.6))
-
-        let sash = NSBezierPath()
-        sash.move(to: NSPoint(x: 5.8, y: 5.4))
-        sash.line(to: NSPoint(x: 12.2, y: 5.4))
-
-        let armGap = NSBezierPath()
-        armGap.move(to: NSPoint(x: 12.3, y: 10.0))
-        armGap.line(to: NSPoint(x: 12.5, y: 5.5))
-
-        let legs = NSBezierPath()
-        legs.move(to: NSPoint(x: 9.0, y: 1.6))
-        legs.line(to: NSPoint(x: 9.0, y: 4.1))
-
-        return [collar, sash, armGap, legs]
+    // Stubby capsule limbs. The near arm bends out and back in to his hip,
+    // leaving a wedge of daylight that gives the pose away at a glance.
+    static func sasukeLimbPaths() -> [(path: NSBezierPath, width: CGFloat)] {
+        func line(_ points: [NSPoint]) -> NSBezierPath {
+            let path = NSBezierPath()
+            path.move(to: points[0])
+            for point in points.dropFirst() { path.line(to: point) }
+            return path
+        }
+        return [
+            (line([NSPoint(x: 7.7, y: 6.8), NSPoint(x: 7.7, y: 2.1)]), 1.9),
+            (line([NSPoint(x: 10.3, y: 6.8), NSPoint(x: 10.3, y: 2.1)]), 1.9),
+            (line([NSPoint(x: 6.9, y: 9.3), NSPoint(x: 4.9, y: 8.0), NSPoint(x: 6.5, y: 6.8)]), 1.1),
+            (line([NSPoint(x: 11.1, y: 9.3), NSPoint(x: 12.4, y: 8.0), NSPoint(x: 12.4, y: 6.7)]), 1.1),
+        ]
     }
 
     // Line-art mask like the classic emblem: stroked rim, thin web, solid eyes.
