@@ -97,12 +97,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let originalTheme = settings.theme
         ThemeAnimator.shared.play(theme)
-        for (index, delay) in [0.35, 0.75, 1.1, 1.5, 1.9, 2.3].enumerated() {
+        for (index, delay) in [0.35, 0.75, 1.1, 1.5, 1.9, 2.3, 2.7, 3.1].enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 ThemeAnimator.shared.captureFrame(to: directory + "/\(theme.rawValue)-\(index).png")
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { [weak self] in
             self?.settings.theme = originalTheme
             NSApp.terminate(nil)
         }
@@ -124,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ("vinted", .spiderman, "sites.png"),
             ("netflix", .spiderman, "netflix.png"),
             ("grand seiko", .batman, "batman.png"),
+            ("sharingan", .sharingan, "sharingan.png"),
             ("100 usd to gbp", .spiderman, "convert.png"),
             ("5km in miles", .spiderman, "units.png"),
             ("time in tokyo", .spiderman, "worldclock.png"),
