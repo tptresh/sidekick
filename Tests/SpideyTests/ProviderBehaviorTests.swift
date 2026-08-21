@@ -120,3 +120,27 @@ final class ShellRunTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 5)
     }
 }
+
+final class WindowSnapMatchingTests: XCTestCase {
+    // "full screen" and "maximize" are different commands: one enters the real
+    // macOS full screen, the other only fills the screen.
+    func testFullScreenQueryDoesNotOfferMaximize() {
+        let titles = WindowProvider.results(for: "fullscreen").map(\.title)
+        XCTAssertTrue(titles.contains { $0.contains("Full Screen") })
+        XCTAssertFalse(titles.contains { $0.contains("Maximize") })
+    }
+
+    func testMaximizeQueryDoesNotOfferFullScreen() {
+        let titles = WindowProvider.results(for: "maximize").map(\.title)
+        XCTAssertTrue(titles.contains { $0.contains("Maximize") })
+        XCTAssertFalse(titles.contains { $0.contains("Full Screen") })
+    }
+
+    func testFullScreenSnapUsesTheFullScreenAction() {
+        let snap = WindowProvider.snaps.first { $0.title == "Full Screen" }
+        XCTAssertNotNil(snap)
+        if case .fullScreen = snap!.action {} else {
+            XCTFail("Full Screen must toggle native full screen, not set a frame")
+        }
+    }
+}
