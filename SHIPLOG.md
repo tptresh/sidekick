@@ -192,3 +192,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 4a13791 Searching the web now ranks above the guessed homepage, so a query with no obvious site leads with the search instead of an address that may not exist
 - main is now at: 481ecd0 (build succeeded, app relaunched)
+
+## 2026-08-20 22:31 - OK - claude/google-brave-icon-664463
+- "The web search row now shows the Brave icon instead of Google's, matching the browser it opens in"
+- merged commits:
+  - 134dbf9 The web search row now shows the Brave icon instead of Google's, matching the browser it opens in
+- main is now at: 0714ec9 (build succeeded, app relaunched)
