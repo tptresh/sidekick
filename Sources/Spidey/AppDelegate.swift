@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registerHotKey()
         _ = AppProvider.shared
         FileProvider.warmUp()
+        ContactIndex.shared.warmUp()
         LinkChecker.shared.startAutomaticChecks()
 
         viewModel.onHide = { [weak self] in self?.hidePanel() }
