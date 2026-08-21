@@ -247,3 +247,10 @@ last worked, and inspect its listed commit hashes with `git show`.
 - unmerged commits:
   - abf61f7 New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan
 - fix: in the worktree run 'git merge main', resolve the conflicts, commit, then re-run scripts/ship.sh
+
+## 2026-08-20 23:39 - OK - claude/sharingan-theme-animation-632707
+- "New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan"
+- merged commits:
+  - 94013b5 Merge main into sharingan theme branch
+  - abf61f7 New Sharingan theme in black and red: the eye itself is the icon, and its entrance turns the moon behind Itachi's pole into a spinning Sharingan
+- main is now at: e8af0a8 (build succeeded, app relaunched)
