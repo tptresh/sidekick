@@ -5,12 +5,14 @@ enum HeroTheme: String, CaseIterable, Codable {
     case spiderman
     case batman
     case sasuke
+    case sharingan
 
     var displayName: String {
         switch self {
         case .spiderman: return "Spider-Man"
         case .batman: return "Batman"
         case .sasuke: return "Sasuke"
+        case .sharingan: return "Sharingan"
         }
     }
 
@@ -18,7 +20,8 @@ enum HeroTheme: String, CaseIterable, Codable {
         switch self {
         case .spiderman: return "Spidey Search"
         case .batman: return "Explore the Cave"
-        case .sasuke: return "Awaken the Sharingan"
+        case .sasuke: return "Open the Rinnegan"
+        case .sharingan: return "Awaken the Sharingan"
         }
     }
 
@@ -26,7 +29,7 @@ enum HeroTheme: String, CaseIterable, Codable {
     // colors for a dark backdrop (text fields, blur materials) branch on this.
     var isLight: Bool {
         switch self {
-        case .spiderman, .batman: return false
+        case .spiderman, .batman, .sharingan: return false
         case .sasuke: return true
         }
     }
@@ -65,6 +68,18 @@ enum HeroTheme: String, CaseIterable, Codable {
                 textPrimary: Color(red: 0.137, green: 0.125, blue: 0.161),
                 textSecondary: Color(red: 0.412, green: 0.396, blue: 0.459),
                 fieldOutline: Color(red: 0.494, green: 0.400, blue: 0.549)
+            )
+        case .sharingan:
+            // Pure black with the blood red of the eye itself: a hotter, more
+            // saturated red than Spider-Man's, so the two dark red themes stay
+            // told apart at a glance.
+            return ThemePalette(
+                background: Color(red: 0.035, green: 0.020, blue: 0.024),
+                backgroundTop: Color(red: 0.098, green: 0.035, blue: 0.043),
+                accent: Color(red: 0.847, green: 0.110, blue: 0.161),
+                textPrimary: Color(red: 0.976, green: 0.941, blue: 0.937),
+                textSecondary: Color(red: 0.663, green: 0.514, blue: 0.522),
+                fieldOutline: Color(red: 0.741, green: 0.118, blue: 0.165)
             )
         }
     }

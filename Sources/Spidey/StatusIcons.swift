@@ -36,6 +36,8 @@ enum StatusIcons {
             batSymbolPath().fill()
         case .sasuke:
             drawRinnegan()
+        case .sharingan:
+            drawSharingan(color: color)
         }
     }
 
@@ -51,6 +53,68 @@ enum StatusIcons {
         }
         rinneganRing(1.15).fill()
         for tomoe in rinneganTomoePaths() { tomoe.fill() }
+    }
+
+    // The eye itself rather than a badge: a solid iris ringed by a dark rim,
+    // with the pupil and the three tomoe punched clean out of it. Tinted red on
+    // the panel it reads as a Sharingan; as a flat menu bar template the
+    // cutouts still carry the shape.
+    private static func drawSharingan(color: NSColor) {
+        color.setStroke()
+        let rim = rinneganRing(8.2)
+        rim.lineWidth = 0.9
+        rim.stroke()
+        rinneganRing(7.1).fill()
+
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        context.setBlendMode(.destinationOut)
+        rinneganRing(1.75).fill()
+        for tomoe in sharinganTomoePaths() { tomoe.fill() }
+        context.restoreGState()
+    }
+
+    // Three tomoe a third of a turn apart, orbiting the pupil. Bulb and tail
+    // are filled separately: overlapping fills merge whichever way each one
+    // winds, which keeps the comma solid.
+    private static func sharinganTomoePaths() -> [NSBezierPath] {
+        let glyph: CGFloat = 3.9
+        let orbit: CGFloat = 3.65
+        return (0..<3).flatMap { index -> [NSBezierPath] in
+            let transform = NSAffineTransform()
+            transform.translateX(by: 9.0, yBy: 9.0)
+            transform.rotate(byDegrees: CGFloat(index) * 120)
+            transform.translateX(by: -0.32 * glyph, yBy: orbit - 0.32 * glyph)
+            transform.scale(by: glyph)
+            return [tomoeBulbPath(), tomoeTailPath()].map { path in
+                path.transform(using: transform as AffineTransform)
+                return path
+            }
+        }
+    }
+
+    // One tomoe in a unit box, y pointing up: a round bulb centred on
+    // (0.32, 0.32), and a tail that leaves it tangentially at both ends and
+    // sweeps up and over to a point, hooking back in where it rejoins.
+    private static func tomoeBulbPath() -> NSBezierPath {
+        NSBezierPath(ovalIn: NSRect(x: 0.02, y: 0.02, width: 0.60, height: 0.60))
+    }
+
+    private static func tomoeTailPath() -> NSBezierPath {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 0.048, y: 0.447))
+        path.curve(
+            to: NSPoint(x: 1.040, y: 0.920),
+            controlPoint1: NSPoint(x: 0.226, y: 0.827),
+            controlPoint2: NSPoint(x: 0.770, y: 0.830)
+        )
+        path.curve(
+            to: NSPoint(x: 0.619, y: 0.346),
+            controlPoint1: NSPoint(x: 0.811, y: 0.844),
+            controlPoint2: NSPoint(x: 0.652, y: -0.030)
+        )
+        path.close()
+        return path
     }
 
     static func rinneganRing(_ radius: CGFloat) -> NSBezierPath {
