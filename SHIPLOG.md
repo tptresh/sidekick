@@ -260,3 +260,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e1f58a2 The Sharingan theme runs a deeper blood red: darker iris, darker glow and a darker sky behind it, so the eye is the brightest thing in the frame
 - main is now at: a52de97 (build succeeded, app relaunched)
+
+## 2026-08-21 00:24 - OK - claude/spidey-github-setup-ec1abc
+- "Open source scaffolding: CI, release workflow, contributing and security docs, screenshots in the README"
+- merged commits:
+  - 5e60383 Open source scaffolding: CI, release workflow, contributing and security docs, screenshots in the README
+- main is now at: 84bf003 (build succeeded, app relaunched)
