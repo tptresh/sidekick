@@ -204,3 +204,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - c1c3334 Sasuke's entrance is now the anime close-up of his Rinnegan filling the screen, with the tomoe turning in his eye, chakra rolling out of it and more Rinnegan opening around the edges
 - main is now at: d114eb7 (build succeeded, app relaunched)
+
+## 2026-08-20 22:36 - OK - claude/sasuke-theme-replacement-74c118
+- "Keep the tomoe in Sasuke's eye their proper comma shape while it spins, instead of stretching them as they come round"
+- merged commits:
+  - 99d548c Keep the tomoe in Sasuke's eye their proper comma shape while it spins, instead of stretching them as they come round
+- main is now at: 6c295ed (build succeeded, app relaunched)
