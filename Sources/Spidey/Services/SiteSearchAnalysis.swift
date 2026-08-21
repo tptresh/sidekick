@@ -35,6 +35,20 @@ enum SiteSearchAnalysis {
         }
     }
 
+    // The direct route: many search APIs hand back each result's page URL as
+    // a field (nepu.to's /ajax/posts returns "url": "https://nepu.to/movie/
+    // interstellar-2014-173049"). A same-site URL field on the top result is
+    // the title link, no pattern inference needed.
+    static func urlFieldTitleTemplate(searchBody: String, host: String) -> String? {
+        guard let first = firstResultsArray(inJSON: searchBody)?.first else { return nil }
+        for key in first.keys.sorted() {
+            guard let value = first[key] as? String, let url = URL(string: value),
+                  url.host == host, url.path.count > 1 else { continue }
+            return "{r.\(key)}"
+        }
+        return nil
+    }
+
     // Learn how the site links to a title page by correlating the JSON it
     // fetched with the links it rendered: a link like /watch/movie/1288445
     // whose segments match one JSON object's fields ({id: 1288445,
@@ -90,6 +104,14 @@ enum SiteSearchAnalysis {
 
     // Fill a learned title template from one search result object.
     static func fill(titleTemplate: String, result: [String: Any]) -> String? {
+        // A template that is one bare placeholder names a URL field; its
+        // value is already the finished link.
+        if titleTemplate.range(
+            of: #"^\{r\.[A-Za-z0-9_]+\}$"#, options: .regularExpression
+        ) != nil {
+            let key = String(titleTemplate.dropFirst(3).dropLast(1))
+            return result[key] as? String
+        }
         var filled = titleTemplate
         while let range = filled.range(of: #"\{r\.[A-Za-z0-9_]+\}"#, options: .regularExpression) {
             let key = String(filled[range].dropFirst(3).dropLast(1))
@@ -195,18 +217,27 @@ enum SiteSearchOpener {
             openHomepage()
             return
         }
-        var request = URLRequest(url: url, timeoutInterval: 8)
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { data, _, _ in
-            guard let data, let text = String(data: data, encoding: .utf8),
+        let openFromBody = { (text: String?) -> Bool in
+            guard let text,
                   let top = SiteSearchAnalysis.firstResultsArray(inJSON: text)?.first,
                   let filled = SiteSearchAnalysis.fill(titleTemplate: titleTemplate, result: top),
                   let titleURL = URL(string: filled)
-            else {
-                openHomepage()
-                return
-            }
+            else { return false }
             DispatchQueue.main.async { BrowserLauncher.open(titleURL) }
+            return true
+        }
+        // Fast path first; sites behind an anti-bot wall answer a plain
+        // request with a challenge page instead of JSON, and for those the
+        // hidden web view (which holds the clearance cookies) asks again.
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            if openFromBody(data.flatMap { String(data: $0, encoding: .utf8) }) { return }
+            DispatchQueue.main.async {
+                WebViewFetcher.shared.fetchText(url: url) { text in
+                    if !openFromBody(text) { openHomepage() }
+                }
+            }
         }.resume()
     }
 }
