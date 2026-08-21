@@ -65,10 +65,7 @@ struct SearchView: View {
     private func searchBar(palette: ThemePalette) -> some View {
         ZStack(alignment: .trailing) {
             HStack(spacing: 12) {
-                Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
-                    .resizable()
-                    .frame(width: 26, height: 26)
-                    .opacity(0.85)
+                themeGlyph(palette: palette)
                 SearchField(
                     text: $viewModel.query,
                     placeholder: placeholder,
@@ -89,6 +86,20 @@ struct SearchView: View {
                     .foregroundColor(palette.accent)
                     .padding(.trailing, 18)
             }
+        }
+    }
+
+    // Sasuke carries the Rinnegan itself here, purple and ringed, instead of the
+    // flat badge the menu bar has to fall back on at 18 points.
+    @ViewBuilder
+    private func themeGlyph(palette: ThemePalette) -> some View {
+        if settings.theme == .sasuke {
+            RinneganDisc(diameter: 26)
+        } else {
+            Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
+                .resizable()
+                .frame(width: 26, height: 26)
+                .opacity(0.85)
         }
     }
 
