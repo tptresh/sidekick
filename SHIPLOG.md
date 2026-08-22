@@ -284,3 +284,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 384bda3 (build succeeded, app relaunched)
+
+## 2026-08-22 15:54 - OK - claude/time-location-lookup-bug-dc2194
+- "Time lookups understand more cities, abbreviations like HK, and typos like 'new dehli'"
+- merged commits:
+  - a4622f9 Time lookups understand more cities, abbreviations like HK, and typos like 'new dehli'
+- main is now at: bf2c753 (build succeeded, app relaunched)
