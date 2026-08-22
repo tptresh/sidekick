@@ -871,6 +871,68 @@ final class TimeProviderTests: XCTestCase {
         XCTAssertEqual(TimeProvider.matches(for: "tokyo").first, "Asia/Tokyo")
         XCTAssertTrue(TimeProvider.matches(for: "zzzzz").isEmpty)
     }
+
+    func testCitiesTheDatabaseDoesNotNameDirectly() {
+        XCTAssertEqual(TimeProvider.matches(for: "new delhi").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "delhi").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "bangalore").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "hong kong").first, "Asia/Hong_Kong")
+        XCTAssertEqual(TimeProvider.matches(for: "cape town").first, "Africa/Johannesburg")
+    }
+
+    func testAbbreviationsAndInitials() {
+        XCTAssertEqual(TimeProvider.matches(for: "hk").first, "Asia/Hong_Kong")
+        XCTAssertEqual(TimeProvider.matches(for: "kl").first, "Asia/Kuala_Lumpur")
+        XCTAssertEqual(TimeProvider.matches(for: "sf").first, "America/Los_Angeles")
+        XCTAssertEqual(TimeProvider.matches(for: "uk").first, "Europe/London")
+        XCTAssertEqual(TimeProvider.matches(for: "nz").first, "Pacific/Auckland")
+    }
+
+    func testCountryNames() {
+        XCTAssertEqual(TimeProvider.matches(for: "india").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "japan").first, "Asia/Tokyo")
+        XCTAssertEqual(TimeProvider.matches(for: "germany").first, "Europe/Berlin")
+    }
+
+    func testTypos() {
+        XCTAssertEqual(TimeProvider.matches(for: "new dehli").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "dehli").first, "Asia/Kolkata")
+        XCTAssertEqual(TimeProvider.matches(for: "singapre").first, "Asia/Singapore")
+        XCTAssertEqual(TimeProvider.matches(for: "amsterdm").first, "Europe/Amsterdam")
+    }
+
+    func testPunctuationAndAccents() {
+        XCTAssertEqual(TimeProvider.matches(for: "tokyo?").first, "Asia/Tokyo")
+        XCTAssertEqual(TimeProvider.matches(for: "z\u{00FC}rich").first, "Europe/Zurich")
+        XCTAssertEqual(TimeProvider.matches(for: "st. petersburg").first, "Europe/Moscow")
+    }
+
+    func testLabelPrefersWhatWasTyped() {
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "new delhi").first?.label, "New Delhi")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "hk").first?.label, "Hong Kong")
+    }
+
+    func testUniversalTime() {
+        XCTAssertEqual(TimeProvider.matches(for: "utc").first, "UTC")
+        XCTAssertEqual(TimeProvider.matches(for: "gmt").first, "UTC")
+        XCTAssertEqual(TimeProvider.matches(for: "utc").count, 1)
+    }
+
+    func testOnePlaceIsListedOnce() {
+        XCTAssertEqual(TimeProvider.matches(for: "montreal").count, 1)
+        XCTAssertEqual(TimeProvider.matches(for: "portland").first, "America/Los_Angeles")
+        XCTAssertEqual(TimeProvider.matches(for: "houston").count, 1)
+    }
+
+    func testNonsenseStillFindsNothing() {
+        XCTAssertTrue(TimeProvider.matches(for: "qqqqqq").isEmpty)
+        XCTAssertTrue(TimeProvider.matches(for: "asdfghjk").isEmpty)
+    }
+
+    func testResultsForFullQuery() {
+        XCTAssertFalse(TimeProvider.results(for: "time in new dehli").isEmpty)
+        XCTAssertFalse(TimeProvider.results(for: "time in hk").isEmpty)
+    }
 }
 
 final class ColorProviderTests: XCTestCase {
