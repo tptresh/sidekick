@@ -290,3 +290,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - a4622f9 Time lookups understand more cities, abbreviations like HK, and typos like 'new dehli'
 - main is now at: bf2c753 (build succeeded, app relaunched)
+
+## 2026-08-22 18:27 - OK - claude/time-location-lookup-bug-dc2194
+- "Time lookups know every country, so 'time in ghana' and 'time in usa' both answer"
+- merged commits:
+  - ad33498 Time lookups know every country, so 'time in ghana' and 'time in usa' both answer
+- main is now at: 5a29728 (build succeeded, app relaunched)
