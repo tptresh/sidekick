@@ -924,6 +924,49 @@ final class TimeProviderTests: XCTestCase {
         XCTAssertEqual(TimeProvider.matches(for: "houston").count, 1)
     }
 
+    func testEveryCountryAnswers() {
+        for country in TimeProvider.countries {
+            for name in country.names {
+                XCTAssertEqual(TimeProvider.matches(for: name).first, country.zones.first,
+                               "looking up \(name)")
+            }
+            for zone in country.zones {
+                XCTAssertNotNil(TimeZone(identifier: zone), "\(country.name) names zone \(zone)")
+            }
+        }
+    }
+
+    func testCountriesAnswerInTheirOwnName() {
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "ghana").first?.label, "Ghana")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "bhutan").first?.identifier, "Asia/Thimphu")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "france").first?.label, "France")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "uk").first?.label, "United Kingdom")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "holland").first?.label, "Netherlands")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "burma").first?.label, "Myanmar")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "ivory coast").first?.identifier, "Africa/Abidjan")
+    }
+
+    func testCountriesOnSeveralZonesNameTheirCities() {
+        let usa = TimeProvider.rankedMatches(for: "usa")
+        XCTAssertEqual(usa.map(\.label), ["New York", "Chicago", "Los Angeles"])
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "us").first?.identifier, "America/New_York")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "russia").first?.label, "Moscow")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "australia").first?.identifier, "Australia/Sydney")
+    }
+
+    func testCountriesThatLookAlikeStayApart() {
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "niger").first?.label, "Niger")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "nigeria").first?.label, "Nigeria")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "sudan").first?.label, "Sudan")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "south sudan").first?.label, "South Sudan")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "dominica").first?.label, "Dominica")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "dominican republic").first?.label, "Dominican Republic")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "samoa").first?.label, "Samoa")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "american samoa").first?.label, "American Samoa")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "north korea").first?.identifier, "Asia/Pyongyang")
+        XCTAssertEqual(TimeProvider.rankedMatches(for: "south korea").first?.identifier, "Asia/Seoul")
+    }
+
     func testNonsenseStillFindsNothing() {
         XCTAssertTrue(TimeProvider.matches(for: "qqqqqq").isEmpty)
         XCTAssertTrue(TimeProvider.matches(for: "asdfghjk").isEmpty)

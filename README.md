@@ -31,7 +31,8 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **File content search**: `in <phrase>` searches inside file contents (Spotlight full-text), e.g. `in quarterly forecast`
 - **Calculator**: type `2+2*5` and Return copies the result
 - **Unit and currency conversion**: `100 usd to gbp`, `5km in miles`, `72f to c`. Exchange rates are fetched once a day and cached, so currency conversion works offline after the first fetch
-- **World clock**: `time in tokyo` (or `tokyo time`) shows the current time, date, and offset from you
+- **World clock**: `time in tokyo` (or `tokyo time`) shows the current time, date, and offset from you.
+  Every country works too (`time in ghana`), along with abbreviations (`time in hk`) and typos (`time in new dehli`)
 - **Emoji search**: `emoji fire` and Return copies 🔥; searches names and keywords across a curated set
 - **Color tools**: type `#E02128` or `rgb(224, 33, 40)` for a live swatch with hex, RGB, and HSL rows, each one Return-copies
 - **Password generator**: `pw` or `pw 24` shows fresh random passwords (with and without symbols), Return copies one
