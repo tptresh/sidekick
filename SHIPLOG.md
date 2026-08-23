@@ -296,3 +296,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - ad33498 Time lookups know every country, so 'time in ghana' and 'time in usa' both answer
 - main is now at: 5a29728 (build succeeded, app relaunched)
+
+## 2026-08-22 19:14 - OK - claude/phone-ping-consistency-f74535
+- "Ping my phone now waits for Find My to be ready and always plays the sound, instead of sometimes just opening the app"
+- merged commits:
+  - 158c283 Ping my phone now waits for Find My to be ready and always plays the sound, instead of sometimes just opening the app
+- main is now at: 87e1218 (build succeeded, app relaunched)
