@@ -2,12 +2,14 @@ import AppKit
 import ApplicationServices
 import Contacts
 import EventKit
+import UserNotifications
 
 // One launch-time pass that makes every feature usable without the user
 // discovering a missing piece mid-command:
 //  - requests every TCC permission Sidekick's features need (Accessibility,
-//    Contacts, Calendar, Reminders, and the Automation consents for apps that
-//    are already running), instead of each feature prompting on first use.
+//    Contacts, Calendar, Reminders, Notifications, and the Automation consents
+//    for apps that are already running), instead of each feature prompting on
+//    first use.
 //    Rebuilds reset these grants (ad-hoc signing), so the pass runs on every
 //    launch; it only prompts for grants that are actually missing.
 //  - installs the two Homebrew tools some commands shell out to (blueutil for
@@ -156,7 +158,15 @@ final class SetupCenter: ObservableObject {
                 self?.requestEventKit(.reminder) {}
             }
         }
+        requestNotifications()
         primeAutomationConsents()
+    }
+
+    // Timers, script command output, and a Find My ping that could not reach
+    // the device all report through notifications, so ask once here rather
+    // than surprising the user mid-command.
+    private func requestNotifications() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     private func requestContacts(then next: @escaping () -> Void) {
