@@ -176,9 +176,16 @@ final class LinkChecker: ObservableObject {
         store.customMediaSites[index].walledHost = nil
     }
 
+    // A flagged site is re-checked on the next poll (every few hours) rather
+    // than staying flagged for days after a one-off outage.
     func runIfDue() {
-        if let lastRun, Date().timeIntervalSince(lastRun) < Self.checkInterval { return }
+        let interval = failingKeys.isEmpty ? Self.checkInterval : Self.pollInterval
+        if let lastRun, Date().timeIntervalSince(lastRun) < interval { return }
         checkNow()
+    }
+
+    var failingKeys: [String] {
+        statuses.filter { !$0.value.ok }.map(\.key)
     }
 
     func checkNow() {
@@ -236,7 +243,18 @@ final class LinkChecker: ObservableObject {
         return targets
     }
 
+    // One retry after a short pause, so a single dropped request or slow
+    // answer is not reported as a dead site.
     private func check(url: URL, completion: @escaping (Status) -> Void) {
+        checkOnce(url: url) { [weak self] status in
+            guard !status.ok, let self else { return completion(status) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+                self.checkOnce(url: url, completion: completion)
+            }
+        }
+    }
+
+    private func checkOnce(url: URL, completion: @escaping (Status) -> Void) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         session.dataTask(with: request) { _, response, error in
@@ -269,6 +287,12 @@ final class LinkChecker: ObservableObject {
     }
 
     private func finish(results: [String: Status]) {
+        // Every site failing at once means this Mac was offline, not that the
+        // whole internet died: keep the last real results and try again later.
+        if results.count > 1, results.values.allSatisfy({ !$0.ok }) {
+            isRunning = false
+            return
+        }
         statuses = results
         lastRun = Date()
         isRunning = false

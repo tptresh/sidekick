@@ -298,6 +298,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings.activeHotKey = preferred
             return
         }
+        // A combo that was already working stays rather than being swapped out.
+        if let current = HotKeyCenter.shared.currentCombo {
+            settings.activeHotKey = current
+            return
+        }
         // Usually means Spotlight still owns Cmd+Space; fall back to Option+Space.
         if preferred != .optionSpace,
            HotKeyCenter.shared.register(.optionSpace, handler: { [weak self] in self?.togglePanel() }) {

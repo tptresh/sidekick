@@ -6,6 +6,7 @@ final class HotKeyCenter {
     static let shared = HotKeyCenter()
 
     private var hotKeyRef: EventHotKeyRef?
+    private(set) var currentCombo: HotKeyCombo?
     private var handler: (() -> Void)?
     private var eventHandlerInstalled = false
 
@@ -13,9 +14,13 @@ final class HotKeyCenter {
 
     @discardableResult
     func register(_ combo: HotKeyCombo, handler: @escaping () -> Void) -> Bool {
-        unregister()
         installEventHandlerIfNeeded()
-        self.handler = handler
+        if combo == currentCombo, hotKeyRef != nil {
+            self.handler = handler
+            return true
+        }
+        // The old combo is only released once the new one is secured, so a
+        // taken combo picked in Preferences leaves the working one in place.
         let hotKeyID = EventHotKeyID(signature: OSType(0x53504459), id: 1) // "SPDY"
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(
@@ -23,7 +28,10 @@ final class HotKeyCenter {
             GetApplicationEventTarget(), 0, &ref
         )
         guard status == noErr, let ref else { return false }
+        unregister()
         hotKeyRef = ref
+        currentCombo = combo
+        self.handler = handler
         return true
     }
 
@@ -32,6 +40,7 @@ final class HotKeyCenter {
             UnregisterEventHotKey(ref)
             hotKeyRef = nil
         }
+        currentCombo = nil
     }
 
     fileprivate func fire() {

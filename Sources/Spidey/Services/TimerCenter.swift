@@ -26,7 +26,32 @@ final class TimerCenter {
     private(set) var entries: [Entry] = []
     private var requestedAuthorization = false
 
-    private init() {}
+    private init() {
+        // A Timer does not count time asleep, so after a long lid-close it
+        // would ring late. Re-arm everything against its real end time.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.rearmAfterWake() }
+    }
+
+    private func rearmAfterWake() {
+        let pending = entries
+        entries.removeAll()
+        for entry in pending {
+            entry.timer.invalidate()
+            let remaining = entry.fireDate.timeIntervalSinceNow
+            if remaining <= 0 {
+                fire(id: entry.id, label: entry.label)
+                continue
+            }
+            let id = entry.id
+            let label = entry.label
+            let timer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+                self?.fire(id: id, label: label)
+            }
+            entries.append(Entry(id: id, label: label, fireDate: entry.fireDate, timer: timer))
+        }
+    }
 
     // Parses "10m tea", "1h30m pasta", "90s", "10 minutes laundry", and the
     // spoken forms the phrasing layer passes through: "5 minutes", "an hour",
