@@ -188,10 +188,9 @@ enum TabsProvider {
         }
     }
 
-    // The running browser's app bundle, so callers can tell its helper
-    // processes apart from everything else's.
-    static func runningBrowserBundleURL() -> URL? {
-        runningBrowser()?.1.bundleURL
+    // The browser the tab readers below talk to.
+    static func runningBrowserApp() -> NSRunningApplication? {
+        runningBrowser()?.1
     }
 
     // Just the tab on screen in the browser's front window.

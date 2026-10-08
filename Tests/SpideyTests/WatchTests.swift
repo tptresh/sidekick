@@ -381,7 +381,7 @@ final class WatchProviderTests: XCTestCase {
             site: "hydrahd.ws"
         )
         func quick(_ query: String, playing: WatchCapture.Candidate?) -> [ResultItem] {
-            WatchProvider.results(for: query, store: store, openEpisodes: { [] }, playing: { playing })
+            WatchProvider.results(for: query, store: store, openEpisodes: { [] }, onScreen: { playing })
         }
         // Nothing playing: "wa" is left alone.
         XCTAssertTrue(quick("wa", playing: nil).isEmpty)
@@ -396,6 +396,48 @@ final class WatchProviderTests: XCTestCase {
         XCTAssertTrue(quick("wb", playing: movie).isEmpty)
         quick("wa", playing: movie).first?.action()
         XCTAssertEqual(store.entries.first?.url, movie.url)
+    }
+
+    func testTheTimeIsSavedAndShownOnResume() {
+        var movie = WatchCapture.Candidate(
+            episode: .init(show: "The Amazing Spider-Man", season: nil, episode: 0),
+            url: "https://hydrahd.ws/movie/52128-watch-the-amazing-spider-man-2012-online",
+            site: "hydrahd.ws"
+        )
+        let info = NowPlaying.Info(
+            bundleID: "com.brave.Browser",
+            title: "Stream The Amazing Spider-Man (2012) Online Free Watch Full Now HD - HydraHD",
+            position: 3844.4, duration: 8177, playing: false
+        )
+        // A different tab's title leaves the time off.
+        XCTAssertNil(WatchCapture.withTime(movie, tabTitle: "Inbox", info: info, browser: nil).time)
+
+        movie.time = info.position
+        let items = WatchProvider.results(for: "wa", store: store, openEpisodes: { [] }, onScreen: { movie })
+        XCTAssertEqual(items.first?.title, "Save The Amazing Spider-Man at 1:04:04")
+        items.first?.action()
+        XCTAssertEqual(store.entries.first?.time, 3844.4)
+        XCTAssertEqual(
+            WatchProvider.resumeResults(for: "the amazing spider-man", store: store).first?.title,
+            "Resume The Amazing Spider-Man at 1:04:04"
+        )
+        // Resuming without a fresh time keeps the saved one.
+        store.record(show: "The Amazing Spider-Man", season: nil, episode: 0)
+        XCTAssertEqual(store.entries.first?.time, 3844.4)
+        // Moving to a new episode of a show starts from the top.
+        store.record(show: "The Pitt", season: 1, episode: 6, time: 600)
+        store.record(show: "The Pitt", season: 1, episode: 7)
+        XCTAssertNil(store.entry(forShow: "the pitt")?.time)
+    }
+
+    func testNowPlayingParsing() {
+        let json = #"{"bundleID":"com.brave.Browser","title":"Movie","position":3844.4,"duration":8177.3,"rate":0}"#
+        let info = NowPlaying.parse(Data(json.utf8))
+        XCTAssertEqual(info?.position, 3844.4)
+        XCTAssertEqual(info?.playing, false)
+        XCTAssertNil(NowPlaying.parse(Data()))
+        XCTAssertEqual(NowPlaying.timeLabel(3844.4), "1:04:04")
+        XCTAssertEqual(NowPlaying.timeLabel(1390), "23:10")
     }
 
     func testCandidatesAreOnePerShow() {

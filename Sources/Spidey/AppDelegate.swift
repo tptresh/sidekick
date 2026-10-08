@@ -252,7 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPanel() {
         viewModel.reset()
-        WatchCapture.refreshPlaying()
+        WatchCapture.refreshOnScreen()
         positionPanel(resultCount: 0)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
