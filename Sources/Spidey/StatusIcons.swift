@@ -3,21 +3,23 @@ import AppKit
 // Simple, iconic hero emblems drawn in code as filled silhouettes with cutouts.
 // Rendered as template images so they adapt to light and dark menu bars.
 enum StatusIcons {
-    // While the Mac is being kept awake a small dot sits on the lower right,
-    // cut clear of the emblem so it reads at menu bar size.
+    // While the Mac is being kept awake a coffee cup sits beside the emblem,
+    // so the state is obvious from across the menu bar.
     static func menuBarIcon(for theme: HeroTheme, awake: Bool = false) -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size, flipped: false) { rect in
+        let cup = awake
+            ? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Keeping Mac awake")?
+                .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
+            : nil
+        let cupSize = cup?.size ?? .zero
+        let size = NSSize(width: 18 + (cup == nil ? 0 : 4 + cupSize.width), height: 18)
+        let image = NSImage(size: size, flipped: false) { _ in
             NSColor.black.setFill()
             draw(theme, color: .black)
-            if awake, let context = NSGraphicsContext.current?.cgContext {
-                let badge = NSRect(x: 12.2, y: 0.2, width: 5.6, height: 5.6)
-                context.saveGState()
-                context.setBlendMode(.destinationOut)
-                NSBezierPath(ovalIn: badge.insetBy(dx: -1.3, dy: -1.3)).fill()
-                context.restoreGState()
-                NSColor.black.setFill()
-                NSBezierPath(ovalIn: badge).fill()
+            if let cup {
+                cup.draw(in: NSRect(
+                    x: 22, y: (18 - cupSize.height) / 2,
+                    width: cupSize.width, height: cupSize.height
+                ))
             }
             return true
         }

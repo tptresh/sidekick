@@ -2,13 +2,17 @@ import Foundation
 import CoreLocation
 import Combine
 
-// Today's weather for the menu bar panel: the Mac's location (asked for once
-// in the launch permission pass) and the free Open-Meteo forecast, which needs
-// no account or key. Refreshed at most every 30 minutes, when the panel opens.
+// Today's weather for the menu bar panel, from the free Open-Meteo forecast
+// (no account or key) at the Mac's approximate location.
+//
+// The panel must never wait on the network: the last forecast is saved and
+// shown straight away, the app refreshes in the background at launch and every
+// 30 minutes, and the remembered position is used instead of waiting for a new
+// location fix. The town name is only looked up again after a real move.
 final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = WeatherStore()
 
-    struct Today: Equatable {
+    struct Today: Codable, Equatable {
         var temperature: Double
         var high: Double
         var low: Double
@@ -18,19 +22,32 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
         var place: String?
     }
 
+    struct Cache: Codable {
+        var today: Today
+        var latitude: Double
+        var longitude: Double
+        var fetchedAt: Date
+    }
+
     enum State: Equatable {
-        case idle
-        case loading
+        case placeholder
         case ready(Today)
         case needsLocation
         case failed(String)
     }
 
-    @Published private(set) var state: State = .idle
+    @Published private(set) var state: State = .placeholder
+    @Published private(set) var updatedAt: Date?
+
+    private static let cacheKey = "weatherCache"
+    private static let refreshInterval: TimeInterval = 30 * 60
+    // Moving less than this keeps the same town name and forecast spot.
+    private static let moveThreshold: CLLocationDistance = 5_000
 
     private let locationManager = CLLocationManager()
-    private var lastFetch: Date?
-    private var lastCoordinate: CLLocationCoordinate2D?
+    private var cache: Cache?
+    private var timer: Timer?
+    private var isFetching = false
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 10
@@ -41,7 +58,12 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     private override init() {
         super.init()
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
+        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        if let cached = Self.loadCache(from: .standard) {
+            cache = cached
+            state = .ready(cached.today)
+            updatedAt = cached.fetchedAt
+        }
     }
 
     var authorization: CLAuthorizationStatus { locationManager.authorizationStatus }
@@ -51,20 +73,37 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
         locationManager.requestWhenInUseAuthorization()
     }
 
+    // Called once at launch.
+    func start() {
+        refresh()
+        let timer = Timer(timeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
+        timer.tolerance = 60
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
     func refreshIfStale() {
-        if let lastFetch, Date().timeIntervalSince(lastFetch) < 30 * 60, case .ready = state { return }
+        if let updatedAt, Date().timeIntervalSince(updatedAt) < Self.refreshInterval { return }
         refresh()
     }
 
     func refresh() {
         switch locationManager.authorizationStatus {
-        case .denied, .restricted:
-            state = .needsLocation
         case .notDetermined:
-            state = .needsLocation
+            if cache == nil { state = .needsLocation }
             locationManager.requestWhenInUseAuthorization()
+        case .denied, .restricted:
+            if cache == nil { state = .needsLocation }
         default:
-            if case .ready = state {} else { state = .loading }
+            // Forecast for the remembered spot right away; a fresh fix only
+            // matters if the Mac has actually moved.
+            if let known = locationManager.location ?? cache.map({
+                CLLocation(latitude: $0.latitude, longitude: $0.longitude)
+            }) {
+                fetch(for: known)
+            }
             locationManager.requestLocation()
         }
     }
@@ -82,59 +121,91 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        lastCoordinate = location.coordinate
-        fetch(for: location)
+        if let cache {
+            let previous = CLLocation(latitude: cache.latitude, longitude: cache.longitude)
+            guard location.distance(from: previous) > Self.moveThreshold else { return }
+        }
+        fetch(for: location, force: true)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        if (error as? CLError)?.code == .denied {
-            DispatchQueue.main.async { self.state = .needsLocation }
-            return
-        }
-        // A failed fix with a known previous spot still gives a forecast.
-        if let lastCoordinate {
-            fetch(for: CLLocation(latitude: lastCoordinate.latitude, longitude: lastCoordinate.longitude))
-            return
-        }
-        DispatchQueue.main.async {
-            if case .ready = self.state { return }
-            self.state = .failed("Could not find your location")
+        if (error as? CLError)?.code == .denied, cache == nil {
+            state = .needsLocation
+        } else if cache == nil, !isFetching {
+            state = .failed("Could not find your location")
         }
     }
 
     // MARK: - Forecast
 
-    private func fetch(for location: CLLocation) {
+    private func fetch(for location: CLLocation, force: Bool = false) {
+        guard !isFetching || force else { return }
         let lat = String(format: "%.3f", location.coordinate.latitude)
         let lon = String(format: "%.3f", location.coordinate.longitude)
         guard let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)"
             + "&current=temperature_2m,weather_code,is_day"
             + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
             + "&forecast_days=1&timezone=auto") else { return }
+        isFetching = true
 
         session.dataTask(with: url) { [weak self] data, _, error in
-            guard let self else { return }
-            guard let data, error == nil, let today = Self.parse(data) else {
-                DispatchQueue.main.async {
-                    if case .ready = self.state { return }
-                    self.state = .failed("Weather is unavailable right now")
-                }
-                return
-            }
-            // The forecast shows straight away; the place name follows if the
-            // geocoder answers, so a slow lookup never leaves the card spinning.
+            let parsed = data.flatMap(Self.parse)
             DispatchQueue.main.async {
-                self.lastFetch = Date()
-                self.state = .ready(today)
-                CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
-                    guard let place = placemarks?.first?.locality ?? placemarks?.first?.name,
-                          case .ready(var current) = self.state else { return }
-                    current.place = place
-                    self.state = .ready(current)
+                guard let self else { return }
+                self.isFetching = false
+                guard error == nil, var today = parsed else {
+                    if self.cache == nil { self.state = .failed("Weather is unavailable right now") }
+                    return
                 }
+                let moved = self.cache.map {
+                    location.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude))
+                        > Self.moveThreshold
+                } ?? true
+                today.place = moved ? nil : self.cache?.today.place
+                self.store(today, at: location)
+                if today.place == nil { self.lookUpPlace(for: location) }
             }
         }.resume()
     }
+
+    private func store(_ today: Today, at location: CLLocation) {
+        let cache = Cache(
+            today: today,
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            fetchedAt: Date()
+        )
+        self.cache = cache
+        state = .ready(today)
+        updatedAt = cache.fetchedAt
+        Self.saveCache(cache, to: .standard)
+    }
+
+    private func lookUpPlace(for location: CLLocation) {
+        CLGeocoder().reverseGeocodeLocation(location) { [weak self] placemarks, _ in
+            guard let self, let place = placemarks?.first?.locality ?? placemarks?.first?.name,
+                  var cache = self.cache else { return }
+            cache.today.place = place
+            self.cache = cache
+            self.state = .ready(cache.today)
+            Self.saveCache(cache, to: .standard)
+        }
+    }
+
+    // MARK: - Persistence
+
+    static func saveCache(_ cache: Cache, to defaults: UserDefaults) {
+        if let data = try? JSONEncoder().encode(cache) {
+            defaults.set(data, forKey: cacheKey)
+        }
+    }
+
+    static func loadCache(from defaults: UserDefaults) -> Cache? {
+        guard let data = defaults.data(forKey: cacheKey) else { return nil }
+        return try? JSONDecoder().decode(Cache.self, from: data)
+    }
+
+    // MARK: - Parsing
 
     static func parse(_ data: Data) -> Today? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
