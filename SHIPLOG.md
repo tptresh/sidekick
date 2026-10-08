@@ -398,3 +398,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - f94a3f9 menu bar panel polish: clicking the icon again closes it, the date and weather are fresh on every open, the forecast never gets stuck loading, Preferences says when a site check could not run because the Mac was offline, and file names like main.rs stay file searches
 - main is now at: 25514db (build succeeded, app relaunched)
+
+## 2026-10-09 00:30 - OK - worktree-ui-overhaul
+- "README describes the new menu bar panel, the redesigned Preferences sidebar, and the Location permission used for weather"
+- merged commits:
+  - 3a176dc README describes the new menu bar panel, the redesigned Preferences sidebar, and the Location permission used for weather
+- main is now at: e89216f (build succeeded, app relaunched)
