@@ -362,3 +362,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: a49846f (build succeeded, app relaunched)
+
+## 2026-10-09 00:15 - OK - worktree-ui-overhaul
+- "only the Spider-Man and Batman themes remain; Sasuke (Rinnegan) and Sharingan are gone, and anyone on them falls back to Spider-Man"
+- merged commits:
+  - b173666 only the Spider-Man and Batman themes remain; Sasuke (Rinnegan) and Sharingan are gone, and anyone on them falls back to Spider-Man
+- main is now at: 3532e40 (build succeeded, app relaunched)
