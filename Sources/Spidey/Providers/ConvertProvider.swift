@@ -69,9 +69,11 @@ enum ConvertProvider {
 
     // MARK: - Parsing
 
-    // Accepts "100 usd to gbp", "5km in miles", "72f to c", "$100 in gbp".
+    // Accepts "100 usd to gbp", "5km in miles", "72f to c", "$100 in gbp",
+    // and "usd to gbp" (an amount of 1) when both sides are known units.
     static func parse(_ query: String) -> Conversion? {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
+        if let pair = parseUnitPair(lowered) { return pair }
         let pattern = #"^([$£€¥]?)([0-9]+(?:[.,][0-9]+)*)\s*([a-z°/$£€¥]*)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(
@@ -92,6 +94,25 @@ enum ConvertProvider {
         fromUnit = currencySymbols[fromUnit] ?? fromUnit
         toUnit = currencySymbols[toUnit] ?? toUnit
         return Conversion(value: value, from: fromUnit, to: toUnit)
+    }
+
+    private static func parseUnitPair(_ lowered: String) -> Conversion? {
+        let pattern = #"^([a-z°/$£€¥]+)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(
+                  in: lowered, range: NSRange(lowered.startIndex..., in: lowered)
+              ),
+              let fromRange = Range(match.range(at: 1), in: lowered),
+              let toRange = Range(match.range(at: 2), in: lowered) else { return nil }
+        let from = currencySymbols[String(lowered[fromRange])] ?? String(lowered[fromRange])
+        let to = currencySymbols[String(lowered[toRange])] ?? String(lowered[toRange])
+        guard isKnownUnit(from), isKnownUnit(to) else { return nil }
+        return Conversion(value: 1, from: from, to: to)
+    }
+
+    private static func isKnownUnit(_ unit: String) -> Bool {
+        units[unit] != nil || temperatureAliases.contains(unit)
+            || CurrencyStore.shared.isKnownCurrency(unit)
     }
 
     // MARK: - Conversion

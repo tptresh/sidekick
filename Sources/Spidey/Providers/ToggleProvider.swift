@@ -28,23 +28,37 @@ enum ToggleProvider {
         }
     }
 
+    // A half-typed word ("app", "dar") still offers the toggle, but below an
+    // app whose name starts the same way (App Store scores about 876).
+    static func score(exact: Bool) -> Double {
+        exact ? 950 : 860
+    }
+
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard lowered.count >= 3 else { return [] }
         let (intent, subject) = Intent.split(lowered)
         guard !subject.isEmpty else { return [] }
         var items: [ResultItem] = []
+        var exactMatch = false
 
         func matches(_ names: [String], threshold: Double = 0.7) -> Bool {
-            names.contains { candidate in
-                (Fuzzy.score(query: subject, candidate: candidate) ?? 0) >= threshold
-            }
+            let best = names.compactMap { Fuzzy.score(query: subject, candidate: $0) }.max() ?? 0
+            exactMatch = best >= 1.0
+            return best >= threshold
+        }
+
+        // Each add follows its own matches() call, so exactMatch is current.
+        func add(_ item: ResultItem) {
+            var item = item
+            item.score = score(exact: exactMatch)
+            items.append(item)
         }
 
         if matches(["dark mode", "light mode", "appearance", "dark", "theme system"]) {
             let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
                 || Shell.run("/usr/bin/defaults", ["read", "-g", "AppleInterfaceStyle"]).contains("Dark")
-            items.append(row(
+            add(row(
                 intent: intent, current: isDark,
                 onTitle: "Switch to Dark Mode", offTitle: "Switch to Light Mode",
                 settledTitle: isDark ? "Already in Dark Mode" : "Already in Light Mode",
@@ -61,7 +75,7 @@ enum ToggleProvider {
         if matches(["wifi", "wi-fi", "wireless"]) {
             if let device = WifiControl.device {
                 let isOn = WifiControl.isOn(device: device)
-                items.append(row(
+                add(row(
                     intent: intent, current: isOn,
                     onTitle: "Turn Wi-Fi On", offTitle: "Turn Wi-Fi Off",
                     settledTitle: "Wi-Fi is already \(isOn ? "on" : "off")",
@@ -75,7 +89,7 @@ enum ToggleProvider {
         if matches(["bluetooth"]) {
             if let blueutil = Bluetooth.blueutilPath {
                 let isOn = Shell.run(blueutil, ["-p"]).trimmingCharacters(in: .whitespacesAndNewlines) == "1"
-                items.append(row(
+                add(row(
                     intent: intent, current: isOn,
                     onTitle: "Turn Bluetooth On", offTitle: "Turn Bluetooth Off",
                     settledTitle: "Bluetooth is already \(isOn ? "on" : "off")",
@@ -84,7 +98,7 @@ enum ToggleProvider {
                     apply: { _ = Shell.run(blueutil, ["-p", $0 ? "1" : "0"]) }
                 ))
             } else {
-                items.append(ResultItem(
+                add(ResultItem(
                     title: "Open Bluetooth Settings",
                     subtitle: SetupCenter.shared.missingToolHint("blueutil"),
                     icon: .symbol("wave.3.right"),
@@ -100,7 +114,7 @@ enum ToggleProvider {
 
         if matches(["caffeinate", "keep awake", "awake", "coffee", "no sleep"]) {
             let active = CaffeinateManager.shared.isActive
-            items.append(row(
+            add(row(
                 intent: intent, current: active,
                 onTitle: "Keep Mac Awake", offTitle: "Stop Keeping Mac Awake",
                 settledTitle: active ? "Mac is already staying awake" : "Mac already sleeps normally",

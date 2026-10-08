@@ -199,6 +199,9 @@ final class SpideyViewModel: ObservableObject {
         items += ContactsProvider.results(for: trimmed)
         items += WindowSwitcherProvider.results(for: trimmed)
         items += SiteDirectoryProvider.results(for: trimmed)
+        if let address = SiteDirectoryProvider.typedAddressResult(for: trimmed) {
+            items.append(address)
+        }
         items += BookmarksProvider.results(for: trimmed)
         // Where you got to in a show sits above the "Watch ..." rows, and is
         // not a command itself, so typing a show name still offers the sites.
@@ -266,7 +269,9 @@ final class SpideyViewModel: ObservableObject {
                     for index in combined.indices {
                         guard let key = combined[index].rankingKey,
                               let boost = boosts[key] else { continue }
-                        combined[index].score += boost
+                        combined[index].score = UsageStore.boostedScore(
+                            base: combined[index].score, boost: boost
+                        )
                     }
                 }
             }

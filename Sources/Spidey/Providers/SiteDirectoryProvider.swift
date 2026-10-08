@@ -374,6 +374,7 @@ enum SiteDirectoryProvider {
     static func guessResult(for query: String) -> ResultItem? {
         let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard trimmed.count >= 3, trimmed.rangeOfCharacter(from: .letters) != nil,
+              typedAddress(trimmed) == nil,
               !hasStrongDirectoryMatch(trimmed), let guess = guessURL(for: trimmed) else { return nil }
         return ResultItem(
             title: "Open \(guess.host ?? trimmed)",
@@ -381,6 +382,37 @@ enum SiteDirectoryProvider {
             icon: .symbol("globe"),
             score: trimmed.contains(" ") ? guessPhraseScore : guessSiteNameScore,
             action: { BrowserLauncher.open(guess) }
+        )
+    }
+
+    // "github.com" or "https://bbc.co.uk/news" typed straight in opens that
+    // address. Names ending in a common file extension stay file searches.
+    static func typedAddress(_ query: String) -> URL? {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let pattern = #"^(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)*\.([a-z]{2,})(:[0-9]+)?(/\S*)?$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+              let tldRange = Range(match.range(at: 3), in: trimmed) else { return nil }
+        let tld = trimmed[tldRange].lowercased()
+        let fileExtensions: Set<String> = [
+            "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "key", "pages",
+            "numbers", "png", "jpg", "jpeg", "gif", "heic", "svg", "mov", "mp4", "mp3",
+            "wav", "zip", "dmg", "pkg", "swift", "py", "js", "ts", "json", "md", "csv",
+            "html", "css", "rtf", "log", "sh",
+        ]
+        guard !fileExtensions.contains(tld) else { return nil }
+        let full = trimmed.lowercased().hasPrefix("http") ? trimmed : "https://" + trimmed
+        return URL(string: full)
+    }
+
+    static func typedAddressResult(for query: String) -> ResultItem? {
+        guard let url = typedAddress(query) else { return nil }
+        return ResultItem(
+            title: "Open \(url.host ?? query)",
+            subtitle: "Go to this address in \(BrowserLauncher.targetName)",
+            icon: .symbol("globe"),
+            score: 960,
+            action: { BrowserLauncher.open(url) }
         )
     }
 

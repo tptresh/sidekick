@@ -76,6 +76,12 @@ enum WindowProvider {
         }),
     ]
 
+    // Only a full name or alias ("left half", "max") gets the command band; a
+    // bare prefix like "mini" stays under apps such as Minecraft.
+    static func score(forMatch match: Double) -> Double {
+        match >= 1.0 ? 960 : 860 + match * 10
+    }
+
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard lowered.count >= 3 else { return [] }
@@ -102,7 +108,7 @@ enum WindowProvider {
                     title: title,
                     subtitle: subtitle,
                     icon: .symbol(symbol),
-                    score: 900 + match * 60,
+                    score: score(forMatch: match),
                     action: { apply(snap) }
                 ))
             } else {
@@ -110,7 +116,7 @@ enum WindowProvider {
                     title: "\(snap.title): needs Accessibility access",
                     subtitle: "Return opens the permission prompt, then try again",
                     icon: .symbol("lock.shield"),
-                    score: 900 + match * 60,
+                    score: score(forMatch: match),
                     action: { requestPermission() }
                 ))
             }
