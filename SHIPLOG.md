@@ -380,3 +380,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e4ef378 fixes: site checks retry and ignore offline moments instead of flagging every site dead for days, password manager copies stay out of clipboard history, brightness never goes fully black, timers ring on time after sleep, and a taken hotkey no longer replaces the working one
 - main is now at: 57095db (build succeeded, app relaunched)
+
+## 2026-10-09 00:22 - OK - worktree-ui-overhaul
+- "the menu bar icon now opens a panel with today's weather, the automatic Light and Dark switch times, and a Keeping Mac Awake indicator (plus a dot on the icon) while caffeinate is on"
+- merged commits:
+  - e0beb2a the menu bar icon now opens a panel with today's weather, the automatic Light and Dark switch times, and a Keeping Mac Awake indicator (plus a dot on the icon) while caffeinate is on
+- main is now at: 0ccea92 (build succeeded, app relaunched)
