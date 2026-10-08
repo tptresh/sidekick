@@ -47,8 +47,8 @@ enum WatchCapture {
         }
     }
 
-    static func save(_ candidate: Candidate) {
-        WatchStore.shared.record(
+    static func save(_ candidate: Candidate, store: WatchStore = .shared) {
+        store.record(
             show: candidate.episode.show,
             season: candidate.episode.season,
             episode: candidate.episode.episode,
@@ -60,6 +60,7 @@ enum WatchCapture {
     // Already saved at exactly this point, so there is nothing to offer.
     static func isAlreadySaved(_ candidate: Candidate, store: WatchStore = .shared) -> Bool {
         guard let entry = store.entry(forShow: candidate.episode.show) else { return false }
+        if candidate.episode.isMovie { return entry.isMovie }
         return entry.episode == candidate.episode.episode
             && (candidate.episode.season == nil || entry.season == candidate.episode.season)
     }
@@ -72,6 +73,7 @@ enum WatchCapture {
         for tab in tabs {
             guard isWatchable(tab.url),
                   let episode = EpisodeParser.parse(title: tab.title, url: tab.url)
+                    ?? EpisodeParser.parseMovie(title: tab.title, url: tab.url)
             else { continue }
             let key = WatchStore.normalize(episode.show)
             guard !key.isEmpty, !seen.contains(key) else { continue }

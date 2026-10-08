@@ -12,7 +12,10 @@ enum EpisodeParser {
     struct Episode: Equatable {
         var show: String
         var season: Int?
+        // 0 for a movie, which has no episodes to count.
         var episode: Int
+
+        var isMovie: Bool { episode == 0 }
     }
 
     // MARK: - Entry points
@@ -32,6 +35,37 @@ enum EpisodeParser {
             season: primary.season ?? found.compactMap(\.season).first,
             episode: primary.episode
         )
+    }
+
+    // A movie page has no numbers to find, so it is only recognised when the
+    // site files it under a movie path ("/movie/52128-the-amazing-spider-man").
+    static func parseMovie(title: String, url: String) -> Episode? {
+        let path = pathAndQuery(of: url.removingPercentEncoding ?? url)
+        let segments = path.split(whereSeparator: { "/?#&".contains($0) }).map(String.init)
+        guard let index = segments.firstIndex(where: { movieSegments.contains($0.lowercased()) })
+        else { return nil }
+        // Sites lead the slug with their database id: "52128-watch-...".
+        let slug = segments.dropFirst(index + 1).first { $0.contains(where: \.isLetter) }?
+            .replacingOccurrences(of: "^\\d+[-_]", with: "", options: .regularExpression)
+        let name = movieNameBeforeYear(in: title)
+            ?? slug.map(deslug)
+            ?? cleanShowName(collapse(title).components(separatedBy: "|").first ?? "", preferFirstPiece: true)
+        guard name.count >= 2 else { return nil }
+        return Episode(show: name, season: nil, episode: 0)
+    }
+
+    private static let movieSegments: Set<String> = ["movie", "movies", "film", "films", "watch-movie"]
+
+    // Movie tabs read "Stream The Amazing Spider-Man (2012) Online Free...",
+    // so the text before the year is the cleanest name, hyphens and all.
+    private static func movieNameBeforeYear(in title: String) -> String? {
+        let text = collapse(title)
+        guard let year = text.range(of: "\\((?:19|20)\\d{2}\\)", options: .regularExpression)
+        else { return nil }
+        let before = String(text[text.startIndex..<year.lowerBound])
+        let piece = before.components(separatedBy: "|").last ?? before
+        let name = cleanShowName(piece)
+        return name.count >= 2 ? name : nil
     }
 
     // What the user typed after the keyword: "the pitt s1e6".
