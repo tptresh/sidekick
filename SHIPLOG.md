@@ -374,3 +374,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - a893595 search order: 'usd to gbp' now converts, installed apps beat same-named websites, typed addresses like github.com open directly, half-typed words no longer let toggles jump above apps, and learned picks never outrank calculator or conversion answers
 - main is now at: 3a74e61 (build succeeded, app relaunched)
+
+## 2026-10-09 00:19 - OK - worktree-ui-overhaul
+- "fixes: site checks retry and ignore offline moments instead of flagging every site dead for days, password manager copies stay out of clipboard history, brightness never goes fully black, timers ring on time after sleep, and a taken hotkey no longer replaces the working one"
+- merged commits:
+  - e4ef378 fixes: site checks retry and ignore offline moments instead of flagging every site dead for days, password manager copies stay out of clipboard history, brightness never goes fully black, timers ring on time after sleep, and a taken hotkey no longer replaces the working one
+- main is now at: 57095db (build succeeded, app relaunched)
