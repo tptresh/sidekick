@@ -107,6 +107,14 @@ struct SettingsView: View {
                 title: "Checking your sites...",
                 detail: "Each enabled site is opened in the background to make sure it still answers."
             )
+        } else if linkChecker.lastCheckLooksOffline {
+            HealthBanner(
+                symbol: "wifi.slash", tint: .gray,
+                title: "Could not check your sites",
+                detail: "Every site failed at once, so this Mac looks offline. The last real results are kept below.",
+                actionTitle: "Try Again",
+                action: { linkChecker.checkNow() }
+            )
         } else if !failing.isEmpty {
             HealthBanner(
                 symbol: "exclamationmark.triangle.fill", tint: .orange,

@@ -19,6 +19,8 @@ final class LinkChecker: ObservableObject {
     @Published private(set) var statuses: [String: Status]
     @Published private(set) var lastRun: Date?
     @Published private(set) var isRunning = false
+    // Set when the last check was skipped because every site failed at once.
+    @Published private(set) var lastCheckLooksOffline = false
 
     private let defaults = UserDefaults.standard
     private var timer: Timer?
@@ -291,8 +293,10 @@ final class LinkChecker: ObservableObject {
         // whole internet died: keep the last real results and try again later.
         if results.count > 1, results.values.allSatisfy({ !$0.ok }) {
             isRunning = false
+            lastCheckLooksOffline = true
             return
         }
+        lastCheckLooksOffline = false
         statuses = results
         lastRun = Date()
         isRunning = false

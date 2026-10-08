@@ -398,7 +398,11 @@ enum SiteDirectoryProvider {
             "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "key", "pages",
             "numbers", "png", "jpg", "jpeg", "gif", "heic", "svg", "mov", "mp4", "mp3",
             "wav", "zip", "dmg", "pkg", "swift", "py", "js", "ts", "json", "md", "csv",
-            "html", "css", "rtf", "log", "sh",
+            "html", "css", "rtf", "log", "sh", "rs", "go", "rb", "php", "java", "kt",
+            "c", "h", "cpp", "hpp", "m", "mm", "jsx", "tsx", "vue", "sql", "yml", "yaml",
+            "toml", "xml", "plist", "ini", "conf", "env", "lock", "ipynb", "webp", "tif",
+            "tiff", "bmp", "ico", "psd", "ai", "sketch", "fig", "avi", "mkv", "flac",
+            "m4a", "aac", "tar", "gz", "tgz", "rar", "7z", "epub", "iso", "app", "exe",
         ]
         guard !fileExtensions.contains(tld) else { return nil }
         let full = trimmed.lowercased().hasPrefix("http") ? trimmed : "https://" + trimmed
