@@ -117,10 +117,13 @@ enum VolumeProvider {
                     DispatchQueue.global(qos: .userInitiated).async {
                         var target = level
                         if let delta {
-                            target = currentBrightness(cli: cli).map { $0 + delta } ?? (delta > 0 ? 1 : 0)
+                            // An unreadable display (external only) is left
+                            // alone rather than jumped to black or full.
+                            target = currentBrightness(cli: cli).map { $0 + delta }
                         }
                         guard let target else { return }
-                        _ = Shell.run(cli, [String(format: "%.2f", min(max(target, 0), 1))])
+                        // Never fully black: 0% leaves no way to see the screen.
+                        _ = Shell.run(cli, [String(format: "%.2f", min(max(target, 0.05), 1))])
                     }
                 }
             )
@@ -150,7 +153,7 @@ enum VolumeProvider {
                 return []
             }
             if value > 1 { value /= 100 }
-            let clamped = min(max(value, 0), 1)
+            let clamped = min(max(value, 0.05), 1)
             return [setRow(
                 title: "Set Brightness to \(Int((clamped * 100).rounded()))%",
                 subtitle: "Sets display brightness", symbol: "sun.max.fill",
