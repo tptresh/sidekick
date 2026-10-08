@@ -320,3 +320,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - ff8cfec watching and the sleep auto-save now recognise movie pages, so an open movie gets saved and resumes from its name
 - main is now at: 084f316 (build succeeded, app relaunched)
+
+## 2026-10-08 21:23 - OK - main
+- "Preferences window is wider and resizable, so the theme cards and text no longer get cut off at the edges"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 2e830f7 (build succeeded, app relaunched)
