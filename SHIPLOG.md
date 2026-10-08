@@ -410,3 +410,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 7d4c9ff menu bar panel redesigned in a clean native style: weather shows instantly from a saved forecast and refreshes in the background, an always-visible Keep Mac Awake switch with a coffee cup beside the menu bar icon while it is on, the Light and Dark schedule, and quiet Preferences and Quit links (no Search button)
 - main is now at: 404f833 (build succeeded, app relaunched)
+
+## 2026-10-09 00:53 - OK - worktree-ui-overhaul
+- "Preferences is now one clean page grouped like System Settings, with health dots and a not-responding summary for media sites, instead of sidebar panes"
+- merged commits:
+  - cc4e462 Preferences is now one clean page grouped like System Settings, with health dots and a not-responding summary for media sites, instead of sidebar panes
+- main is now at: 5eda68d (build succeeded, app relaunched)
