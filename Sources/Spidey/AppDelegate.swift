@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 import Combine
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let settings = SettingsStore.shared
     let viewModel = SpideyViewModel()
 
     private var statusItem: NSStatusItem!
     private var menuBarPopover: NSPopover?
+    private var menuBarPopoverClosedAt = Date.distantPast
     private var panel: SearchPanel!
     private var settingsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -225,9 +226,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover.performClose(nil)
             return
         }
-        guard let button = statusItem.button else { return }
-        let popover = menuBarPopover ?? makeMenuBarPopover()
+        // A transient popover closes on mouse-down outside it, which includes
+        // the emblem itself; without this the same click would reopen it.
+        guard Date().timeIntervalSince(menuBarPopoverClosedAt) > 0.3,
+              let button = statusItem.button else { return }
+        // Built fresh each time so the date and next switch time are current.
+        let popover = makeMenuBarPopover()
         menuBarPopover = popover
+        WeatherStore.shared.refreshIfStale()
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
@@ -236,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeMenuBarPopover() -> NSPopover {
         let popover = NSPopover()
         popover.behavior = .transient
+        popover.delegate = self
         popover.animates = true
         popover.appearance = NSAppearance(named: .darkAqua)
         let controller = NSHostingController(rootView: MenuBarPanel(
@@ -252,6 +259,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.sizingOptions = .preferredContentSize
         popover.contentViewController = controller
         return popover
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        menuBarPopoverClosedAt = Date()
+        menuBarPopover = nil
     }
 
     // MARK: - Panel
@@ -325,6 +337,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A combo that was already working stays rather than being swapped out.
         if let current = HotKeyCenter.shared.currentCombo {
             settings.activeHotKey = current
+            // Saved too, so the next launch starts from the working combo
+            // rather than retrying the refused one and landing on Option+Space.
+            if settings.hotKey != current { settings.hotKey = current }
             return
         }
         // Usually means Spotlight still owns Cmd+Space; fall back to Option+Space.

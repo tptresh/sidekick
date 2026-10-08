@@ -87,6 +87,10 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        if (error as? CLError)?.code == .denied {
+            DispatchQueue.main.async { self.state = .needsLocation }
+            return
+        }
         // A failed fix with a known previous spot still gives a forecast.
         if let lastCoordinate {
             fetch(for: CLLocation(latitude: lastCoordinate.latitude, longitude: lastCoordinate.longitude))
@@ -110,18 +114,23 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
 
         session.dataTask(with: url) { [weak self] data, _, error in
             guard let self else { return }
-            guard let data, error == nil, var today = Self.parse(data) else {
+            guard let data, error == nil, let today = Self.parse(data) else {
                 DispatchQueue.main.async {
                     if case .ready = self.state { return }
                     self.state = .failed("Weather is unavailable right now")
                 }
                 return
             }
-            CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
-                today.place = placemarks?.first?.locality ?? placemarks?.first?.name
-                DispatchQueue.main.async {
-                    self.lastFetch = Date()
-                    self.state = .ready(today)
+            // The forecast shows straight away; the place name follows if the
+            // geocoder answers, so a slow lookup never leaves the card spinning.
+            DispatchQueue.main.async {
+                self.lastFetch = Date()
+                self.state = .ready(today)
+                CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
+                    guard let place = placemarks?.first?.locality ?? placemarks?.first?.name,
+                          case .ready(var current) = self.state else { return }
+                    current.place = place
+                    self.state = .ready(current)
                 }
             }
         }.resume()
