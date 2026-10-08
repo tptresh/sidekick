@@ -368,3 +368,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - b173666 only the Spider-Man and Batman themes remain; Sasuke (Rinnegan) and Sharingan are gone, and anyone on them falls back to Spider-Man
 - main is now at: 3532e40 (build succeeded, app relaunched)
+
+## 2026-10-09 00:18 - OK - worktree-ui-overhaul
+- "search order: 'usd to gbp' now converts, installed apps beat same-named websites, typed addresses like github.com open directly, half-typed words no longer let toggles jump above apps, and learned picks never outrank calculator or conversion answers"
+- merged commits:
+  - a893595 search order: 'usd to gbp' now converts, installed apps beat same-named websites, typed addresses like github.com open directly, half-typed words no longer let toggles jump above apps, and learned picks never outrank calculator or conversion answers
+- main is now at: 3a74e61 (build succeeded, app relaunched)
