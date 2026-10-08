@@ -139,9 +139,8 @@ final class SettingsStore: ObservableObject {
 
     private init() {
         let storedTheme = defaults.string(forKey: "theme") ?? ""
-        // Sasuke took the Iron Man slot, so anyone left on it lands there
-        // rather than being bumped back to the default.
-        theme = HeroTheme(rawValue: storedTheme) ?? (storedTheme == "ironMan" ? .sasuke : .spiderman)
+        // Retired themes (Sasuke, Sharingan, Iron Man) fall back to the default.
+        theme = HeroTheme(rawValue: storedTheme) ?? .spiderman
         if let stored = defaults.stringArray(forKey: "enabledServices") {
             enabledServices = Set(stored)
         } else {

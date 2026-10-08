@@ -44,7 +44,7 @@ if let flagIndex = CommandLine.arguments.firstIndex(of: "--filesearch"),
     DispatchQueue.main.asyncAfter(deadline: .now() + 15) { exit(1) }
     RunLoop.main.run()
 }
-// Dev helper: `Spidey --entrance <spiderman|batman|sasuke|sharingan> <dir>` plays that theme's
+// Dev helper: `Spidey --entrance <spiderman|batman> <dir>` plays that theme's
 // full screen entrance, captures frames of the overlay to PNGs, and exits.
 if let flagIndex = CommandLine.arguments.firstIndex(of: "--entrance"),
    CommandLine.arguments.count > flagIndex + 2,

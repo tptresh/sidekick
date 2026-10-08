@@ -21,7 +21,6 @@ app: guard-main-checkout build
 	cp $(BUILD_DIR)/$(BIN_NAME) $(APP_DIR)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(APP_DIR)/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(APP_DIR)/Contents/Resources/; fi
-	@if [ -f Resources/sasuke.png ]; then cp Resources/sasuke.png $(APP_DIR)/Contents/Resources/; fi
 	@# Privacy grants are tied to the code identity. With the local signing
 	@# certificate (scripts/setup-signing.sh) the identity is the same on every
 	@# build, so grants survive rebuilds. Without it the build is ad-hoc signed,

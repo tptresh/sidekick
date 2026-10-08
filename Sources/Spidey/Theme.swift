@@ -4,15 +4,11 @@ import AppKit
 enum HeroTheme: String, CaseIterable, Codable {
     case spiderman
     case batman
-    case sasuke
-    case sharingan
 
     var displayName: String {
         switch self {
         case .spiderman: return "Spider-Man"
         case .batman: return "Batman"
-        case .sasuke: return "Sasuke"
-        case .sharingan: return "Sharingan"
         }
     }
 
@@ -20,17 +16,6 @@ enum HeroTheme: String, CaseIterable, Codable {
         switch self {
         case .spiderman: return "Spidey Search"
         case .batman: return "Explore the Cave"
-        case .sasuke: return "Awaken the Rinnegan"
-        case .sharingan: return "Awaken the Sharingan"
-        }
-    }
-
-    // Light themes draw dark text on a bright panel; consumers that hardcode
-    // colors for a dark backdrop (text fields, blur materials) branch on this.
-    var isLight: Bool {
-        switch self {
-        case .spiderman, .batman, .sharingan: return false
-        case .sasuke: return true
         }
     }
 
@@ -55,31 +40,6 @@ enum HeroTheme: String, CaseIterable, Codable {
                 textPrimary: Color(red: 0.937, green: 0.941, blue: 0.949),
                 textSecondary: Color(red: 0.510, green: 0.522, blue: 0.541),
                 fieldOutline: Color(red: 0.663, green: 0.678, blue: 0.702)
-            )
-        case .sasuke:
-            // Cool grey panel with a lilac cast, deep Uchiha purple accent and
-            // a muted mauve field outline, taken from his lavender shirt and
-            // slate blue trousers. Dark text with the same purple cast keeps
-            // every opacity-derived tint readable on the light panel.
-            return ThemePalette(
-                background: Color(red: 0.918, green: 0.910, blue: 0.933),
-                backgroundTop: Color(red: 0.961, green: 0.957, blue: 0.973),
-                accent: Color(red: 0.396, green: 0.310, blue: 0.573),
-                textPrimary: Color(red: 0.137, green: 0.125, blue: 0.161),
-                textSecondary: Color(red: 0.412, green: 0.396, blue: 0.459),
-                fieldOutline: Color(red: 0.494, green: 0.400, blue: 0.549)
-            )
-        case .sharingan:
-            // Pure black with the blood red of the eye itself: a hotter, more
-            // saturated red than Spider-Man's, so the two dark red themes stay
-            // told apart at a glance.
-            return ThemePalette(
-                background: Color(red: 0.035, green: 0.020, blue: 0.024),
-                backgroundTop: Color(red: 0.098, green: 0.035, blue: 0.043),
-                accent: Color(red: 0.741, green: 0.071, blue: 0.114),
-                textPrimary: Color(red: 0.976, green: 0.941, blue: 0.937),
-                textSecondary: Color(red: 0.643, green: 0.494, blue: 0.502),
-                fieldOutline: Color(red: 0.635, green: 0.075, blue: 0.114)
             )
         }
     }

@@ -21,7 +21,6 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 
 <p align="center">
   <img src="docs/screenshots/convert.png" width="380" alt="100 usd to gbp converts with cached daily rates">
-  <img src="docs/screenshots/theme-sharingan.png" width="380" alt="The Sharingan theme in black and red">
 </p>
 
 ## Features
@@ -75,7 +74,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Snippets**: `snip add addr 123 Main Street` saves a canned-text snippet, `snip` lists them (Return copies one to the clipboard, Cmd+Return deletes it), `snip rm addr` deletes by keyword, and typing a snippet's keyword on its own surfaces it directly
 - **Drag and drop**: drop files onto the panel to open them, reveal them, copy them, or copy their paths; dropped files are also recorded into clipboard history
 - **Site logos**: web rows show the real favicon of the site (Netflix, Crunchyroll, Disney+, ...), fetched once and cached locally
-- **Hero themes**: Spider-Man (black and deep red), Batman (black and silver grey), and Sasuke (a light grey-lilac theme with a deep Uchiha purple, and his Rinnegan in the menu bar), switchable in Preferences along with the menu bar emblem. Typing a hero's name switches themes with a full screen entrance; for Sasuke his Rinnegan fills the screen and starts turning, chakra rolls out of it, and more Rinnegan open around the edges
+- **Hero themes**: Spider-Man (black and deep red) and Batman (black and silver grey), switchable in Preferences along with the menu bar emblem. Typing a hero's name switches themes with a full screen entrance: the Spidey mask swings in on a web line, or the bat signal lights up the sky
 
 Everything that opens a website prefers [Brave](https://brave.com/); if Brave is not installed, your default browser is used.
 
@@ -120,7 +119,7 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 
 Click the mask icon in the menu bar > Preferences:
 
-- Hero theme (Spider-Man, Batman, Sasuke)
+- Hero theme (Spider-Man, Batman)
 - The hotkey that opens Spidey
 - Which streaming services appear for show searches
 - Custom media sites, with a per-site link health dot and a Check Now button
