@@ -138,7 +138,7 @@ enum WatchProvider {
         let episode = candidate.episode
         return ResultItem(
             title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode))
-                + timeSuffix(candidate.time),
+                + timeSuffix(WatchCapture.protectedTime(candidate)),
             subtitle: "Open on \(candidate.site) in your browser right now. Return remembers it.",
             icon: icon(for: candidate.url),
             score: 970 - Double(index),
@@ -151,7 +151,7 @@ enum WatchProvider {
         let saved = WatchCapture.isAlreadySaved(candidate, store: store)
         return ResultItem(
             title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode))
-                + timeSuffix(candidate.time),
+                + timeSuffix(WatchCapture.protectedTime(candidate)),
             subtitle: saved
                 ? "Already saved. Return saves it again as the latest thing you watched."
                 : "On \(candidate.site) right now. Return remembers where you are.",

@@ -148,14 +148,24 @@ enum WatchCapture {
         }
     }
 
+    // A skip still waiting means the player has not reached the saved time
+    // yet; an earlier time from it is a restart, not progress.
+    static func protectedTime(_ candidate: Candidate) -> Double? {
+        guard let current = candidate.time,
+              let pending = NowPlaying.pendingSkipTime(forShow: candidate.episode.show)
+        else { return candidate.time }
+        return max(current, pending)
+    }
+
     static func save(_ candidate: Candidate, store: WatchStore = .shared) {
+        let time = protectedTime(candidate)
         store.record(
             show: candidate.episode.show,
             season: candidate.episode.season,
             episode: candidate.episode.episode,
             site: candidate.site,
             url: candidate.url,
-            time: candidate.time
+            time: time
         )
     }
 
