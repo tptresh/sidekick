@@ -167,9 +167,12 @@ enum WatchProvider {
         score: Double? = nil, resuming: Bool = false
     ) -> ResultItem {
         let title = (resuming ? "Resume " : "") + named(entry.show, entry.positionLabel) + entry.timeSuffix
-        let opens = entry.url == nil
+        var opens = entry.url == nil
             ? "Searches for it in \(BrowserLauncher.targetName)"
             : "Opens \(entry.siteLabel) in \(BrowserLauncher.targetName)"
+        if entry.url != nil, let time = entry.time {
+            opens += " and skips to \(NowPlaying.timeLabel(time)) once it plays"
+        }
         return ResultItem(
             title: title,
             subtitle: "\(opens), saved \(age(entry.updated)). ⌘⏎ forgets it.",
@@ -231,6 +234,12 @@ enum WatchProvider {
     private static func open(_ entry: WatchEntry, store: WatchStore) {
         if let stored = entry.url, let url = URL(string: stored) {
             BrowserLauncher.open(url)
+            if let time = entry.time {
+                NowPlaying.seekWhenPlaying(
+                    bundleID: BrowserLauncher.braveInstalled ? BrowserLauncher.braveBundleID : nil,
+                    show: entry.show, to: time
+                )
+            }
             // Opening it again is also the most recent thing watched.
             store.record(
                 show: entry.show, season: entry.season, episode: entry.episode,
