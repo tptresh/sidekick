@@ -356,3 +356,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 1b7ad73 resume only skips to the saved time after 5 seconds of steady playback, retries through reloads and failed jumps, and never overwrites the saved time while waiting
 - main is now at: 13256aa (build succeeded, app relaunched)
+
+## 2026-10-08 21:47 - OK - main
+- "permissions now survive rebuilds: the app is signed with a stable local certificate instead of a new ad-hoc identity each build"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: a49846f (build succeeded, app relaunched)
