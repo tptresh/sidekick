@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let viewModel = SpideyViewModel()
 
     private var statusItem: NSStatusItem!
+    private var menuBarPopover: NSPopover?
     private var panel: SearchPanel!
     private var settingsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -38,7 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] combo in self?.registerHotKey(preferred: combo) }
             .store(in: &cancellables)
         settings.$theme
-            .sink { [weak self] theme in self?.updateStatusIcon(theme) }
+            .combineLatest(CaffeinateManager.shared.$isActive)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] theme, awake in self?.updateStatusIcon(theme, awake: awake) }
             .store(in: &cancellables)
         viewModel.$results
             .receive(on: DispatchQueue.main)
@@ -206,24 +209,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        updateStatusIcon(settings.theme)
-
-        let menu = NSMenu()
-        let openItem = NSMenuItem(title: "Open Sidekick", action: #selector(togglePanelFromMenu), keyEquivalent: "")
-        openItem.target = self
-        menu.addItem(openItem)
-        menu.addItem(.separator())
-        let preferencesItem = NSMenuItem(title: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
-        preferencesItem.target = self
-        menu.addItem(preferencesItem)
-        menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit Sidekick", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(quitItem)
-        statusItem.menu = menu
+        updateStatusIcon(settings.theme, awake: CaffeinateManager.shared.isActive)
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(toggleMenuBarPopover)
+        statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
-    private func updateStatusIcon(_ theme: HeroTheme) {
-        statusItem?.button?.image = StatusIcons.menuBarIcon(for: theme)
+    private func updateStatusIcon(_ theme: HeroTheme, awake: Bool) {
+        statusItem?.button?.image = StatusIcons.menuBarIcon(for: theme, awake: awake)
+        statusItem?.button?.toolTip = awake ? "Sidekick - keeping your Mac awake" : "Sidekick"
+    }
+
+    @objc private func toggleMenuBarPopover() {
+        if let popover = menuBarPopover, popover.isShown {
+            popover.performClose(nil)
+            return
+        }
+        guard let button = statusItem.button else { return }
+        let popover = menuBarPopover ?? makeMenuBarPopover()
+        menuBarPopover = popover
+        NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
+    }
+
+    private func makeMenuBarPopover() -> NSPopover {
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.appearance = NSAppearance(named: .darkAqua)
+        let controller = NSHostingController(rootView: MenuBarPanel(
+            settings: settings,
+            openSearch: { [weak self] in
+                self?.menuBarPopover?.performClose(nil)
+                self?.showPanel()
+            },
+            openPreferences: { [weak self] in
+                self?.menuBarPopover?.performClose(nil)
+                self?.openPreferences()
+            }
+        ))
+        controller.sizingOptions = .preferredContentSize
+        popover.contentViewController = controller
+        return popover
     }
 
     // MARK: - Panel
@@ -235,10 +263,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: SearchView(viewModel: viewModel, settings: settings)
         )
         panel.contentView = hostingView
-    }
-
-    @objc private func togglePanelFromMenu() {
-        togglePanel()
     }
 
     func togglePanel() {

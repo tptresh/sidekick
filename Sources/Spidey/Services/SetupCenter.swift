@@ -7,7 +7,8 @@ import UserNotifications
 // One launch-time pass that makes every feature usable without the user
 // discovering a missing piece mid-command:
 //  - requests every TCC permission Sidekick's features need (Accessibility,
-//    Contacts, Calendar, Reminders, Notifications, and the Automation consents
+//    Contacts, Calendar, Reminders, Notifications, Location (for the weather
+//    in the menu bar panel), and the Automation consents
 //    for apps that are already running), instead of each feature prompting on
 //    first use.
 //    Rebuilds reset these grants (ad-hoc signing), so the pass runs on every
@@ -159,6 +160,7 @@ final class SetupCenter: ObservableObject {
             }
         }
         requestNotifications()
+        WeatherStore.shared.requestPermission()
         primeAutomationConsents()
     }
 
@@ -295,6 +297,17 @@ final class SetupCenter: ObservableObject {
             id: "reminders", name: "Reminders",
             detail: "\"remind me to ...\" commands",
             state: eventKitState(.reminder), settingsAnchor: "Privacy_Reminders"
+        ))
+        let location: PermissionState
+        switch WeatherStore.shared.authorization {
+        case .notDetermined: location = .pending
+        case .denied, .restricted: location = .denied
+        default: location = .granted
+        }
+        rows.append(PermissionRow(
+            id: "location", name: "Location",
+            detail: "today's weather in the menu bar panel",
+            state: location, settingsAnchor: "Privacy_LocationServices"
         ))
         return rows
     }
