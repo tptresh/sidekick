@@ -314,3 +314,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 3dc2c61 (build succeeded, app relaunched)
+
+## 2026-10-08 21:21 - OK - worktree-watch-movies
+- "watching and the sleep auto-save now recognise movie pages, so an open movie gets saved and resumes from its name"
+- merged commits:
+  - ff8cfec watching and the sleep auto-save now recognise movie pages, so an open movie gets saved and resumes from its name
+- main is now at: 084f316 (build succeeded, app relaunched)
