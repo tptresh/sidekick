@@ -117,23 +117,24 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 
 ## Menu bar panel
 
-Click the emblem in the menu bar for a small panel with today's weather for
-where you are (from the free Open-Meteo forecast, using your approximate
-location), the automatic Light and Dark switch times, and a "Keeping your Mac
-awake" line with a Stop button while caffeinate is on. The emblem also shows a
-small dot while the Mac is being kept awake. Search, Preferences and Quit sit
-along the bottom.
+Click the emblem in the menu bar for a small panel in the style of Control
+Center: today's weather where you are (from the free Open-Meteo forecast; the
+last forecast is saved, so it shows instantly and refreshes in the background
+every 30 minutes), a Keep Mac Awake switch, and the automatic Light and Dark
+switch with its two times. While the Mac is being kept awake, a coffee cup sits
+next to the emblem in the menu bar. Preferences and Quit are at the bottom.
 
 ## Preferences
 
-Click the emblem in the menu bar > Preferences. A sidebar splits it into:
+Click the emblem > Preferences. Everything is on one page, grouped like System
+Settings:
 
-- **General**: the hotkey that opens Spidey, and launch at login
 - **Appearance**: hero theme (Spider-Man, Batman) and the automatic Light and Dark schedule
-- **Media Sites**: which streaming services and custom sites appear for show searches, each with a health dot (green reachable, orange failed, grey not checked), a banner and sidebar badge when any site fails its check, and a Check Now button
-- **Clipboard**: history size, clearing it, and keeping recent screenshots
+- **Shortcut & Startup**: the hotkey that opens Spidey, and launch at login
+- **Media Sites**: which streaming services and custom sites appear for show searches. Each has a health dot (green reachable, orange not responding, grey not checked), a summary line names any site that is down, plus Add Site and Check Now. Drag or right-click to reorder
+- **Clipboard**: history size, keeping recent screenshots, and clearing history
 - **Claude Code**: the folder sessions start in
-- **Permissions**: what is ready, with buttons to re-ask or retry an install
+- **Permissions**: what is allowed or installed, with buttons to ask again or retry an install
 
 ## Extending the website directory
 
