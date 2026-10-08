@@ -28,15 +28,20 @@ struct SettingsView: View {
                 setupSection
                 loginSection
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
         }
-        .frame(width: 480, height: 560)
+        .frame(minWidth: 560, idealWidth: 620, minHeight: 420, idealHeight: 680)
     }
 
     private var themeSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Theme").font(.headline)
-            HStack(spacing: 12) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 120, maximum: 120), spacing: 12)],
+                alignment: .leading,
+                spacing: 12
+            ) {
                 ForEach(HeroTheme.allCases, id: \.self) { theme in
                     ThemePreviewButton(
                         theme: theme,
