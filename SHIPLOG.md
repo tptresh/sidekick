@@ -404,3 +404,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 3a176dc README describes the new menu bar panel, the redesigned Preferences sidebar, and the Location permission used for weather
 - main is now at: e89216f (build succeeded, app relaunched)
+
+## 2026-10-09 00:49 - OK - worktree-ui-overhaul
+- "menu bar panel redesigned in a clean native style: weather shows instantly from a saved forecast and refreshes in the background, an always-visible Keep Mac Awake switch with a coffee cup beside the menu bar icon while it is on, the Light and Dark schedule, and quiet Preferences and Quit links (no Search button)"
+- merged commits:
+  - 7d4c9ff menu bar panel redesigned in a clean native style: weather shows instantly from a saved forecast and refreshes in the background, an always-visible Keep Mac Awake switch with a coffee cup beside the menu bar icon while it is on, the Light and Dark schedule, and quiet Preferences and Quit links (no Search button)
+- main is now at: 404f833 (build succeeded, app relaunched)
