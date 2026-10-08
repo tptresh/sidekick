@@ -29,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ContactIndex.shared.warmUp()
         LinkChecker.shared.startAutomaticChecks()
         if snapshotDirectory == nil, entranceDirectory == nil {
+            WeatherStore.shared.start()
+        }
+        if snapshotDirectory == nil, entranceDirectory == nil {
             AppearanceScheduler.shared.start()
         }
 
@@ -209,7 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // MARK: - Status item
 
     private func setUpStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         updateStatusIcon(settings.theme, awake: CaffeinateManager.shared.isActive)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(toggleMenuBarPopover)
@@ -244,13 +247,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
-        popover.appearance = NSAppearance(named: .darkAqua)
         let controller = NSHostingController(rootView: MenuBarPanel(
             settings: settings,
-            openSearch: { [weak self] in
-                self?.menuBarPopover?.performClose(nil)
-                self?.showPanel()
-            },
             openPreferences: { [weak self] in
                 self?.menuBarPopover?.performClose(nil)
                 self?.openPreferences()
