@@ -26,11 +26,18 @@ Then build and run the real app:
 make app && open build/Sidekick.app
 ```
 
-`make app` ad-hoc signs the bundle, which changes its code identity, so macOS
-treats every build as a new app and the previous Accessibility, Contacts,
-Calendar, Reminders, and Automation grants go stale. The Makefile resets them
-deliberately so the next launch prompts fresh. That is expected after a
-rebuild, not a bug.
+macOS ties the Accessibility, Contacts, Calendar, Reminders, and Automation
+grants to the app's code identity. By default `make app` ad-hoc signs, which is
+a new identity on every build, so the Makefile resets those grants and the next
+launch prompts fresh. To keep your grants across rebuilds, run this once:
+
+```bash
+make signing
+```
+
+It creates a self-signed "Sidekick Local Signing" certificate in its own
+keychain on your Mac. `make app` then signs with it, the identity stays the
+same from build to build, and you grant each permission only once.
 
 Only one Sidekick runs at a time: a launching copy terminates any older one,
 because two instances would both claim the menu bar item and the global hotkey.

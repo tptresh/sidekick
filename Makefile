@@ -3,8 +3,11 @@ BIN_NAME = Spidey
 BUNDLE_ID = dev.opensource.spidey
 BUILD_DIR = .build/release
 APP_DIR = build/$(APP_NAME).app
+SIGN_IDENTITY = Sidekick Local Signing
+SIGN_KEYCHAIN = $(HOME)/Library/Keychains/sidekick-signing.keychain-db
+SIGN_STAMP = build/.signing-identity
 
-.PHONY: app build test icon clean run prune guard-main-checkout
+.PHONY: app signing build test icon clean run prune guard-main-checkout
 
 build:
 	swift build -c release
@@ -19,18 +22,29 @@ app: guard-main-checkout build
 	cp Resources/Info.plist $(APP_DIR)/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(APP_DIR)/Contents/Resources/; fi
 	@if [ -f Resources/sasuke.png ]; then cp Resources/sasuke.png $(APP_DIR)/Contents/Resources/; fi
-	codesign --force --sign - $(APP_DIR)
-	@# Ad-hoc signing gives every build a new code identity, so the old
-	@# Accessibility grant (needed to drive Find My) goes stale but lingers
-	@# in System Settings. Reset it so relaunching prompts fresh instead of
-	@# silently failing.
-	-tccutil reset Accessibility $(BUNDLE_ID)
-	@# Same staleness applies to the Contacts/Calendar/Reminders grants,
-	@# and to the Automation (Apple Events) grants for browsers and players.
-	-tccutil reset AddressBook $(BUNDLE_ID)
-	-tccutil reset Calendar $(BUNDLE_ID)
-	-tccutil reset Reminders $(BUNDLE_ID)
-	-tccutil reset AppleEvents $(BUNDLE_ID)
+	@# Privacy grants are tied to the code identity. With the local signing
+	@# certificate (scripts/setup-signing.sh) the identity is the same on every
+	@# build, so grants survive rebuilds. Without it the build is ad-hoc signed,
+	@# which is a new identity each time.
+	@if security find-certificate -c "$(SIGN_IDENTITY)" $(SIGN_KEYCHAIN) >/dev/null 2>&1; then \
+		scripts/setup-signing.sh >/dev/null; \
+		security unlock-keychain -p sidekick-local $(SIGN_KEYCHAIN); \
+		codesign --force --sign "$(SIGN_IDENTITY)" $(APP_DIR); \
+	else \
+		echo "note: ad-hoc signing; run scripts/setup-signing.sh once so permissions survive rebuilds"; \
+		codesign --force --sign - $(APP_DIR); \
+	fi
+	@# When the identity did change, the old grants go stale but linger in
+	@# System Settings and features fail silently. Reset them so the next launch
+	@# prompts fresh. A stable identity skips this entirely.
+	@new_req="$$(codesign -d -r- $(APP_DIR) 2>&1 | sed -n 's/^designated => //p')"; \
+	if [ "$$new_req" != "$$(cat $(SIGN_STAMP) 2>/dev/null)" ]; then \
+		echo "Code identity changed; resetting privacy grants"; \
+		for service in Accessibility AddressBook Calendar Reminders AppleEvents; do \
+			tccutil reset $$service $(BUNDLE_ID) || true; \
+		done; \
+	fi; \
+	case "$$new_req" in *"certificate leaf"*) echo "$$new_req" > $(SIGN_STAMP);; *) rm -f $(SIGN_STAMP);; esac
 	@echo "Built $(APP_DIR)"
 
 # One Mac, one Sidekick.app. A worktree that builds its own bundle produces a
@@ -52,6 +66,10 @@ guard-main-checkout:
 # Delete app bundles left behind in worktrees and re-register the real one.
 prune:
 	@scripts/prune-worktree-apps.sh
+
+# One-time: create the local signing certificate so rebuilds keep permissions.
+signing:
+	@scripts/setup-signing.sh
 
 icon:
 	swift scripts/makeicon.swift Resources/AppIcon.icns

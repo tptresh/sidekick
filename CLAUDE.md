@@ -18,9 +18,14 @@ unmerged, or unbuilt.
   run two Sidekicks at once. In a worktree use `make build` to check it
   compiles, and `scripts/ship.sh` to actually put your change in the running
   app. `make prune` cleans up bundles a worktree left behind.
-- `make app` ad-hoc signs each build, so the Makefile resets the stale
-  Accessibility grant; features needing Accessibility re-prompt after a
-  rebuild. That is expected, not a bug.
+- `make app` signs with the stable "Sidekick Local Signing" certificate
+  (created once by `make signing` / `scripts/setup-signing.sh`), so macOS
+  permissions survive rebuilds and the user grants them only once. Never
+  switch back to ad-hoc signing (`--sign -`) and never add `tccutil reset`
+  calls: either one makes the user re-grant every permission on every ship.
+  The Makefile only resets grants itself when the code identity actually
+  changes. If a build prints "ad-hoc signing", the keychain is missing: run
+  `scripts/setup-signing.sh`.
 
 ## The ship workflow (solo trunk-based - no PRs of our own)
 
