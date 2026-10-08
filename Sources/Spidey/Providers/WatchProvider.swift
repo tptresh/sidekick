@@ -49,7 +49,7 @@ enum WatchProvider {
             }
             for (index, candidate) in open.prefix(4).enumerated() {
                 handled.insert(WatchStore.normalize(candidate.episode.show))
-                items.append(candidateRow(candidate, index: index))
+                items.append(candidateRow(candidate, index: index, store: store))
             }
         }
 
@@ -125,14 +125,16 @@ enum WatchProvider {
         )
     }
 
-    private static func candidateRow(_ candidate: WatchCapture.Candidate, index: Int) -> ResultItem {
+    private static func candidateRow(
+        _ candidate: WatchCapture.Candidate, index: Int, store: WatchStore
+    ) -> ResultItem {
         let episode = candidate.episode
         return ResultItem(
-            title: "Save \(episode.show) - \(label(season: episode.season, episode: episode.episode))",
+            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode)),
             subtitle: "Open on \(candidate.site) in your browser right now. Return remembers it.",
             icon: icon(for: candidate.url),
             score: 970 - Double(index),
-            action: { WatchCapture.save(candidate) }
+            action: { WatchCapture.save(candidate, store: store) }
         )
     }
 
@@ -140,9 +142,7 @@ enum WatchProvider {
         _ entry: WatchEntry, index: Int, store: WatchStore,
         score: Double? = nil, resuming: Bool = false
     ) -> ResultItem {
-        let title = resuming
-            ? "Resume \(entry.show) - \(entry.positionLabel)"
-            : "\(entry.show) - \(entry.positionLabel)"
+        let title = (resuming ? "Resume " : "") + named(entry.show, entry.positionLabel)
         let opens = entry.url == nil
             ? "Searches for it in \(BrowserLauncher.targetName)"
             : "Opens \(entry.siteLabel) in \(BrowserLauncher.targetName)"
@@ -185,7 +185,7 @@ enum WatchProvider {
         if rest.isEmpty {
             return ResultItem(
                 title: "Nothing saved yet",
-                subtitle: "Type \"watching the pitt s1e6\", or open an episode in Brave or Chrome and run this again",
+                subtitle: "Type \"watching the pitt s1e6\", or open an episode or movie in Brave or Chrome and run this again",
                 icon: .symbol("play.tv"),
                 score: 940,
                 action: {}
@@ -214,14 +214,20 @@ enum WatchProvider {
             )
             return
         }
-        let search = "\(entry.show) \(entry.positionLabel)"
+        let search = entry.isMovie ? entry.show : "\(entry.show) \(entry.positionLabel)"
         guard let url = URL(
             string: "https://www.google.com/search?q=\(BrowserLauncher.encodeQuery(search))"
         ) else { return }
         BrowserLauncher.open(url)
     }
 
+    // A movie is just its name; a show carries where you are in it.
+    private static func named(_ show: String, _ position: String) -> String {
+        position == "Movie" ? show : "\(show) - \(position)"
+    }
+
     private static func label(season: Int?, episode: Int) -> String {
+        if episode == 0 { return "Movie" }
         guard let season else { return "Episode \(episode)" }
         return "Season \(season), Episode \(episode)"
     }

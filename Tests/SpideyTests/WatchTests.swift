@@ -334,6 +334,46 @@ final class WatchProviderTests: XCTestCase {
         }
     }
 
+    func testMoviePagesAreRecognised() {
+        let movie = EpisodeParser.parseMovie(
+            title: "Stream The Amazing Spider-Man (2012) Online Free Watch Full Now HD - HydraHD",
+            url: "https://hydrahd.ws/movie/52128-watch-the-amazing-spider-man-2012-online"
+        )
+        XCTAssertEqual(movie, EpisodeParser.Episode(show: "The Amazing Spider-Man", season: nil, episode: 0))
+        // No year in the title: the URL slug names it.
+        XCTAssertEqual(
+            EpisodeParser.parseMovie(title: "HydraHD", url: "https://hydrahd.ws/movie/123-watch-dune-part-two")?.show,
+            "Dune Part Two"
+        )
+        // Not filed under a movie path, not a movie.
+        XCTAssertNil(EpisodeParser.parseMovie(
+            title: "Rick Astley - Never Gonna Give You Up (1987)", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ))
+    }
+
+    func testOpenMovieIsOfferedSavedAndResumed() {
+        let tabs = [TabsProvider.Tab(
+            windowIndex: 1, tabIndex: 1,
+            title: "Stream The Amazing Spider-Man (2012) Online Free Watch Full Now HD - HydraHD",
+            url: "https://hydrahd.ws/movie/52128-watch-the-amazing-spider-man-2012-online"
+        )]
+        let open = WatchCapture.candidates(from: tabs)
+        XCTAssertEqual(open.count, 1)
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WatchMovie-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WatchStore(directory: directory)
+        let items = WatchProvider.results(for: "watching", store: store, openEpisodes: { open })
+        XCTAssertEqual(items.first?.title, "Save The Amazing Spider-Man")
+        items.first?.action()
+        XCTAssertEqual(store.entries.first?.url, tabs[0].url)
+        XCTAssertTrue(WatchCapture.isAlreadySaved(open[0], store: store))
+
+        let resume = WatchProvider.resumeResults(for: "the amazing spider-man", store: store)
+        XCTAssertEqual(resume.map(\.title), ["Resume The Amazing Spider-Man"])
+    }
+
     func testCandidatesAreOnePerShow() {
         let tabs = [
             TabsProvider.Tab(windowIndex: 1, tabIndex: 1, title: "The Pitt S01E06 | Hydra", url: "https://hydrahd.sx/watch-tv/the-pitt/1/6"),

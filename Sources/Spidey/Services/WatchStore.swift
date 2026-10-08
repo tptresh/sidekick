@@ -17,8 +17,11 @@ struct WatchEntry: Codable, Identifiable, Equatable {
 
     var key: String { WatchStore.normalize(show) }
 
+    var isMovie: Bool { episode == 0 }
+
     // "Season 1, Episode 6" - spelled out for result rows.
     var positionLabel: String {
+        if isMovie { return "Movie" }
         guard let season else { return "Episode \(episode)" }
         return "Season \(season), Episode \(episode)"
     }
@@ -30,7 +33,8 @@ struct WatchEntry: Codable, Identifiable, Equatable {
 
     // The same page one episode on, when the site's URL spells the number out.
     var nextEpisodeURL: String? {
-        url.flatMap { EpisodeParser.advancedURL($0, toEpisode: episode + 1) }
+        guard !isMovie else { return nil }
+        return url.flatMap { EpisodeParser.advancedURL($0, toEpisode: episode + 1) }
     }
 
     var siteLabel: String { site ?? "no site saved" }
@@ -99,7 +103,8 @@ final class WatchStore {
         at date: Date = Date()
     ) -> WatchEntry? {
         let name = EpisodeParser.collapse(show)
-        guard name.count >= 2, episode > 0 else { return nil }
+        // Episode 0 is a movie.
+        guard name.count >= 2, episode >= 0 else { return nil }
         let key = Self.normalize(name)
         var all = entries
         let existing = all.first { $0.key == key }
