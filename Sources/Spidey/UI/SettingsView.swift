@@ -24,6 +24,7 @@ struct SettingsView: View {
                 mediaSection
                 claudeSection
                 clipboardSection
+                appearanceSection
                 setupSection
                 loginSection
             }
@@ -356,6 +357,37 @@ struct SettingsView: View {
                 isOn: $settings.screenshotsToClipboard
             )
         }
+    }
+
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Light & Dark Mode").font(.headline)
+            Toggle("Switch the Mac's appearance automatically", isOn: $settings.autoAppearance)
+            HStack(spacing: 16) {
+                DatePicker("Light at", selection: minuteBinding(\.lightModeMinute), displayedComponents: .hourAndMinute)
+                DatePicker("Dark at", selection: minuteBinding(\.darkModeMinute), displayedComponents: .hourAndMinute)
+            }
+            .disabled(!settings.autoAppearance)
+            Text("A manual switch in between stays until the next scheduled time.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // Bridges a minutes-after-midnight setting to a DatePicker's Date.
+    private func minuteBinding(_ keyPath: ReferenceWritableKeyPath<SettingsStore, Int>) -> Binding<Date> {
+        Binding(
+            get: {
+                let minute = settings[keyPath: keyPath]
+                return Calendar.current.date(
+                    bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()
+                ) ?? Date()
+            },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                settings[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+            }
+        )
     }
 
     private var setupSection: some View {

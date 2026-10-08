@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FileProvider.warmUp()
         ContactIndex.shared.warmUp()
         LinkChecker.shared.startAutomaticChecks()
+        if snapshotDirectory == nil, entranceDirectory == nil {
+            AppearanceScheduler.shared.start()
+        }
 
         viewModel.onHide = { [weak self] in self?.hidePanel() }
 

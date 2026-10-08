@@ -124,6 +124,16 @@ final class SettingsStore: ObservableObject {
             }
         }
     }
+    // Automatic appearance switching; times are minutes after midnight.
+    @Published var autoAppearance: Bool {
+        didSet { defaults.set(autoAppearance, forKey: "autoAppearance") }
+    }
+    @Published var lightModeMinute: Int {
+        didSet { defaults.set(lightModeMinute, forKey: "lightModeMinute") }
+    }
+    @Published var darkModeMinute: Int {
+        didSet { defaults.set(darkModeMinute, forKey: "darkModeMinute") }
+    }
     // The combo actually registered right now (falls back if the preferred one is taken).
     @Published var activeHotKey: HotKeyCombo?
 
@@ -156,6 +166,9 @@ final class SettingsStore: ObservableObject {
         let limit = defaults.integer(forKey: "clipboardLimit")
         clipboardLimit = limit > 0 ? limit : 200
         screenshotsToClipboard = defaults.object(forKey: "screenshotsToClipboard") as? Bool ?? true
+        autoAppearance = defaults.object(forKey: "autoAppearance") as? Bool ?? true
+        lightModeMinute = defaults.object(forKey: "lightModeMinute") as? Int ?? 6 * 60
+        darkModeMinute = defaults.object(forKey: "darkModeMinute") as? Int ?? 16 * 60 + 30
         if let data = defaults.data(forKey: "hotKey"),
            let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) {
             hotKey = combo
