@@ -386,3 +386,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e0beb2a the menu bar icon now opens a panel with today's weather, the automatic Light and Dark switch times, and a Keeping Mac Awake indicator (plus a dot on the icon) while caffeinate is on
 - main is now at: 0ccea92 (build succeeded, app relaunched)
+
+## 2026-10-09 00:24 - OK - worktree-ui-overhaul
+- "Preferences redesigned: a sidebar with General, Appearance, Media Sites, Clipboard, Claude Code and Permissions, settings grouped into cards, a health dot on every media site, and a banner plus sidebar badge when any site fails its check"
+- merged commits:
+  - a62e1a8 Preferences redesigned: a sidebar with General, Appearance, Media Sites, Clipboard, Claude Code and Permissions, settings grouped into cards, a health dot on every media site, and a banner plus sidebar badge when any site fails its check
+- main is now at: d8de45c (build succeeded, app relaunched)
