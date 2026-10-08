@@ -326,3 +326,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 2e830f7 (build succeeded, app relaunched)
+
+## 2026-10-08 21:26 - OK - worktree-watch-movies
+- "while a movie or episode is playing in the front browser tab, typing just 'wa' offers to save it"
+- merged commits:
+  - 3fd5ed9 while a movie or episode is playing in the front browser tab, typing just 'wa' offers to save it
+- main is now at: c2c6678 (build succeeded, app relaunched)
