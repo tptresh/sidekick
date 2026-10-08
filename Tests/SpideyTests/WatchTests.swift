@@ -374,6 +374,30 @@ final class WatchProviderTests: XCTestCase {
         XCTAssertEqual(resume.map(\.title), ["Resume The Amazing Spider-Man"])
     }
 
+    func testFirstLettersSaveWhatIsPlaying() {
+        let movie = WatchCapture.Candidate(
+            episode: .init(show: "The Amazing Spider-Man", season: nil, episode: 0),
+            url: "https://hydrahd.ws/movie/52128-watch-the-amazing-spider-man-2012-online",
+            site: "hydrahd.ws"
+        )
+        func quick(_ query: String, playing: WatchCapture.Candidate?) -> [ResultItem] {
+            WatchProvider.results(for: query, store: store, openEpisodes: { [] }, playing: { playing })
+        }
+        // Nothing playing: "wa" is left alone.
+        XCTAssertTrue(quick("wa", playing: nil).isEmpty)
+        XCTAssertTrue(quick("watc", playing: nil).isEmpty)
+        // Playing: every prefix from "wa" on offers it, on top of everything.
+        for query in ["wa", "wat", "watchin"] {
+            let items = quick(query, playing: movie)
+            XCTAssertEqual(items.map(\.title), ["Save The Amazing Spider-Man"], query)
+            XCTAssertGreaterThan(items.first?.score ?? 0, 1000)
+        }
+        XCTAssertTrue(quick("w", playing: movie).isEmpty)
+        XCTAssertTrue(quick("wb", playing: movie).isEmpty)
+        quick("wa", playing: movie).first?.action()
+        XCTAssertEqual(store.entries.first?.url, movie.url)
+    }
+
     func testCandidatesAreOnePerShow() {
         let tabs = [
             TabsProvider.Tab(windowIndex: 1, tabIndex: 1, title: "The Pitt S01E06 | Hydra", url: "https://hydrahd.sx/watch-tv/the-pitt/1/6"),
