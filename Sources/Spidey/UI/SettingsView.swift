@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 import ServiceManagement
 import Carbon.HIToolbox
 
@@ -15,23 +16,135 @@ struct SettingsView: View {
     @State private var showingAddSite = false
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
+    @State private var pane: SettingsPane? = .general
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                themeSection
-                hotkeySection
-                mediaSection
-                claudeSection
-                clipboardSection
-                appearanceSection
-                setupSection
-                loginSection
+        NavigationSplitView {
+            List(SettingsPane.allCases, selection: $pane) { pane in
+                SidebarLabel(pane: pane, badge: pane == .sites ? failingSiteNames.count : 0)
+                    .tag(pane)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 190, max: 220)
+        } detail: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    let current = pane ?? .general
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(current.title)
+                            .font(.system(size: 22, weight: .bold))
+                        Text(current.subtitle)
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.bottom, 4)
+                    paneContent(current)
+                }
+                .frame(maxWidth: 640, alignment: .leading)
+                .padding(28)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .frame(minWidth: 560, idealWidth: 620, minHeight: 420, idealHeight: 680)
+        .frame(minWidth: 700, idealWidth: 780, minHeight: 480, idealHeight: 600)
+    }
+
+    @ViewBuilder
+    private func paneContent(_ pane: SettingsPane) -> some View {
+        switch pane {
+        case .general:
+            SettingsCard { hotkeySection }
+            SettingsCard { loginSection }
+        case .appearance:
+            SettingsCard { themeSection }
+            SettingsCard { appearanceSection }
+        case .sites:
+            siteHealthBanner
+            SettingsCard { mediaSection }
+        case .clipboard:
+            SettingsCard { clipboardSection }
+        case .claude:
+            SettingsCard { claudeSection }
+        case .permissions:
+            SettingsCard { setupSection }
+        }
+    }
+
+    // MARK: - Site health
+
+    // Names of enabled sites whose last check failed, in list order.
+    private var failingSiteNames: [String] {
+        settings.orderedMediaEntries.compactMap { entry in
+            guard let status = siteStatus(for: entry), !status.ok else { return nil }
+            return entryName(entry)
+        }
+    }
+
+    private func entryName(_ entry: MediaEntry) -> String {
+        switch entry {
+        case .service(let service): return service.name
+        case .custom(let site): return siteBinding(site).wrappedValue.displayName
+        }
+    }
+
+    private func siteStatus(for entry: MediaEntry) -> LinkChecker.Status? {
+        switch entry {
+        case .service(let service):
+            guard settings.enabledServices.contains(service.id) else { return nil }
+            return linkChecker.status(forKey: service.id)
+        case .custom(let site):
+            let current = siteBinding(site).wrappedValue
+            guard current.enabled, current.isValid else { return nil }
+            return linkChecker.status(forKey: site.id.uuidString)
+        }
+    }
+
+    @ViewBuilder
+    private var siteHealthBanner: some View {
+        let failing = failingSiteNames
+        if linkChecker.isRunning {
+            HealthBanner(
+                symbol: "arrow.triangle.2.circlepath", tint: .blue,
+                title: "Checking your sites...",
+                detail: "Each enabled site is opened in the background to make sure it still answers."
+            )
+        } else if !failing.isEmpty {
+            HealthBanner(
+                symbol: "exclamationmark.triangle.fill", tint: .orange,
+                title: failing.count == 1 ? "1 site needs attention" : "\(failing.count) sites need attention",
+                detail: failing.joined(separator: ", ")
+                    + " did not answer like a live site. It may be down for a while or have moved to a new address. Hover a dot below for the reason.",
+                actionTitle: "Check Again",
+                action: {
+                    linkChecker.checkNow()
+                    linkChecker.retryFailedDiscoveries()
+                }
+            )
+        } else if linkChecker.lastRun != nil {
+            HealthBanner(
+                symbol: "checkmark.seal.fill", tint: .green,
+                title: "All sites are reachable",
+                detail: lastCheckDescription
+            )
+        }
+    }
+
+    // Green when the last check passed, orange when it failed, grey when the
+    // site is off or has not been checked yet.
+    private func statusDot(for entry: MediaEntry) -> some View {
+        let status = siteStatus(for: entry)
+        let color: Color
+        let help: String
+        if let status {
+            color = status.ok ? .green : .orange
+            help = status.ok ? "Reachable at the last check" : status.detail
+        } else {
+            color = Color.secondary.opacity(0.4)
+            help = "Not checked yet"
+        }
+        return Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .help(help)
     }
 
     private var themeSection: some View {
@@ -155,6 +268,7 @@ struct SettingsView: View {
             Image(systemName: "line.3.horizontal")
                 .font(.caption)
                 .foregroundColor(Color.secondary.opacity(0.6))
+            statusDot(for: entry)
             switch entry {
             case .service(let service):
                 Toggle(service.name, isOn: Binding(
@@ -177,7 +291,6 @@ struct SettingsView: View {
                         .scaleEffect(0.6)
                         .help("Learning this site's search - can take a few minutes")
                 }
-                deadLinkWarning(for: binding.wrappedValue)
             }
             Spacer()
             infoButton(for: entry)
@@ -305,19 +418,6 @@ struct SettingsView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return "Links checked \(formatter.localizedString(for: lastRun, relativeTo: Date()))."
-    }
-
-    // Healthy rows stay clean; only a failed link check earns a marker.
-    @ViewBuilder
-    private func deadLinkWarning(for site: CustomMediaSite) -> some View {
-        if site.isValid,
-           let status = linkChecker.status(forKey: site.id.uuidString),
-           !status.ok {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundColor(.orange)
-                .help(status.detail)
-        }
     }
 
     private var claudeSection: some View {
@@ -612,5 +712,134 @@ private struct HotKeyRecorder: NSViewRepresentable {
                 withAttributes: attributes
             )
         }
+    }
+}
+
+// MARK: - Layout pieces
+
+enum SettingsPane: String, CaseIterable, Identifiable {
+    case general, appearance, sites, clipboard, claude, permissions
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: return "General"
+        case .appearance: return "Appearance"
+        case .sites: return "Media Sites"
+        case .clipboard: return "Clipboard"
+        case .claude: return "Claude Code"
+        case .permissions: return "Permissions"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general: return "How Sidekick opens and starts up."
+        case .appearance: return "Your hero theme and the Mac's automatic Light and Dark switch."
+        case .sites: return "Where show searches go, and whether each site is still up."
+        case .clipboard: return "What Sidekick remembers from your clipboard."
+        case .claude: return "Where \"claude <task>\" starts its sessions."
+        case .permissions: return "Access and tools Sidekick's features rely on."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: return "gearshape.fill"
+        case .appearance: return "paintpalette.fill"
+        case .sites: return "play.tv.fill"
+        case .clipboard: return "doc.on.clipboard.fill"
+        case .claude: return "terminal.fill"
+        case .permissions: return "lock.shield.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .general: return .gray
+        case .appearance: return .purple
+        case .sites: return .red
+        case .clipboard: return .blue
+        case .claude: return .orange
+        case .permissions: return .green
+        }
+    }
+}
+
+// System Settings style: a small coloured tile behind a white symbol.
+private struct SidebarLabel: View {
+    let pane: SettingsPane
+    let badge: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: pane.symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6).fill(pane.tint.gradient))
+            Text(pane.title)
+            Spacer()
+            if badge > 0 {
+                Text("\(badge)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.orange))
+                    .help("Sites that failed their last check")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct SettingsCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
+            )
+    }
+}
+
+private struct HealthBanner: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    let detail: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 18))
+                .foregroundColor(tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 10).fill(tint.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(tint.opacity(0.4), lineWidth: 1))
     }
 }

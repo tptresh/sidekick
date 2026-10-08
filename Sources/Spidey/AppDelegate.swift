@@ -341,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openPreferences() {
         if settingsWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 620, height: 680),
+                contentRect: NSRect(x: 0, y: 0, width: 780, height: 600),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
                 defer: false
@@ -349,8 +349,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.title = "Sidekick Preferences"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(settings: settings))
-            window.contentMinSize = NSSize(width: 560, height: 420)
-            window.setContentSize(NSSize(width: 620, height: 680))
+            window.contentMinSize = NSSize(width: 700, height: 480)
+            window.setContentSize(NSSize(width: 780, height: 600))
             window.center()
             settingsWindow = window
         }
