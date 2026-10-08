@@ -115,17 +115,25 @@ Spidey defaults to Cmd+Space, but macOS gives that key to Spotlight. To hand it 
 
 Until then, Spidey automatically falls back to Option+Space. You can record any other combo in Preferences from the menu bar icon.
 
+## Menu bar panel
+
+Click the emblem in the menu bar for a small panel with today's weather for
+where you are (from the free Open-Meteo forecast, using your approximate
+location), the automatic Light and Dark switch times, and a "Keeping your Mac
+awake" line with a Stop button while caffeinate is on. The emblem also shows a
+small dot while the Mac is being kept awake. Search, Preferences and Quit sit
+along the bottom.
+
 ## Preferences
 
-Click the mask icon in the menu bar > Preferences:
+Click the emblem in the menu bar > Preferences. A sidebar splits it into:
 
-- Hero theme (Spider-Man, Batman)
-- The hotkey that opens Spidey
-- Which streaming services appear for show searches
-- Custom media sites, with a per-site link health dot and a Check Now button
-- The folder Claude Code sessions start in
-- Clipboard history size, and clearing it
-- Launch at login
+- **General**: the hotkey that opens Spidey, and launch at login
+- **Appearance**: hero theme (Spider-Man, Batman) and the automatic Light and Dark schedule
+- **Media Sites**: which streaming services and custom sites appear for show searches, each with a health dot (green reachable, orange failed, grey not checked), a banner and sidebar badge when any site fails its check, and a Check Now button
+- **Clipboard**: history size, clearing it, and keeping recent screenshots
+- **Claude Code**: the folder sessions start in
+- **Permissions**: what is ready, with buttons to re-ask or retry an install
 
 ## Extending the website directory
 
@@ -219,7 +227,7 @@ features need and installs its own command line tools, so no feature surprises
 you with a missing piece later. Preferences has a "Permissions & Tools" section
 showing what is ready, with buttons to re-ask or retry an install.
 
-- **At launch**: the app requests Accessibility, Contacts, Calendar, and Reminders access up front, and triggers the standard Automation consents for System Events and Finder (plus Spotify/Music, Brave/Chrome, and Terminal when they are already running - apps that are not running are asked on first use instead, so launch never opens them).
+- **At launch**: the app requests Accessibility, Contacts, Calendar, Reminders, and Location (for the weather in the menu bar panel) access up front, and triggers the standard Automation consents for System Events and Finder (plus Spotify/Music, Brave/Chrome, and Terminal when they are already running - apps that are not running are asked on first use instead, so launch never opens them).
 - **Command line tools**: the Bluetooth toggle uses `blueutil` and brightness control uses the `brightness` CLI. If either is missing, Sidekick installs it through Homebrew in the background at launch and tells you when it is done. Without Homebrew installed, Sidekick explains that once and those two commands fall back to opening the matching System Settings pane.
 - **Automation**: controlling System Events, Finder, music players, and browser tabs uses standard macOS Automation consents, the same ones every launcher triggers.
 - **Contacts, Calendars, Reminders**: prompts need the bundled app (`make app`); a bare `swift build` binary has no Info.plist, so the result rows explain that instead of prompting. Without a signing certificate, `make app` ad-hoc signs and resets these grants (along with Accessibility) on every rebuild; run `make signing` once and they survive rebuilds instead (see CONTRIBUTING.md).
