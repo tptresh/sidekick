@@ -308,3 +308,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: a7a4c36 (build succeeded, app relaunched)
+
+## 2026-10-08 21:15 - OK - main
+- "README mentions scheduled light and dark mode"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 3dc2c61 (build succeeded, app relaunched)
