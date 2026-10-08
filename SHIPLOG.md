@@ -392,3 +392,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - a62e1a8 Preferences redesigned: a sidebar with General, Appearance, Media Sites, Clipboard, Claude Code and Permissions, settings grouped into cards, a health dot on every media site, and a banner plus sidebar badge when any site fails its check
 - main is now at: d8de45c (build succeeded, app relaunched)
+
+## 2026-10-09 00:29 - OK - worktree-ui-overhaul
+- "menu bar panel polish: clicking the icon again closes it, the date and weather are fresh on every open, the forecast never gets stuck loading, Preferences says when a site check could not run because the Mac was offline, and file names like main.rs stay file searches"
+- merged commits:
+  - f94a3f9 menu bar panel polish: clicking the icon again closes it, the date and weather are fresh on every open, the forecast never gets stuck loading, Preferences says when a site check could not run because the Mac was offline, and file names like main.rs stay file searches
+- main is now at: 25514db (build succeeded, app relaunched)
