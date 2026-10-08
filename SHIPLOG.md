@@ -332,3 +332,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 3fd5ed9 while a movie or episode is playing in the front browser tab, typing just 'wa' offers to save it
 - main is now at: c2c6678 (build succeeded, app relaunched)
+
+## 2026-10-08 21:27 - OK - worktree-watch-movies
+- "typing 'wa' now spots Brave playing a movie, so the quick save actually appears"
+- merged commits:
+  - e0fac27 typing 'wa' now spots Brave playing a movie, so the quick save actually appears
+- main is now at: 883a9b9 (build succeeded, app relaunched)
