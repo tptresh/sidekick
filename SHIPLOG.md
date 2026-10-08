@@ -338,3 +338,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e0fac27 typing 'wa' now spots Brave playing a movie, so the quick save actually appears
 - main is now at: 883a9b9 (build succeeded, app relaunched)
+
+## 2026-10-08 21:35 - OK - worktree-watch-movies
+- "'wa' now works with the movie paused too, and saves the time you're at; resuming shows 'at 1:04:04'"
+- merged commits:
+  - 9c79b75 'wa' now works with the movie paused too, and saves the time you're at; resuming shows 'at 1:04:04'
+- main is now at: d9974aa (build succeeded, app relaunched)
