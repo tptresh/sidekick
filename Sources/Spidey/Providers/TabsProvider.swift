@@ -188,6 +188,48 @@ enum TabsProvider {
         }
     }
 
+    // The running browser's app bundle, so callers can tell its helper
+    // processes apart from everything else's.
+    static func runningBrowserBundleURL() -> URL? {
+        runningBrowser()?.1.bundleURL
+    }
+
+    // Just the tab on screen in the browser's front window.
+    static func readActiveTab(timeout: TimeInterval, completion: @escaping (Tab?) -> Void) {
+        guard let (browser, _) = runningBrowser() else {
+            DispatchQueue.main.async { completion(nil) }
+            return
+        }
+        fetchQueue.async {
+            let script = """
+            set sep to character id 9
+            tell application "\(browser.appleScriptName)"
+                if (count of windows) is 0 then return ""
+                set t to active tab of front window
+                return "1" & sep & "1" & sep & (URL of t) & sep & (title of t)
+            end tell
+            """
+            let tab = parseTabRecords(runOSAScript(script, timeout: timeout)).first
+            DispatchQueue.main.async { completion(tab) }
+        }
+    }
+
+    private static func runOSAScript(_ script: String, timeout: TimeInterval) -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        guard (try? process.run()) != nil else { return "" }
+        let killer = DispatchWorkItem { if process.isRunning { process.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        killer.cancel()
+        return String(decoding: data, as: UTF8.self)
+    }
+
     private static func fetchTabs(_ browser: Browser, timeout: TimeInterval) -> [Tab] {
         // sep/nl are computed outside the tell block because "tab" is a class
         // name inside it, and AppleScript strings have no escape sequences.
@@ -207,23 +249,10 @@ enum TabsProvider {
         end tell
         return out
         """
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        guard (try? process.run()) != nil else { return [] }
         // Generous timeout by default: the first run blocks on the Automation
         // consent. A caller with something waiting on it (the Mac going to
         // sleep) passes a short one instead.
-        let killer = DispatchWorkItem { if process.isRunning { process.terminate() } }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        killer.cancel()
-
-        return parseTabRecords(String(decoding: data, as: UTF8.self))
+        return parseTabRecords(runOSAScript(script, timeout: timeout))
     }
 
     // One record per line: window \t tab \t url \t title. The title comes

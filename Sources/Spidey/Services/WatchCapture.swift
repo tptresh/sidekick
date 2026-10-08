@@ -1,4 +1,5 @@
 import AppKit
+import IOKit.pwr_mgt
 
 // Turns whatever is open in the browser into "you were watching this".
 // Two ways in: the watching command offers what it finds as one-Return
@@ -35,6 +36,59 @@ enum WatchCapture {
             }
         }
         return candidates
+    }
+
+    // The episode or movie in the browser's front tab, only while the browser
+    // is actually playing something. Refreshed when the panel opens, so the
+    // first couple of letters of "watching" can already offer it.
+    private(set) static var playing: Candidate?
+    private static var checkingPlaying = false
+
+    static func refreshPlaying() {
+        guard !checkingPlaying else { return }
+        // The power check is cheap, so AppleScript only runs mid-playback.
+        guard let browser = TabsProvider.runningBrowserBundleURL(), isPlayingMedia(in: browser) else {
+            setPlaying(nil)
+            return
+        }
+        checkingPlaying = true
+        TabsProvider.readActiveTab(timeout: 3) { tab in
+            checkingPlaying = false
+            setPlaying(tab.flatMap { candidates(from: [$0]).first })
+        }
+    }
+
+    private static func setPlaying(_ candidate: Candidate?) {
+        guard candidate != playing else { return }
+        playing = candidate
+        NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
+    }
+
+    // Browsers hold a "keep the display awake" power assertion while a video
+    // plays and a "keep the system awake" one while audio plays, from the
+    // main process or one of its helpers inside the app bundle. That is the
+    // only public signal, since the player usually sits in a cross-site frame.
+    static func isPlayingMedia(in bundle: URL) -> Bool {
+        var unmanaged: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsByProcess(&unmanaged) == kIOReturnSuccess,
+              let byProcess = unmanaged?.takeRetainedValue() as? [NSNumber: [[String: Any]]]
+        else { return false }
+        let prefix = bundle.path
+        for (pid, assertions) in byProcess where !assertions.isEmpty {
+            guard let path = executablePath(pid: pid_t(pid.int32Value)), path.hasPrefix(prefix)
+            else { continue }
+            let mediaTypes = [kIOPMAssertPreventUserIdleDisplaySleep, kIOPMAssertPreventUserIdleSystemSleep]
+            if assertions.contains(where: { mediaTypes.contains(($0["AssertType"] as? String) ?? "") }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func executablePath(pid: pid_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: 4096)
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
+        return String(cString: buffer)
     }
 
     // Saves every episode page open right now. The completion always runs,

@@ -15,10 +15,17 @@ enum WatchProvider {
     // openEpisodes is injected so tests never shell out to AppleScript.
     static func results(
         for query: String, store: WatchStore = .shared,
-        openEpisodes: () -> [WatchCapture.Candidate] = { WatchCapture.currentCandidates() }
+        openEpisodes: () -> [WatchCapture.Candidate] = { WatchCapture.currentCandidates() },
+        playing: () -> WatchCapture.Candidate? = { WatchCapture.playing }
     ) -> [ResultItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let lowered = trimmed.lowercased()
+        // Mid-movie, the first letters of "watching" are enough: "wa" saves
+        // what is playing in the front tab. Only while something is playing,
+        // so "wa" is otherwise left to WhatsApp and friends.
+        if lowered.count >= 2, lowered.count < "watching".count, "watching".hasPrefix(lowered) {
+            return playing().map { [playingRow($0, store: store)] } ?? []
+        }
         guard let keyword = keywords.first(where: { lowered == $0 || lowered.hasPrefix($0 + " ") })
         else { return [] }
         let rest = EpisodeParser.collapse(String(trimmed.dropFirst(keyword.count)))
@@ -134,6 +141,21 @@ enum WatchProvider {
             subtitle: "Open on \(candidate.site) in your browser right now. Return remembers it.",
             icon: icon(for: candidate.url),
             score: 970 - Double(index),
+            action: { WatchCapture.save(candidate, store: store) }
+        )
+    }
+
+    private static func playingRow(_ candidate: WatchCapture.Candidate, store: WatchStore) -> ResultItem {
+        let episode = candidate.episode
+        let saved = WatchCapture.isAlreadySaved(candidate, store: store)
+        return ResultItem(
+            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode)),
+            subtitle: saved
+                ? "Already saved. Return saves it again as the latest thing you watched."
+                : "Playing on \(candidate.site) right now. Return remembers it.",
+            icon: icon(for: candidate.url),
+            // Above any learned boost, so it is always the row Return picks.
+            score: 1300,
             action: { WatchCapture.save(candidate, store: store) }
         )
     }
