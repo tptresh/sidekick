@@ -77,7 +77,11 @@ enum WatchCapture {
         for (pid, assertions) in byProcess where !assertions.isEmpty {
             guard let path = executablePath(pid: pid_t(pid.int32Value)), path.hasPrefix(prefix)
             else { continue }
-            let mediaTypes = [kIOPMAssertPreventUserIdleDisplaySleep, kIOPMAssertPreventUserIdleSystemSleep]
+            // Brave reports "Playing audio" under the older NoIdleSleep name.
+            let mediaTypes = [
+                kIOPMAssertPreventUserIdleDisplaySleep, kIOPMAssertPreventUserIdleSystemSleep,
+                kIOPMAssertionTypeNoIdleSleep, kIOPMAssertionTypeNoDisplaySleep,
+            ]
             if assertions.contains(where: { mediaTypes.contains(($0["AssertType"] as? String) ?? "") }) {
                 return true
             }
