@@ -233,12 +233,13 @@ enum Bluetooth {
 }
 
 // Keeps a caffeinate child process alive while "keep awake" is on.
-final class CaffeinateManager {
+final class CaffeinateManager: ObservableObject {
     static let shared = CaffeinateManager()
 
     private var process: Process?
 
-    var isActive: Bool { process?.isRunning == true }
+    // Published so the menu bar can show that the Mac is being kept awake.
+    @Published private(set) var isActive = false
 
     func toggle() {
         if isActive {
@@ -247,13 +248,22 @@ final class CaffeinateManager {
             let caffeinate = Process()
             caffeinate.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
             caffeinate.arguments = ["-di"]
-            try? caffeinate.run()
+            caffeinate.terminationHandler = { [weak self] ended in
+                DispatchQueue.main.async {
+                    guard let self, self.process === ended else { return }
+                    self.process = nil
+                    self.isActive = false
+                }
+            }
+            guard (try? caffeinate.run()) != nil else { return }
             process = caffeinate
+            isActive = true
         }
     }
 
     func stop() {
         process?.terminate()
         process = nil
+        isActive = false
     }
 }

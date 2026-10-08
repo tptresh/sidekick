@@ -36,6 +36,10 @@
 	<string>Sidekick creates reminders when you type commands like "remind me to buy milk at 5pm".</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Sidekick creates reminders when you type commands like "remind me to buy milk at 5pm".</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Sidekick uses your approximate location to show today's weather in its menu bar panel.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Sidekick uses your approximate location to show today's weather in its menu bar panel.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 </dict>
