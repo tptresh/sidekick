@@ -359,6 +359,15 @@ private struct SearchField: NSViewRepresentable {
             case #selector(NSResponder.insertTab(_:)):
                 parent.onMove(1)
                 return true
+            // Cmd+Return has no key binding, so it arrives as noop: rather
+            // than insertNewline:.
+            case Selector(("noop:")):
+                guard let event = NSApp.currentEvent, event.type == .keyDown,
+                      event.keyCode == 36 || event.keyCode == 76,
+                      event.modifierFlags.contains(.command)
+                else { return false }
+                parent.onEnter(true)
+                return true
             default:
                 return false
             }

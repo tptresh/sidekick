@@ -73,6 +73,70 @@ enum NowPlaying {
         )
     }
 
+    // Resuming: once the reopened page starts playing from near the start,
+    // jump it to the saved time. Waits in one osascript process (polling Now
+    // Playing once a second) because the user usually has to press play, and
+    // checks the jump took, falling back to the plain seek command.
+    private static let seekScript = """
+    function run(argv) {
+        ObjC.import("Foundation");
+        $.NSBundle.bundleWithPath("/System/Library/PrivateFrameworks/MediaRemote.framework").load;
+        ObjC.bindFunction("MRMediaRemoteSetElapsedTime", ["void", ["double"]]);
+        ObjC.bindFunction("MRMediaRemoteSendCommand", ["bool", ["int", "id"]]);
+        const bundleID = argv[0], name = argv[1];
+        const target = parseFloat(argv[2]), wait = parseFloat(argv[3]);
+        const request = $.NSClassFromString("MRNowPlayingRequest");
+        const norm = s => s.toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim();
+        function now() {
+            const item = request.localNowPlayingItem, path = request.localNowPlayingPlayerPath;
+            if (!item || !path || !item.metadata) return null;
+            const md = item.metadata;
+            const bundle = ObjC.unwrap(path.client.bundleIdentifier) || "";
+            const title = norm(ObjC.unwrap(md.title) || "");
+            if ((bundleID && bundle !== bundleID) || !title.includes(name)) return null;
+            return { position: md.calculatedPlaybackPosition || 0, rate: md.playbackRate || 0 };
+        }
+        const landed = () => { const n = now(); return n && n.position >= target - 5; };
+        const start = Date.now();
+        while ((Date.now() - start) / 1000 < wait) {
+            const n = now();
+            if (n && n.position >= target - 10) return "already there";
+            if (n && n.rate > 0) {
+                $.MRMediaRemoteSetElapsedTime(target);
+                delay(1.5);
+                if (landed()) return "jumped";
+                const options = $.NSDictionary.dictionaryWithObjectForKey(
+                    $.NSNumber.numberWithDouble(target), $("kMRMediaRemoteOptionPlaybackPosition"));
+                $.MRMediaRemoteSendCommand(24, options);
+                delay(1.5);
+                return landed() ? "jumped" : "ignored";
+            }
+            delay(1);
+        }
+        return "never played";
+    }
+    """
+
+    private static var pendingSeek: Process?
+
+    // A newer resume replaces any jump still waiting on an older one.
+    static func seekWhenPlaying(bundleID: String?, show: String, to time: Double, wait: TimeInterval = 600) {
+        pendingSeek?.terminate()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = [
+            "-l", "JavaScript", "-e", seekScript,
+            bundleID ?? "", WatchStore.normalize(show), String(time), String(wait),
+        ]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        guard (try? process.run()) != nil else { return }
+        pendingSeek = process
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait + 10) {
+            if process.isRunning { process.terminate() }
+        }
+    }
+
     // "1:04:04", or "23:10" under an hour.
     static func timeLabel(_ seconds: Double) -> String {
         let total = max(0, Int(seconds))
