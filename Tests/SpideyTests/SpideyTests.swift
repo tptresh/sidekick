@@ -1136,27 +1136,17 @@ final class ThemeProviderTests: XCTestCase {
         }
     }
 
-    func testSharinganTriggersItsOwnThemeAndNotSasuke() {
-        for query in ["sharingan", "itachi", "mangekyou", "tsukuyomi"] {
-            let titles = ThemeProvider.results(for: query).map(\.title)
+    func testRetiredThemesOfferNothing() {
+        for query in ["sharingan", "itachi", "sasuke", "rinnegan", "uchiha"] {
             XCTAssertTrue(
-                titles.contains { $0.contains("Sharingan") },
-                "expected a Sharingan theme row for \(query)"
-            )
-            XCTAssertFalse(
-                titles.contains { $0.contains("Sasuke") },
-                "did not expect a Sasuke theme row for \(query)"
+                ThemeProvider.results(for: query).isEmpty,
+                "did not expect a theme row for \(query)"
             )
         }
     }
 
-    func testSasukeStillHasItsOwnTriggers() {
-        for query in ["sasuke", "uchiha", "rinnegan"] {
-            XCTAssertTrue(
-                ThemeProvider.results(for: query).contains { $0.title.contains("Sasuke") },
-                "expected a Sasuke theme row for \(query)"
-            )
-        }
+    func testOnlySpiderManAndBatmanThemesRemain() {
+        XCTAssertEqual(HeroTheme.allCases, [.spiderman, .batman])
     }
 
     func testOrdinaryQueriesDoNotOfferThemes() {

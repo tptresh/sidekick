@@ -1,9 +1,7 @@
 import AppKit
 
 // Typing a hero's name offers a theme switch with a full screen entrance:
-// "spidey" swings the mask in on a web line, "the bat" lights the signal,
-// "sasuke" opens Rinnegan across the whole screen, "sharingan" turns the moon
-// behind Itachi's pole into the spinning eye.
+// "spidey" swings the mask in on a web line, "the bat" lights the signal.
 enum ThemeProvider {
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
@@ -16,12 +14,6 @@ enum ThemeProvider {
         }
         if matches(lowered, ["the bat", "batman", "bat man", "batman theme", "dark knight", "gotham"]) {
             items.append(item(for: .batman))
-        }
-        if matches(lowered, ["sasuke", "sasuke uchiha", "sasuke theme", "uchiha", "rinnegan"]) {
-            items.append(item(for: .sasuke))
-        }
-        if matches(lowered, ["sharingan", "sharingan theme", "itachi", "itachi uchiha", "mangekyou", "mangekyo", "tsukuyomi", "red moon"]) {
-            items.append(item(for: .sharingan))
         }
         return items
     }
@@ -44,10 +36,6 @@ enum ThemeProvider {
                 subtitle = "Thwip. The mask swings in from the top of the screen"
             case .batman:
                 subtitle = "Lights the signal and summons the Dark Knight"
-            case .sasuke:
-                subtitle = "He turns up and opens Rinnegan all over the screen"
-            case .sharingan:
-                subtitle = "The moon behind Itachi turns into the eye and spins"
             }
         }
         return ResultItem(

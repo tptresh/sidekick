@@ -30,7 +30,7 @@ struct SearchView: View {
         .frame(width: Self.panelWidth)
         .background(
             ZStack {
-                VisualEffectBackground(isLight: settings.theme.isLight)
+                VisualEffectBackground()
                 LinearGradient(
                     colors: [palette.backgroundTop.opacity(0.96), palette.background.opacity(0.97)],
                     startPoint: .top, endPoint: .bottom
@@ -89,18 +89,11 @@ struct SearchView: View {
         }
     }
 
-    // Sasuke carries the Rinnegan itself here, purple and ringed, instead of the
-    // flat badge the menu bar has to fall back on at 18 points.
-    @ViewBuilder
     private func themeGlyph(palette: ThemePalette) -> some View {
-        if settings.theme == .sasuke {
-            RinneganDisc(diameter: 26)
-        } else {
-            Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
-                .resizable()
-                .frame(width: 26, height: 26)
-                .opacity(0.85)
-        }
+        Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
+            .resizable()
+            .frame(width: 26, height: 26)
+            .opacity(0.85)
     }
 
     private var placeholder: String {
@@ -239,7 +232,6 @@ private struct DragModifier: ViewModifier {
 }
 
 private struct VisualEffectBackground: NSViewRepresentable {
-    let isLight: Bool
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
@@ -250,7 +242,7 @@ private struct VisualEffectBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.appearance = NSAppearance(named: isLight ? .aqua : .darkAqua)
+        nsView.appearance = NSAppearance(named: .darkAqua)
     }
 }
 

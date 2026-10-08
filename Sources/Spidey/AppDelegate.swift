@@ -127,7 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ("vinted", .spiderman, "sites.png"),
             ("netflix", .spiderman, "netflix.png"),
             ("grand seiko", .batman, "batman.png"),
-            ("sharingan", .sharingan, "sharingan.png"),
             ("100 usd to gbp", .spiderman, "convert.png"),
             ("5km in miles", .spiderman, "units.png"),
             ("time in tokyo", .spiderman, "worldclock.png"),
