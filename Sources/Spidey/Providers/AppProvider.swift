@@ -169,7 +169,7 @@ final class AppProvider {
                 title: app.name,
                 subtitle: "Open application",
                 icon: .appIcon(icon(for: url)),
-                score: 600 + match * 300,
+                score: Self.score(forMatch: match),
                 rankingKey: app.rankingKey,
                 dragFileURL: url,
                 secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
@@ -177,6 +177,12 @@ final class AppProvider {
             ))
         }
         return items.sorted { $0.score > $1.score }.prefix(6).map { $0 }
+    }
+
+    // An exact name jumps above same-named websites (tier-3 sites top out at
+    // 945) but stays under intent rows like conversions (985 and up).
+    static func score(forMatch match: Double) -> Double {
+        match >= 1.0 ? 960 : 600 + match * 300
     }
 
     private func icon(for url: URL) -> NSImage {

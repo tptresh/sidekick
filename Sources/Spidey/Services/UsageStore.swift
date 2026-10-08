@@ -155,6 +155,14 @@ final class UsageStore {
     /// prefix-compatible previous queries; keys with only global usage get at
     /// most `maxGlobalBoost`. The combined value is capped at
     /// `maxAssociationBoost`.
+    // Learning reorders apps and sites among themselves but never lifts one
+    // past an intent row (calculator, conversions start at 985). Rows already
+    // above that band, like resume-watching, keep the full boost.
+    static func boostedScore(base: Double, boost: Double) -> Double {
+        guard base < 985 else { return base + boost }
+        return min(base + boost, 984)
+    }
+
     func boosts(for query: String, now: Date = Date()) -> [String: Double] {
         let typed = Self.normalize(query)
         guard !typed.isEmpty else { return [:] }
