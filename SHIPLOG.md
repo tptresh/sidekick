@@ -302,3 +302,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 158c283 Ping my phone now waits for Find My to be ready and always plays the sound, instead of sometimes just opening the app
 - main is now at: 87e1218 (build succeeded, app relaunched)
+
+## 2026-10-08 21:15 - OK - main
+- "Sidekick switches the Mac to Light Mode at 6:00 and Dark Mode at 16:30 on its own, with both times editable in Settings"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: a7a4c36 (build succeeded, app relaunched)
