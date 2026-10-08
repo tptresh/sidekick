@@ -16,15 +16,15 @@ enum WatchProvider {
     static func results(
         for query: String, store: WatchStore = .shared,
         openEpisodes: () -> [WatchCapture.Candidate] = { WatchCapture.currentCandidates() },
-        playing: () -> WatchCapture.Candidate? = { WatchCapture.playing }
+        onScreen: () -> WatchCapture.Candidate? = { WatchCapture.onScreen }
     ) -> [ResultItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let lowered = trimmed.lowercased()
         // Mid-movie, the first letters of "watching" are enough: "wa" saves
-        // what is playing in the front tab. Only while something is playing,
+        // the episode or movie in the front tab, playing or paused. Only then,
         // so "wa" is otherwise left to WhatsApp and friends.
         if lowered.count >= 2, lowered.count < "watching".count, "watching".hasPrefix(lowered) {
-            return playing().map { [playingRow($0, store: store)] } ?? []
+            return onScreen().map { [onScreenRow($0, store: store)] } ?? []
         }
         guard let keyword = keywords.first(where: { lowered == $0 || lowered.hasPrefix($0 + " ") })
         else { return [] }
@@ -137,7 +137,8 @@ enum WatchProvider {
     ) -> ResultItem {
         let episode = candidate.episode
         return ResultItem(
-            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode)),
+            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode))
+                + timeSuffix(candidate.time),
             subtitle: "Open on \(candidate.site) in your browser right now. Return remembers it.",
             icon: icon(for: candidate.url),
             score: 970 - Double(index),
@@ -145,14 +146,15 @@ enum WatchProvider {
         )
     }
 
-    private static func playingRow(_ candidate: WatchCapture.Candidate, store: WatchStore) -> ResultItem {
+    private static func onScreenRow(_ candidate: WatchCapture.Candidate, store: WatchStore) -> ResultItem {
         let episode = candidate.episode
         let saved = WatchCapture.isAlreadySaved(candidate, store: store)
         return ResultItem(
-            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode)),
+            title: "Save " + named(episode.show, label(season: episode.season, episode: episode.episode))
+                + timeSuffix(candidate.time),
             subtitle: saved
                 ? "Already saved. Return saves it again as the latest thing you watched."
-                : "Playing on \(candidate.site) right now. Return remembers it.",
+                : "On \(candidate.site) right now. Return remembers where you are.",
             icon: icon(for: candidate.url),
             // Above any learned boost, so it is always the row Return picks.
             score: 1300,
@@ -164,7 +166,7 @@ enum WatchProvider {
         _ entry: WatchEntry, index: Int, store: WatchStore,
         score: Double? = nil, resuming: Bool = false
     ) -> ResultItem {
-        let title = (resuming ? "Resume " : "") + named(entry.show, entry.positionLabel)
+        let title = (resuming ? "Resume " : "") + named(entry.show, entry.positionLabel) + entry.timeSuffix
         let opens = entry.url == nil
             ? "Searches for it in \(BrowserLauncher.targetName)"
             : "Opens \(entry.siteLabel) in \(BrowserLauncher.targetName)"
@@ -246,6 +248,10 @@ enum WatchProvider {
     // A movie is just its name; a show carries where you are in it.
     private static func named(_ show: String, _ position: String) -> String {
         position == "Movie" ? show : "\(show) - \(position)"
+    }
+
+    private static func timeSuffix(_ time: Double?) -> String {
+        time.map { " at " + NowPlaying.timeLabel($0) } ?? ""
     }
 
     private static func label(season: Int?, episode: Int) -> String {

@@ -10,6 +10,8 @@ enum WatchCapture {
         let episode: EpisodeParser.Episode
         let url: String
         let site: String
+        // Seconds in, when Now Playing reported this tab.
+        var time: Double? = nil
     }
 
     // Mutated on the main thread only; the tab read itself is off it.
@@ -38,30 +40,57 @@ enum WatchCapture {
         return candidates
     }
 
-    // The episode or movie in the browser's front tab, only while the browser
-    // is actually playing something. Refreshed when the panel opens, so the
-    // first couple of letters of "watching" can already offer it.
-    private(set) static var playing: Candidate?
-    private static var checkingPlaying = false
+    // The episode or movie in the browser's front tab, with how far in it is,
+    // while the browser is the app on screen or is playing in the background.
+    // Refreshed when the panel opens, so the first couple of letters of
+    // "watching" can already offer it, paused or not.
+    private(set) static var onScreen: Candidate?
+    private static var checkingOnScreen = false
 
-    static func refreshPlaying() {
-        guard !checkingPlaying else { return }
-        // The power check is cheap, so AppleScript only runs mid-playback.
-        guard let browser = TabsProvider.runningBrowserBundleURL(), isPlayingMedia(in: browser) else {
-            setPlaying(nil)
+    static func refreshOnScreen() {
+        guard !checkingOnScreen else { return }
+        // Both checks are cheap, so AppleScript only runs when one passes.
+        guard let browser = TabsProvider.runningBrowserApp(),
+              NSWorkspace.shared.frontmostApplication == browser
+                || browser.bundleURL.map(isPlayingMedia(in:)) == true
+        else {
+            setOnScreen(nil)
             return
         }
-        checkingPlaying = true
+        checkingOnScreen = true
         TabsProvider.readActiveTab(timeout: 3) { tab in
-            checkingPlaying = false
-            setPlaying(tab.flatMap { candidates(from: [$0]).first })
+            guard let found = tab.flatMap({ candidates(from: [$0]).first }) else {
+                checkingOnScreen = false
+                setOnScreen(nil)
+                return
+            }
+            // Shown straight away; the time follows once Now Playing answers.
+            setOnScreen(found)
+            NowPlaying.read(timeout: 3) { info in
+                checkingOnScreen = false
+                setOnScreen(withTime(found, tabTitle: tab?.title ?? "", info: info, browser: browser))
+            }
         }
     }
 
-    private static func setPlaying(_ candidate: Candidate?) {
-        guard candidate != playing else { return }
-        playing = candidate
+    private static func setOnScreen(_ candidate: Candidate?) {
+        guard candidate != onScreen else { return }
+        onScreen = candidate
         NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
+    }
+
+    // Now Playing names the page by its title, so the time only belongs to
+    // the tab whose title it reports, and only from the same browser.
+    static func withTime(
+        _ candidate: Candidate, tabTitle: String, info: NowPlaying.Info?,
+        browser: NSRunningApplication?
+    ) -> Candidate {
+        guard let info, info.bundleID == browser?.bundleIdentifier,
+              EpisodeParser.collapse(info.title) == EpisodeParser.collapse(tabTitle)
+        else { return candidate }
+        var timed = candidate
+        timed.time = info.position
+        return timed
     }
 
     // Browsers hold a "keep the display awake" power assertion while a video
@@ -98,7 +127,21 @@ enum WatchCapture {
     // Saves every episode page open right now. The completion always runs,
     // even with no browser open, because the sleep command waits on it.
     static func captureNow(timeout: TimeInterval, completion: @escaping () -> Void) {
-        scan(timeout: timeout) { found in
+        // Tabs and the playback time are read side by side, so the sleep
+        // command waits on the slower of the two, not both.
+        var tabs: [TabsProvider.Tab] = []
+        var info: NowPlaying.Info?
+        let group = DispatchGroup()
+        group.enter()
+        TabsProvider.readOpenTabs(timeout: timeout) { tabs = $0; group.leave() }
+        group.enter()
+        NowPlaying.read(timeout: timeout) { info = $0; group.leave() }
+        group.notify(queue: .main) {
+            let browser = TabsProvider.runningBrowserApp()
+            let found = candidates(from: tabs).map { candidate in
+                let title = tabs.first { $0.url == candidate.url }?.title ?? ""
+                return withTime(candidate, tabTitle: title, info: info, browser: browser)
+            }
             candidates = found
             for candidate in found { save(candidate) }
             completion()
@@ -111,13 +154,16 @@ enum WatchCapture {
             season: candidate.episode.season,
             episode: candidate.episode.episode,
             site: candidate.site,
-            url: candidate.url
+            url: candidate.url,
+            time: candidate.time
         )
     }
 
-    // Already saved at exactly this point, so there is nothing to offer.
+    // Already saved at exactly this point, so there is nothing to offer. A
+    // time more than a minute off from the saved one counts as new progress.
     static func isAlreadySaved(_ candidate: Candidate, store: WatchStore = .shared) -> Bool {
         guard let entry = store.entry(forShow: candidate.episode.show) else { return false }
+        if let time = candidate.time, abs(time - (entry.time ?? -.infinity)) > 60 { return false }
         if candidate.episode.isMovie { return entry.isMovie }
         return entry.episode == candidate.episode.episode
             && (candidate.episode.season == nil || entry.season == candidate.episode.season)

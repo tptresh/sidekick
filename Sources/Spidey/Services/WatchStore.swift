@@ -13,6 +13,8 @@ struct WatchEntry: Codable, Identifiable, Equatable {
     // was typed in rather than picked up from a tab.
     var site: String?
     var url: String?
+    // Seconds into the episode or movie, when the player reported it.
+    var time: Double?
     var updated: Date
 
     var key: String { WatchStore.normalize(show) }
@@ -39,6 +41,11 @@ struct WatchEntry: Codable, Identifiable, Equatable {
 
     var siteLabel: String { site ?? "no site saved" }
 
+    // " at 1:04:04", or nothing when no time was saved.
+    var timeSuffix: String {
+        time.map { " at " + NowPlaying.timeLabel($0) } ?? ""
+    }
+
     // Entries written before the newer fields existed decode with defaults.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -48,12 +55,13 @@ struct WatchEntry: Codable, Identifiable, Equatable {
         episode = try container.decode(Int.self, forKey: .episode)
         site = try container.decodeIfPresent(String.self, forKey: .site)
         url = try container.decodeIfPresent(String.self, forKey: .url)
+        time = try container.decodeIfPresent(Double.self, forKey: .time)
         updated = try container.decodeIfPresent(Date.self, forKey: .updated) ?? Date()
     }
 
     init(
         id: UUID = UUID(), show: String, season: Int?, episode: Int,
-        site: String? = nil, url: String? = nil, updated: Date = Date()
+        site: String? = nil, url: String? = nil, time: Double? = nil, updated: Date = Date()
     ) {
         self.id = id
         self.show = show
@@ -61,6 +69,7 @@ struct WatchEntry: Codable, Identifiable, Equatable {
         self.episode = episode
         self.site = site
         self.url = url
+        self.time = time
         self.updated = updated
     }
 }
@@ -100,7 +109,7 @@ final class WatchStore {
     @discardableResult
     func record(
         show: String, season: Int?, episode: Int, site: String? = nil, url: String? = nil,
-        at date: Date = Date()
+        time: Double? = nil, at date: Date = Date()
     ) -> WatchEntry? {
         let name = EpisodeParser.collapse(show)
         // Episode 0 is a movie.
@@ -109,6 +118,10 @@ final class WatchStore {
         var all = entries
         let existing = all.first { $0.key == key }
         all.removeAll { $0.key == key }
+        // A save without a time keeps the old one only for the same episode;
+        // a new episode starts from the top.
+        let sameEpisode = existing?.episode == episode
+            && (season == nil || existing?.season == season)
         let entry = WatchEntry(
             id: existing?.id ?? UUID(),
             show: name,
@@ -116,6 +129,7 @@ final class WatchStore {
             episode: episode,
             site: site ?? existing?.site,
             url: url ?? existing?.url,
+            time: time ?? (sameEpisode ? existing?.time : nil),
             updated: date
         )
         all.insert(entry, at: 0)
