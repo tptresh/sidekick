@@ -350,3 +350,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - f6e2818 Cmd+Return works again (forgets a saved show, pins clipboard items), and resuming a movie skips to the saved time once it starts playing
 - main is now at: 132f0b9 (build succeeded, app relaunched)
+
+## 2026-10-08 21:44 - OK - worktree-watch-movies
+- "resume only skips to the saved time after 5 seconds of steady playback, retries through reloads and failed jumps, and never overwrites the saved time while waiting"
+- merged commits:
+  - 1b7ad73 resume only skips to the saved time after 5 seconds of steady playback, retries through reloads and failed jumps, and never overwrites the saved time while waiting
+- main is now at: 13256aa (build succeeded, app relaunched)
