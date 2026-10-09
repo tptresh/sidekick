@@ -132,12 +132,13 @@ private struct GlassSurface<S: InsettableShape>: ViewModifier {
 }
 
 // Groups neighbouring glass surfaces so macOS 26 renders them as one family
-// (shared sampling, shapes that blend when close). A plain stack before that.
+// with shared sampling. Spacing 0 keeps separate cards from melting together.
+// A plain stack before macOS 26.
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat
     @ViewBuilder var content: () -> Content
 
-    init(spacing: CGFloat = FuturisticStyle.Space.s, @ViewBuilder content: @escaping () -> Content) {
+    init(spacing: CGFloat = 0, @ViewBuilder content: @escaping () -> Content) {
         self.spacing = spacing
         self.content = content
     }
@@ -350,8 +351,10 @@ struct StatusDot: View {
     }
 }
 
-// Small glass capsule button. Prominent ones are tinted with the theme red;
-// destructive ones keep the glass and turn the label red.
+// Small capsule button. It lives on glass cards, so it uses a quiet fill rather
+// than glass of its own (glass on glass inside one container would melt into
+// the card). Prominent ones are filled with the theme red; destructive ones
+// keep the quiet fill and turn the label red.
 private struct PillButtonStyle: ButtonStyle {
     let tone: PillButton.Tone
     @Environment(\.fxTokens) private var fx
@@ -363,8 +366,9 @@ private struct PillButtonStyle: ButtonStyle {
             .foregroundStyle(labelColor)
             .padding(.horizontal, FuturisticStyle.Space.m)
             .frame(height: 26)
-            .fxGlass(in: Capsule(), tint: tone == .prominent ? fx.accent : nil, interactive: true)
-            .opacity(configuration.isPressed ? 0.8 : (isEnabled ? 1 : 0.5))
+            .background(Capsule().fill(tone == .prominent ? fx.accent : (configuration.isPressed ? fx.fillHover : fx.fill)))
+            .overlay(Capsule().strokeBorder(tone == .prominent ? Color.clear : fx.hairline, lineWidth: 1))
+            .opacity(configuration.isPressed && tone == .prominent ? 0.85 : (isEnabled ? 1 : 0.5))
             .contentShape(Capsule())
     }
 

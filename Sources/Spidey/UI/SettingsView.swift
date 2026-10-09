@@ -40,7 +40,7 @@ private struct SettingsPage: View {
 
     var body: some View {
         ScrollView {
-            GlassGroup(spacing: Space.l) {
+            GlassGroup {
                 VStack(spacing: Space.xl) {
                     appearanceSection
                     shortcutSection

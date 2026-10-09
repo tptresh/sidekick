@@ -14,7 +14,7 @@ struct MenuBarPanel: View {
 
     var body: some View {
         VStack(spacing: FuturisticStyle.Space.s) {
-            GlassGroup(spacing: FuturisticStyle.Space.s) {
+            GlassGroup {
                 VStack(spacing: FuturisticStyle.Space.s) {
                     cards
                 }

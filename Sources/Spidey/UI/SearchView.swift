@@ -240,7 +240,7 @@ private struct PanelBackground: View {
         if reduceTransparency {
             shape.fill(palette.background)
         } else if #available(macOS 26, *) {
-            Color.clear.glassEffect(.regular.tint(palette.background.opacity(0.55)), in: shape)
+            Color.clear.glassEffect(.regular.tint(palette.background.opacity(0.62)), in: shape)
         } else {
             ZStack {
                 VisualEffectBackground()
