@@ -490,3 +490,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - e63125d Menu bar dropdown matches the search panel: one glass slab with the date, weather, switches and hairline dividers instead of cards; Light and Dark times are picked from preset buttons in the dropdown and Preferences; media sites in Preferences show their real logos
 - main is now at: d68ac6e (build succeeded, app relaunched)
+
+## 2026-10-09 19:08 - OK - main
+- "Keep Mac Awake now also holds off sleep on battery and with the lid closed; the menu bar switch says which it is doing, and Preferences explains the one admin grant it needs"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 252cccd (build succeeded, app relaunched)
