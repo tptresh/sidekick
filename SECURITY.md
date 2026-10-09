@@ -54,7 +54,10 @@ can be triggered *without* the user's action is very much in scope:
 
 ## Network
 
-Sidekick talks to the network for exactly three things: a daily exchange rate
-fetch, favicons for site rows, and periodic link health checks on custom media
-sites. Everything else opens a URL in the user's browser because they asked for
+Sidekick talks to the network for a few things: a daily exchange rate
+fetch, favicons for site rows, periodic link health checks on custom media
+sites, and the weather forecast from Open-Meteo (including its city lookup when
+a city is typed). Only when Core Location fails and no city is typed, the
+weather falls back to ipwho.is, which sees your IP address to guess a rough
+location. Everything else opens a URL in the user's browser because they asked for
 it. There is no telemetry, no analytics, and no update check.

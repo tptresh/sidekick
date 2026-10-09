@@ -26,7 +26,44 @@ final class TimerCenter {
     private(set) var entries: [Entry] = []
     private var requestedAuthorization = false
 
+    // Notifications need a real .app bundle (not .build or the test runner).
+    private static let canNotify = Bundle.main.bundleURL.pathExtension == "app"
+
+    private static let storeKey = "runningTimers"
+
+    private struct Stored: Codable {
+        let id: UUID
+        let label: String
+        let fireDate: Date
+    }
+
+    private func persist() {
+        let stored = entries.map { Stored(id: $0.id, label: $0.label, fireDate: $0.fireDate) }
+        UserDefaults.standard.set(try? JSONEncoder().encode(stored), forKey: Self.storeKey)
+    }
+
+    // Timers still running when the app last quit. Ones that ended meanwhile
+    // were already delivered by macOS, so they are dropped, not re-announced.
+    private func restore() {
+        guard let data = UserDefaults.standard.data(forKey: Self.storeKey),
+              let stored = try? JSONDecoder().decode([Stored].self, from: data) else { return }
+        for item in stored {
+            let remaining = item.fireDate.timeIntervalSinceNow
+            guard remaining > 0 else { continue }
+            schedule(id: item.id, label: item.label, fireDate: item.fireDate, remaining: remaining)
+        }
+        persist()
+    }
+
+    private func schedule(id: UUID, label: String, fireDate: Date, remaining: TimeInterval) {
+        let timer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+            self?.fire(id: id, label: label)
+        }
+        entries.append(Entry(id: id, label: label, fireDate: fireDate, timer: timer))
+    }
+
     private init() {
+        restore()
         // A Timer does not count time asleep, so after a long lid-close it
         // would ring late. Re-arm everything against its real end time.
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -44,13 +81,9 @@ final class TimerCenter {
                 fire(id: entry.id, label: entry.label)
                 continue
             }
-            let id = entry.id
-            let label = entry.label
-            let timer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
-                self?.fire(id: id, label: label)
-            }
-            entries.append(Entry(id: id, label: label, fireDate: entry.fireDate, timer: timer))
+            schedule(id: entry.id, label: entry.label, fireDate: entry.fireDate, remaining: remaining)
         }
+        persist()
     }
 
     // Parses "10m tea", "1h30m pasta", "90s", "10 minutes laundry", and the
@@ -142,37 +175,53 @@ final class TimerCenter {
         requestAuthorizationIfNeeded()
         let id = UUID()
         let fireDate = Date().addingTimeInterval(seconds)
-        let timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in
-            self?.fire(id: id, label: label)
-        }
-        entries.append(Entry(id: id, label: label, fireDate: fireDate, timer: timer))
+        schedule(id: id, label: label, fireDate: fireDate, remaining: seconds)
+        persist()
+        scheduleNotification(id: id, label: label, seconds: seconds)
     }
 
     func cancel(_ id: UUID) {
         if let index = entries.firstIndex(where: { $0.id == id }) {
             entries[index].timer.invalidate()
             entries.remove(at: index)
+            persist()
+        }
+        if Self.canNotify {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id.uuidString])
         }
     }
 
-    private func fire(id: UUID, label: String) {
-        entries.removeAll { $0.id == id }
-        NSSound(named: "Glass")?.play()
-        // Notifications need a real app bundle; skip them when running bare
-        // from .build during development.
-        guard Bundle.main.bundleIdentifier != nil else { return }
+    // Handed to macOS up front so it rings even if the app is gone by then.
+    private func scheduleNotification(id: UUID, label: String, seconds: TimeInterval) {
+        guard Self.canNotify else { return }
         let content = UNMutableNotificationContent()
         content.title = "Timer done"
         content.body = label
         content.sound = .default
-        let request = UNNotificationRequest(
-            identifier: id.uuidString, content: content, trigger: nil
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: id.uuidString, content: content, trigger: trigger)
         )
-        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func fire(id: UUID, label: String) {
+        entries.removeAll { $0.id == id }
+        persist()
+        NSSound(named: "Glass")?.play()
+        // The notification was scheduled at start(); macOS delivers it now.
+        // Re-add it only if that scheduling was lost (same id replaces it).
+        guard Self.canNotify else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Timer done"
+        content.body = label
+        content.sound = .default
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: id.uuidString, content: content, trigger: nil)
+        )
     }
 
     private func requestAuthorizationIfNeeded() {
-        guard !requestedAuthorization, Bundle.main.bundleIdentifier != nil else { return }
+        guard !requestedAuthorization, Self.canNotify else { return }
         requestedAuthorization = true
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }

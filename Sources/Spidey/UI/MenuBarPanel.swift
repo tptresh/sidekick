@@ -12,60 +12,54 @@ struct MenuBarPanel: View {
     @ObservedObject var caffeinate = CaffeinateManager.shared
     let openPreferences: () -> Void
 
-    private var accent: Color { settings.theme.palette.accent }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            WeatherHeader(state: weather.state, retry: { weather.refresh() })
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 14)
+        VStack(spacing: FuturisticStyle.Space.s) {
+            Island(padding: FuturisticStyle.Space.l) {
+                WeatherHeader(state: weather.state, retry: { weather.refresh() })
+                    .frame(minHeight: 44)
+            }
+            .background(alignment: .topTrailing) { AmbientWash() }
 
-            Divider().padding(.horizontal, 12)
-
-            VStack(spacing: 4) {
-                SwitchRow(
-                    symbol: "cup.and.saucer.fill",
-                    title: "Keep Mac Awake",
-                    subtitle: caffeinate.isActive ? "On, sleep is paused" : "Off",
-                    accent: accent,
-                    isOn: Binding(
-                        get: { caffeinate.isActive },
-                        set: { on in if on != caffeinate.isActive { caffeinate.toggle() } }
+            Island(padding: FuturisticStyle.Space.s) {
+                VStack(spacing: FuturisticStyle.Space.xs) {
+                    SwitchRow(
+                        symbol: "cup.and.saucer.fill",
+                        title: "Keep Mac Awake",
+                        subtitle: caffeinate.isActive ? "On, sleep is paused" : "Off",
+                        isOn: Binding(
+                            get: { caffeinate.isActive },
+                            set: { on in if on != caffeinate.isActive { caffeinate.toggle() } }
+                        )
                     )
-                )
-                SwitchRow(
-                    symbol: "circle.lefthalf.filled",
-                    title: "Automatic Light & Dark",
-                    subtitle: scheduleSubtitle,
-                    accent: accent,
-                    isOn: $settings.autoAppearance
-                )
-                if settings.autoAppearance {
-                    HStack(spacing: 16) {
-                        TimeField(label: "Light", minute: $settings.lightModeMinute)
-                        TimeField(label: "Dark", minute: $settings.darkModeMinute)
-                        Spacer(minLength: 0)
+                    SwitchRow(
+                        symbol: "circle.lefthalf.filled",
+                        title: "Automatic Light & Dark",
+                        subtitle: scheduleSubtitle,
+                        isOn: $settings.autoAppearance
+                    )
+                    if settings.autoAppearance {
+                        HStack(spacing: FuturisticStyle.Space.l) {
+                            TimeField(label: "Light", minute: $settings.lightModeMinute)
+                            TimeField(label: "Dark", minute: $settings.darkModeMinute)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.leading, 48)
+                        .padding(.bottom, 6)
                     }
-                    .padding(.leading, 46)
-                    .padding(.bottom, 6)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-
-            Divider().padding(.horizontal, 12)
 
             HStack {
-                LinkButton(title: "Preferences…", action: openPreferences)
+                LinkButton("Preferences…", action: openPreferences)
                 Spacer()
-                LinkButton(title: "Quit Sidekick") { NSApp.terminate(nil) }
+                LinkButton("Quit Sidekick") { NSApp.terminate(nil) }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, FuturisticStyle.Space.xs)
+            .padding(.top, 2)
         }
-        .frame(width: 300)
-        .tint(accent)
+        .padding(FuturisticStyle.Space.m)
+        .frame(width: 320)
+        .futuristicTheme(settings.theme)
     }
 
     private var scheduleSubtitle: String {
@@ -81,6 +75,20 @@ struct MenuBarPanel: View {
 
 // MARK: - Weather
 
+// Soft accent glow behind the weather island. Reads the theme from its own
+// environment so it follows the hero theme and appearance.
+private struct AmbientWash: View {
+    @Environment(\.fxTokens) private var fx
+    var body: some View {
+        RadialGradient(
+            colors: [fx.ambientColor, .clear],
+            center: .topTrailing, startRadius: 0, endRadius: 180
+        )
+        .clipShape(RoundedRectangle(cornerRadius: FuturisticStyle.Radius.island, style: .continuous))
+        .allowsHitTesting(false)
+    }
+}
+
 private struct WeatherHeader: View {
     let state: WeatherStore.State
     let retry: () -> Void
@@ -95,16 +103,16 @@ private struct WeatherHeader: View {
                     .font(.system(size: 34))
                     .frame(width: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
                         Text(Self.temperature(today.temperature))
-                            .font(.system(size: 30, weight: .light))
+                            .font(.system(size: 36, weight: .medium, design: .rounded))
                             .monospacedDigit()
-                        Text(today.place ?? "Today")
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(1)
+                            .layoutPriority(1)
+                        Chip(today.place ?? "Today", tone: .neutral, symbol: "location.fill")
+                            .frame(minWidth: 0)
                     }
                     Text(detailLine(today, condition: look.text))
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .lineLimit(1)
@@ -115,19 +123,20 @@ private struct WeatherHeader: View {
             notice(
                 symbol: "location.slash",
                 title: "Weather needs your location",
-                button: "Allow in System Settings"
+                button: "Allow in System Settings",
+                prominent: false
             ) {
                 SetupCenter.shared.openPrivacySettings(anchor: "Privacy_LocationServices")
             }
         case .failed(let reason):
-            notice(symbol: "cloud", title: reason, button: "Try Again", action: retry)
+            notice(symbol: "cloud", title: reason, button: "Try Again", prominent: true, action: retry)
         case .placeholder:
             // First run only: later opens always have the saved forecast.
             HStack(spacing: 14) {
                 Circle().fill(.quaternary).frame(width: 36, height: 36).frame(width: 44)
                 VStack(alignment: .leading, spacing: 6) {
-                    RoundedRectangle(cornerRadius: 3).fill(.quaternary).frame(width: 110, height: 14)
-                    RoundedRectangle(cornerRadius: 3).fill(.quaternary).frame(width: 170, height: 10)
+                    RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm).fill(.quaternary).frame(width: 110, height: 14)
+                    RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm).fill(.quaternary).frame(width: 170, height: 10)
                 }
             }
             .frame(height: 44)
@@ -141,7 +150,7 @@ private struct WeatherHeader: View {
     }
 
     private func notice(
-        symbol: String, title: String, button: String, action: @escaping () -> Void
+        symbol: String, title: String, button: String, prominent: Bool, action: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
@@ -149,8 +158,8 @@ private struct WeatherHeader: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 44)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 13, weight: .semibold))
-                LinkButton(title: button, action: action)
+                Text(title).font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.tail)
+                PillButton(button, symbol: prominent ? "arrow.clockwise" : nil, prominent: prominent, action: action)
             }
             Spacer(minLength: 0)
         }
@@ -165,38 +174,6 @@ private struct WeatherHeader: View {
 
 // MARK: - Rows
 
-private struct SwitchRow: View {
-    let symbol: String
-    let title: String
-    let subtitle: String
-    let accent: Color
-    @Binding var isOn: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isOn ? Color.white : Color.primary)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(isOn ? AnyShapeStyle(accent) : AnyShapeStyle(.quaternary)))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: .medium))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 8)
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-    }
-}
-
 private struct TimeField: View {
     let label: String
     @Binding var minute: Int
@@ -204,7 +181,9 @@ private struct TimeField: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .tracking(0.8)
+                .textCase(.uppercase)
                 .foregroundStyle(.secondary)
             DatePicker("", selection: dateBinding, displayedComponents: .hourAndMinute)
                 .labelsHidden()
@@ -230,22 +209,5 @@ private struct TimeField: View {
 
     static func format(_ minute: Int) -> String {
         date(for: minute).formatted(date: .omitted, time: .shortened)
-    }
-}
-
-// Plain text link, like the bottom items in the system's own menu bar panels.
-private struct LinkButton: View {
-    let title: String
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(hovering ? .primary : .secondary)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
     }
 }

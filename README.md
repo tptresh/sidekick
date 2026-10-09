@@ -121,8 +121,13 @@ Click the emblem in the menu bar for a small panel in the style of Control
 Center: today's weather where you are (from the free Open-Meteo forecast; the
 last forecast is saved, so it shows instantly and refreshes in the background
 every 30 minutes), a Keep Mac Awake switch, and the automatic Light and Dark
-switch with its two times. While the Mac is being kept awake, a coffee cup sits
-next to the emblem in the menu bar. Preferences and Quit are at the bottom.
+switch with its two times. While the Mac is being kept awake, the emblem itself
+turns the theme's color in the menu bar (red for Spider-Man, white for Batman).
+Preferences and Quit are at the bottom.
+
+Weather uses Core Location. If the Mac cannot give a fix (or access is denied)
+and no city is typed in Preferences, Sidekick falls back to an approximate
+location from your IP address via ipwho.is; no key or account is involved.
 
 ## Preferences
 

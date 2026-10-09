@@ -3,27 +3,36 @@ import AppKit
 // Simple, iconic hero emblems drawn in code as filled silhouettes with cutouts.
 // Rendered as template images so they adapt to light and dark menu bars.
 enum StatusIcons {
-    // While the Mac is being kept awake a coffee cup sits beside the emblem,
-    // so the state is obvious from across the menu bar.
+    // The emblem itself carries the Keep Mac Awake state: idle it is a template
+    // image that adapts to the menu bar, awake it keeps the theme's own color.
+    static func awakeTint(for theme: HeroTheme) -> NSColor {
+        switch theme {
+        case .spiderman: NSColor(srgbRed: 0.878, green: 0.141, blue: 0.184, alpha: 1)
+        case .batman: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
+        }
+    }
+
     static func menuBarIcon(for theme: HeroTheme, awake: Bool = false) -> NSImage {
-        let cup = awake
-            ? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Keeping Mac awake")?
-                .withSymbolConfiguration(.init(pointSize: 13, weight: .semibold))
-            : nil
-        let cupSize = cup?.size ?? .zero
-        let size = NSSize(width: 18 + (cup == nil ? 0 : 4 + cupSize.width), height: 18)
-        let image = NSImage(size: size, flipped: false) { _ in
-            NSColor.black.setFill()
-            draw(theme, color: .black)
-            if let cup {
-                cup.draw(in: NSRect(
-                    x: 22, y: (18 - cupSize.height) / 2,
-                    width: cupSize.width, height: cupSize.height
-                ))
+        let tint = awakeTint(for: theme)
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            if awake {
+                tint.setFill()
+                if theme == .batman {
+                    // Thin dark rim so the white bat still shows on a light menu bar.
+                    let rim = batSymbolPath()
+                    NSColor(white: 0, alpha: 0.85).setStroke()
+                    rim.lineWidth = 1.6
+                    rim.lineJoinStyle = .round
+                    rim.stroke()
+                }
+                draw(theme, color: tint)
+            } else {
+                NSColor.black.setFill()
+                draw(theme, color: .black)
             }
             return true
         }
-        image.isTemplate = true
+        image.isTemplate = !awake
         return image
     }
 
@@ -46,7 +55,13 @@ enum StatusIcons {
         case .spiderman:
             drawSpideyMask(color: color)
         case .batman:
-            batSymbolPath().fill()
+            let bat = batSymbolPath()
+            bat.fill()
+            // A hairline in the fill color makes the wings bolder at small sizes.
+            color.setStroke()
+            bat.lineWidth = 0.7
+            bat.lineJoinStyle = .round
+            bat.stroke()
         }
     }
 
@@ -139,6 +154,12 @@ enum StatusIcons {
         path.curve(to: point(5.8, 9.4), controlPoint1: point(7.5, 9.6), controlPoint2: point(6.5, 10.2))
         path.curve(to: point(0.6, 13.6), controlPoint1: point(4.4, 9.8), controlPoint2: point(2.2, 11.0))
         path.close()
+        // Stretch to fill more of the 18x18 box so it reads at menu bar size.
+        var transform = AffineTransform.identity
+        transform.translate(x: 9, y: 9.4)
+        transform.scale(x: 1.0, y: 1.55)
+        transform.translate(x: -9, y: -10.5)
+        path.transform(using: transform)
         return path
     }
 }
