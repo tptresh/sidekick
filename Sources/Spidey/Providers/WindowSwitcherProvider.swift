@@ -28,9 +28,15 @@ enum WindowSwitcherProvider {
     private static let minRefetchInterval: TimeInterval = 5
     private static let listQueue = DispatchQueue(label: "dev.opensource.spidey.window-list", qos: .userInitiated)
 
+    // "win" or "win <term>": the query is a request to switch windows.
+    static func isExplicit(_ query: String) -> Bool {
+        let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
+        return lowered == "win" || lowered.hasPrefix("win ")
+    }
+
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
-        let explicit = lowered == "win" || lowered.hasPrefix("win ")
+        let explicit = isExplicit(lowered)
         let term = explicit
             ? String(lowered.dropFirst("win".count)).trimmingCharacters(in: .whitespaces)
             : lowered

@@ -20,10 +20,13 @@ enum DictionaryProvider {
             let word = String(query.dropFirst("spell ".count)).trimmingCharacters(in: .whitespaces)
             guard !word.isEmpty else { return [] }
             let checker = NSSpellChecker.shared
-            let guesses = checker.guesses(
+            // A correctly spelled word still gets "guesses" ("necessary" offers
+            // "necessary's"), so only ask for them when the word is misspelled.
+            let misspelled = checker.checkSpelling(of: word, startingAt: 0).location != NSNotFound
+            let guesses = misspelled ? checker.guesses(
                 forWordRange: NSRange(location: 0, length: word.utf16.count),
                 in: word, language: nil, inSpellDocumentWithTag: 0
-            ) ?? []
+            ) ?? [] : []
             let best = guesses.first ?? word
             return [ResultItem(
                 title: best,
@@ -43,7 +46,7 @@ enum DictionaryProvider {
     }
 
     static func lookUp(_ word: String) -> String? {
-        let range = CFRange(location: 0, length: word.count)
+        let range = CFRange(location: 0, length: (word as NSString).length)
         guard let definition = DCSCopyTextDefinition(nil, word as CFString, range)?.takeRetainedValue()
         else { return nil }
         return String(definition as NSString)

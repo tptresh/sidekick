@@ -340,7 +340,9 @@ enum SiteDirectoryProvider {
         return combined
     }
 
-    static func results(for query: String) -> [ResultItem] {
+    // demotePrefixMatches: another provider recognised the query as a
+    // command, so only an exact site name keeps its popularity boost.
+    static func results(for query: String, demotePrefixMatches: Bool = false) -> [ResultItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard trimmed.count >= 2 else { return [] }
         var items: [ResultItem] = []
@@ -349,11 +351,12 @@ enum SiteDirectoryProvider {
             guard let match = matchScore(query: trimmed, name: name), match >= 0.6,
                   let url = URL(string: urlString) else { continue }
             let host = url.host ?? urlString
+            let tier = demotePrefixMatches && match < 1.0 ? 0 : tier(forName: name)
             items.append(ResultItem(
                 title: "Open \(name.capitalized)",
                 subtitle: "\(host) in \(BrowserLauncher.targetName)",
                 icon: FaviconStore.shared.resultIcon(for: urlString, fallbackSymbol: "globe"),
-                score: score(match: match, tier: tier(forName: name), queryLength: trimmed.count),
+                score: score(match: match, tier: tier, queryLength: trimmed.count),
                 rankingKey: "site:\(host)",
                 action: { BrowserLauncher.open(url) }
             ))

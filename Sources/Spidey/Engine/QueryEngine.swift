@@ -9,6 +9,10 @@ final class SpideyViewModel: ObservableObject {
     @Published var selectedIndex = 0
     @Published var droppedFiles: [URL] = []
 
+    // Learned ranking source; tests swap in an empty store so results do not
+    // depend on this Mac's usage history.
+    var usageStore = UsageStore.shared
+
     // Called when the panel should close (after an action, or Esc on an empty query).
     var onHide: (() -> Void)?
 
@@ -91,8 +95,11 @@ final class SpideyViewModel: ObservableObject {
             let term = lowered.hasPrefix("find ")
                 ? String(trimmed.dropFirst("find ".count)).trimmingCharacters(in: .whitespaces)
                 : ""
-            // "find my iphone" should ping the device, not only search files.
+            // "find my iphone" should ping the device, not only search files,
+            // and "find my" typed in full is still the Find My app.
+            let exactApp = AppProvider.score(forMatch: 1.0)
             let pingItems = FindMyProvider.results(for: trimmed)
+                + AppProvider.shared.results(for: trimmed).filter { $0.score >= exactApp }
             if term.count < 2 {
                 syncResults = pingItems + [ResultItem(
                     title: "Find files",
@@ -191,16 +198,24 @@ final class SpideyViewModel: ObservableObject {
             armedCommand = nil
         }
         commandItems += systemItems
+        let typedAddress = SiteDirectoryProvider.typedAddressResult(for: trimmed)
         // A recognized command makes the generic "watch this" and "guess the URL" rows noise.
+        // The "win" and "bm" keywords and a typed web address count too, even
+        // though their rows are gathered below with the ambient providers.
         let isCommand = !commandItems.isEmpty
+            || WindowSwitcherProvider.isExplicit(trimmed)
+            || BookmarksProvider.isExplicit(trimmed)
+            || typedAddress != nil
 
         var items = commandItems
         items += AppProvider.shared.results(for: trimmed)
         items += ContactsProvider.results(for: trimmed)
         items += WindowSwitcherProvider.results(for: trimmed)
-        items += SiteDirectoryProvider.results(for: trimmed)
-        if let address = SiteDirectoryProvider.typedAddressResult(for: trimmed) {
-            items.append(address)
+        // A bare keyword like "play" must not lose to a site it happens to
+        // start ("Playstation"); exact site names keep their full rank.
+        items += SiteDirectoryProvider.results(for: trimmed, demotePrefixMatches: !commandItems.isEmpty)
+        if let typedAddress {
+            items.append(typedAddress)
         }
         items += BookmarksProvider.results(for: trimmed)
         // Where you got to in a show sits above the "Watch ..." rows, and is
@@ -208,7 +223,7 @@ final class SpideyViewModel: ObservableObject {
         items += WatchProvider.resumeResults(for: trimmed)
         var searchScore = WebSearchProvider.fallbackScore
         if !isCommand {
-            items += StreamingProvider.results(for: trimmed)
+            items += StreamingProvider.results(for: trimmed, usage: usageStore)
             // Nothing verifies that a guessed homepage exists, so the web
             // search - which always lands somewhere - goes right above it.
             if let guess = SiteDirectoryProvider.guessResult(for: trimmed) {
@@ -264,7 +279,7 @@ final class SpideyViewModel: ObservableObject {
         if armedCommand == nil, droppedFiles.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             if !trimmed.isEmpty {
-                let boosts = UsageStore.shared.boosts(for: trimmed)
+                let boosts = usageStore.boosts(for: trimmed)
                 if !boosts.isEmpty {
                     for index in combined.indices {
                         guard let key = combined[index].rankingKey,
@@ -478,7 +493,7 @@ final class SpideyViewModel: ObservableObject {
         }
         // Learn from the pick: rows without a rankingKey opted out.
         if let key = item.rankingKey {
-            UsageStore.shared.recordSelection(
+            usageStore.recordSelection(
                 query: query.trimmingCharacters(in: .whitespaces), rankingKey: key
             )
         }
