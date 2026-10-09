@@ -441,3 +441,13 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 10e096c Buttons on the glass cards are quiet capsules (theme red when prominent) so they never melt into the card, glass cards stay visibly separate, and the search panel's glass is a touch darker so grey subtitles stay readable over bright wallpapers
   - cef0507 Liquid Glass look for the search panel, menu bar panel, Preferences and large type, always dark: frosted glass cards with soft depth, red kept for the selected row, switched-on icons and focus, larger rounded corners, no glows; long weather errors and large type text no longer get cut off, the clipboard stepper no longer shifts as the count grows, and the shortcut box highlights in the theme red
 - main is now at: 1d92664 (build succeeded, app relaunched)
+
+## 2026-10-09 18:26 - OK - refresh-core
+- "Reliability: your chosen hotkey is never overwritten by the fallback, sites are not flagged dead while offline or waking, timers reload at launch and ring once, weather keeps the city you typed and refreshes after wake, favicons retry, currency works on a fresh install, clipboard trims at once; menu bar panel and Preferences always dark"
+- merged commits:
+  - 20d5854 Reliability: your chosen hotkey is never overwritten by the fallback, sites are not flagged dead while offline or waking, timers reload at launch and ring once, weather keeps the city you typed and refreshes after wake, favicons retry, currency works on a fresh install, clipboard trims at once; menu bar panel and Preferences always dark
+  - c24c50c Merge main into refresh-core
+  - 95b33d6 Lowering the clipboard history size in Preferences trims the history straight away
+  - 6efe9b4 Weather ignores stale lookups while typing a city and refreshes after wake; favicons retry after offline; currency cache folder created on fresh installs
+  - 008b3e7 Hotkey keeps Cmd+Space as your choice while it falls back, site checks ignore offline moments even with one site, timers restored at launch and ring once
+- main is now at: f127a21 (build succeeded, app relaunched)
