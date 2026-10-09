@@ -290,6 +290,24 @@ enum SiteDirectoryProvider {
         match >= 1.0 || (match >= 0.92 && queryLength >= 3)
     }
 
+    // Every directory name the query matches at all, with its score. The
+    // engine asks about the same query three times per keystroke (the site
+    // rows, the streaming demotion, the homepage guess), so the directory is
+    // scored once and remembered for that query. Main thread only, like the
+    // rest of the engine.
+    private static var lastMatches: (query: String, matches: [(name: String, url: String, match: Double)])?
+
+    static func directoryMatches(_ lowered: String) -> [(name: String, url: String, match: Double)] {
+        if let lastMatches, lastMatches.query == lowered { return lastMatches.matches }
+        var found: [(name: String, url: String, match: Double)] = []
+        for (name, urlString) in merged {
+            guard let match = matchScore(query: lowered, name: name) else { continue }
+            found.append((name, urlString, match))
+        }
+        lastMatches = (lowered, found)
+        return found
+    }
+
     // Highest popularity tier among sites whose name the query strongly
     // matches, or nil when nothing matches strongly. StreamingProvider uses
     // this to demote "Watch ... on Netflix" rows when the query is far more
@@ -298,9 +316,8 @@ enum SiteDirectoryProvider {
         let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard trimmed.count >= 2 else { return nil }
         var best: Int?
-        for name in merged.keys {
-            guard let match = matchScore(query: trimmed, name: name),
-                  isStrongMatch(match, queryLength: trimmed.count) else { continue }
+        for (name, _, match) in directoryMatches(trimmed) {
+            guard isStrongMatch(match, queryLength: trimmed.count) else { continue }
             let tier = tier(forName: name)
             if tier > (best ?? -1) { best = tier }
         }
@@ -347,9 +364,8 @@ enum SiteDirectoryProvider {
         guard trimmed.count >= 2 else { return [] }
         var items: [ResultItem] = []
 
-        for (name, urlString) in merged {
-            guard let match = matchScore(query: trimmed, name: name), match >= 0.6,
-                  let url = URL(string: urlString) else { continue }
+        for (name, urlString, match) in directoryMatches(trimmed) {
+            guard match >= 0.6, let url = URL(string: urlString) else { continue }
             let host = url.host ?? urlString
             let tier = demotePrefixMatches && match < 1.0 ? 0 : tier(forName: name)
             items.append(ResultItem(
@@ -392,12 +408,22 @@ enum SiteDirectoryProvider {
     // address. Names ending in a common file extension stay file searches.
     static func typedAddress(_ query: String) -> URL? {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let pattern = #"^(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)*\.([a-z]{2,})(:[0-9]+)?(/\S*)?$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+        guard let regex = addressPattern,
               let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
               let tldRange = Range(match.range(at: 3), in: trimmed) else { return nil }
         let tld = trimmed[tldRange].lowercased()
-        let fileExtensions: Set<String> = [
+        guard !addressFileExtensions.contains(tld) else { return nil }
+        let full = trimmed.lowercased().hasPrefix("http") ? trimmed : "https://" + trimmed
+        return URL(string: full)
+    }
+
+    // Compiled once: typedAddress runs on every keystroke.
+    private static let addressPattern = try? NSRegularExpression(
+        pattern: #"^(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)*\.([a-z]{2,})(:[0-9]+)?(/\S*)?$"#,
+        options: [.caseInsensitive]
+    )
+
+    private static let addressFileExtensions: Set<String> = [
             "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "key", "pages",
             "numbers", "png", "jpg", "jpeg", "gif", "heic", "svg", "mov", "mp4", "mp3",
             "wav", "zip", "dmg", "pkg", "swift", "py", "js", "ts", "json", "md", "csv",
@@ -406,11 +432,7 @@ enum SiteDirectoryProvider {
             "toml", "xml", "plist", "ini", "conf", "env", "lock", "ipynb", "webp", "tif",
             "tiff", "bmp", "ico", "psd", "ai", "sketch", "fig", "avi", "mkv", "flac",
             "m4a", "aac", "tar", "gz", "tgz", "rar", "7z", "epub", "iso", "app", "exe",
-        ]
-        guard !fileExtensions.contains(tld) else { return nil }
-        let full = trimmed.lowercased().hasPrefix("http") ? trimmed : "https://" + trimmed
-        return URL(string: full)
-    }
+    ]
 
     static func typedAddressResult(for query: String) -> ResultItem? {
         guard let url = typedAddress(query) else { return nil }
@@ -424,8 +446,8 @@ enum SiteDirectoryProvider {
     }
 
     private static func hasStrongDirectoryMatch(_ trimmed: String) -> Bool {
-        merged.contains { name, urlString in
-            (matchScore(query: trimmed, name: name) ?? 0) >= 0.9 && URL(string: urlString) != nil
+        directoryMatches(trimmed).contains { _, urlString, match in
+            match >= 0.9 && URL(string: urlString) != nil
         }
     }
 
