@@ -110,8 +110,12 @@ enum ToggleProvider {
                     apply: { on in
                         DispatchQueue.global(qos: .userInitiated).async {
                             Shell.run(blueutil, ["-p", on ? "1" : "0"])
-                            let now = Shell.run(blueutil, ["-p"]).trimmingCharacters(in: .whitespacesAndNewlines)
-                            if now != (on ? "1" : "0") {
+                            // The radio takes a moment to change after blueutil returns.
+                            let changed = settles(within: 2, every: 0.2) {
+                                Shell.run(blueutil, ["-p"]).trimmingCharacters(in: .whitespacesAndNewlines)
+                                    == (on ? "1" : "0")
+                            }
+                            if !changed {
                                 SystemProvider.tellUser(
                                     title: "Bluetooth did not turn \(on ? "on" : "off")",
                                     body: "blueutil could not change it, which usually means Spidey needs "
@@ -151,6 +155,17 @@ enum ToggleProvider {
         }
 
         return items
+    }
+
+    // Checks `done` until it is true or `seconds` have passed. Call it off
+    // the main thread: it sleeps between checks.
+    static func settles(within seconds: TimeInterval, every interval: TimeInterval, _ done: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while true {
+            if done() { return true }
+            if Date() >= deadline { return false }
+            Thread.sleep(forTimeInterval: interval)
+        }
     }
 
     // One row per toggle: the action row when the state has to change, and an
