@@ -135,6 +135,7 @@ enum SystemProvider {
         guard let error else {
             return "\(name) did not answer in time, so nothing changed."
         }
+        if let message = ownScriptMessage(error) { return message }
         if error.contains("-1743") || error.lowercased().contains("not authorized") {
             return "macOS blocked Spidey from controlling \(name). Allow it in System Settings > "
                 + "Privacy & Security > Automation, then try again."
@@ -146,13 +147,34 @@ enum SystemProvider {
         return "\(name) reported an error, so nothing changed."
     }
 
+    // Spidey's own scripts raise this error number with a sentence meant for
+    // the user, which osascript prints as "execution error: <sentence> (7401)".
+    static let messageErrorNumber = 7401
+
+    private static func ownScriptMessage(_ error: String) -> String? {
+        let suffix = " (\(messageErrorNumber))"
+        guard let marker = error.range(of: "execution error: "),
+              let end = error.range(of: suffix, options: .backwards),
+              marker.upperBound <= end.lowerBound else { return nil }
+        var message = error[marker.upperBound..<end.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        // Raised inside a tell block, it can come back as "<App> got an error: <sentence>".
+        if let prefix = message.range(of: "got an error: ") {
+            message = String(message[prefix.upperBound...])
+        }
+        return message.isEmpty ? nil : message
+    }
+
     // CGSession no longer exists on current macOS; Control-Command-Q is the
     // system's own lock shortcut.
     static let lockScreenScript =
         "tell application \"System Events\" to keystroke \"q\" using {command down, control down}"
 
+    // Long enough for a first-time Automation prompt to be read and answered;
+    // a short limit killed the script while the dialog was still up.
+    static let lockScreenTimeout: TimeInterval = 60
+
     static func lockScreen() {
-        runAppleScript(lockScreenScript, timeout: 5) { ok in
+        runAppleScript(lockScreenScript, timeout: lockScreenTimeout) { ok in
             guard !ok else { return }
             // Without the Automation grant, at least turn the display off.
             let process = Process()
