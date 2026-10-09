@@ -73,6 +73,10 @@ final class CurrencyStore {
                 self.lastUpdated = Date()
                 let cached = CachedRates(updated: Date(), rates: fetched)
                 if let encoded = try? JSONEncoder().encode(cached) {
+                    // The folder may not exist yet on a fresh install.
+                    try? FileManager.default.createDirectory(
+                        at: self.file.deletingLastPathComponent(), withIntermediateDirectories: true
+                    )
                     try? encoded.write(to: self.file)
                 }
                 NotificationCenter.default.post(name: .spideyRatesLoaded, object: nil)

@@ -140,10 +140,24 @@ enum FileProvider {
         return max(0, total / Double(tokens.count) - Double(path.count) * 0.0002)
     }
 
+    // True when every word of the query appears in the file name, ignoring
+    // case and accents (the same test Spotlight's "cd" flags apply).
+    static func nameContainsAll(query: String, name: String) -> Bool {
+        let tokens = query.split(whereSeparator: \.isWhitespace)
+        guard !tokens.isEmpty else { return false }
+        return tokens.allSatisfy {
+            name.range(of: String($0), options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
+    }
+
     // MARK: - Search
 
     static func search(_ query: String, mode: Mode = .ambient, completion: @escaping ([ResultItem]) -> Void) {
-        currentProcess?.terminate()
+        // terminate() on a process that has not launched yet raises an
+        // Objective-C exception, which would crash the app.
+        if let previous = currentProcess, previous.isRunning {
+            previous.terminate()
+        }
         let rawQuery = mode == .content ? contentQuery(for: query) : spotlightQuery(for: query)
         guard query.count >= 2, let spotlight = rawQuery else {
             completion([])

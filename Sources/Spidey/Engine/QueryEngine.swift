@@ -2,12 +2,20 @@ import AppKit
 import Combine
 
 final class SpideyViewModel: ObservableObject {
+    private static let bareCommandWords: Set<String> = [
+        "play", "pause", "next", "skip", "prev", "previous", "back", "playing",
+    ]
+
     @Published var query = "" {
         didSet { refresh() }
     }
     @Published private(set) var results: [ResultItem] = []
     @Published var selectedIndex = 0
     @Published var droppedFiles: [URL] = []
+
+    // Learned ranking source; tests swap in an empty store so results do not
+    // depend on this Mac's usage history.
+    var usageStore = UsageStore.shared
 
     // Called when the panel should close (after an action, or Esc on an empty query).
     var onHide: (() -> Void)?
@@ -17,6 +25,13 @@ final class SpideyViewModel: ObservableObject {
     private var fileSearchDebounce: DispatchWorkItem?
     // Drops completions from file searches that are no longer current.
     private var fileSearchGeneration = 0
+    // The search scheduled or finished for the current query, so a refresh
+    // of the same query (a logo arriving, rates loading) does not restart it.
+    private var activeFileSearch: (query: String, mode: FileProvider.Mode)?
+    // Spotlight lookup; tests swap in a stub.
+    var fileSearch: (String, FileProvider.Mode, @escaping ([ResultItem]) -> Void) -> Void = {
+        FileProvider.search($0, mode: $1, completion: $2)
+    }
     // Destructive system command waiting for a confirming second Return.
     private var armedCommand: String?
 
@@ -53,7 +68,8 @@ final class SpideyViewModel: ObservableObject {
     func refresh() {
         if !droppedFiles.isEmpty {
             syncResults = droppedFileResults()
-            fileResults = []
+            // Also cancels a pending search so its files cannot land in the drop list.
+            scheduleFileSearch(for: nil)
             publish()
             return
         }
@@ -61,7 +77,7 @@ final class SpideyViewModel: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
             syncResults = []
-            fileResults = []
+            scheduleFileSearch(for: nil)
             armedCommand = nil
             publish()
             return
@@ -73,17 +89,15 @@ final class SpideyViewModel: ObservableObject {
                 ? String(trimmed.dropFirst("clip ".count))
                 : ""
             syncResults = clipboardResults(filter: filter)
-            fileResults = []
-            publish()
             scheduleFileSearch(for: nil)
+            publish()
             return
         }
 
         if lowered == "ss" || lowered == "screenshot" || lowered == "screenshots" {
             syncResults = screenshotResults()
-            fileResults = []
-            publish()
             scheduleFileSearch(for: nil)
+            publish()
             return
         }
 
@@ -91,8 +105,11 @@ final class SpideyViewModel: ObservableObject {
             let term = lowered.hasPrefix("find ")
                 ? String(trimmed.dropFirst("find ".count)).trimmingCharacters(in: .whitespaces)
                 : ""
-            // "find my iphone" should ping the device, not only search files.
+            // "find my iphone" should ping the device, not only search files,
+            // and "find my" typed in full is still the Find My app.
+            let exactApp = AppProvider.score(forMatch: 1.0)
             let pingItems = FindMyProvider.results(for: trimmed)
+                + AppProvider.shared.results(for: trimmed).filter { $0.score >= exactApp }
             if term.count < 2 {
                 syncResults = pingItems + [ResultItem(
                     title: "Find files",
@@ -101,13 +118,12 @@ final class SpideyViewModel: ObservableObject {
                     score: 500,
                     action: {}
                 )]
-                publish()
                 scheduleFileSearch(for: nil)
+                publish()
             } else {
                 syncResults = pingItems
-                fileResults = []
-                publish()
                 scheduleFileSearch(for: term, mode: .dedicated)
+                publish()
             }
             return
         }
@@ -124,13 +140,12 @@ final class SpideyViewModel: ObservableObject {
                     score: 500,
                     action: {}
                 )]
-                publish()
                 scheduleFileSearch(for: nil)
+                publish()
             } else {
                 syncResults = []
-                fileResults = []
-                publish()
                 scheduleFileSearch(for: phrase, mode: .content)
+                publish()
             }
             return
         }
@@ -191,16 +206,33 @@ final class SpideyViewModel: ObservableObject {
             armedCommand = nil
         }
         commandItems += systemItems
+        let typedAddress = SiteDirectoryProvider.typedAddressResult(for: trimmed)
         // A recognized command makes the generic "watch this" and "guess the URL" rows noise.
+        // The "win" and "bm" keywords and a typed web address count too, even
+        // though their rows are gathered below with the ambient providers.
         let isCommand = !commandItems.isEmpty
+            || WindowSwitcherProvider.isExplicit(trimmed)
+            || BookmarksProvider.isExplicit(trimmed)
+            || typedAddress != nil
 
         var items = commandItems
         items += AppProvider.shared.results(for: trimmed)
         items += ContactsProvider.results(for: trimmed)
         items += WindowSwitcherProvider.results(for: trimmed)
-        items += SiteDirectoryProvider.results(for: trimmed)
-        if let address = SiteDirectoryProvider.typedAddressResult(for: trimmed) {
-            items.append(address)
+        // A bare keyword like "play" must not lose to a site it happens to
+        // start ("Playstation"); exact site names keep their full rank. Only a
+        // command whose own first word was typed in full counts, so a short
+        // prefix like "ste" still opens Steam rather than a fuzzy toggle row.
+        // The music rows can be titled "Open Spotify" when nothing is running,
+        // so their bare verbs are listed outright.
+        let typedWord = trimmed.lowercased()
+        let typedCommandWord = !commandItems.isEmpty && (Self.bareCommandWords.contains(typedWord)
+            || commandItems.contains { item in
+                item.title.lowercased().split(whereSeparator: { !$0.isLetter }).first.map(String.init) == typedWord
+            })
+        items += SiteDirectoryProvider.results(for: trimmed, demotePrefixMatches: typedCommandWord)
+        if let typedAddress {
+            items.append(typedAddress)
         }
         items += BookmarksProvider.results(for: trimmed)
         // Where you got to in a show sits above the "Watch ..." rows, and is
@@ -208,7 +240,7 @@ final class SpideyViewModel: ObservableObject {
         items += WatchProvider.resumeResults(for: trimmed)
         var searchScore = WebSearchProvider.fallbackScore
         if !isCommand {
-            items += StreamingProvider.results(for: trimmed)
+            items += StreamingProvider.results(for: trimmed, usage: usageStore)
             // Nothing verifies that a guessed homepage exists, so the web
             // search - which always lands somewhere - goes right above it.
             if let guess = SiteDirectoryProvider.guessResult(for: trimmed) {
@@ -220,22 +252,40 @@ final class SpideyViewModel: ObservableObject {
             items.append(fallback)
         }
         syncResults = items
-        publish()
         scheduleFileSearch(for: trimmed)
+        publish()
     }
 
+    // Updates fileResults for the new query (the caller publishes) and starts
+    // the debounced Spotlight search unless that exact search is already
+    // pending or done.
     private func scheduleFileSearch(for query: String?, mode: FileProvider.Mode = .ambient) {
+        let minLength = mode == .ambient ? 3 : 2
+        guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
+            fileSearchDebounce?.cancel()
+            fileSearchGeneration += 1
+            activeFileSearch = nil
+            fileResults = []
+            return
+        }
+        if let active = activeFileSearch, active.query == query, active.mode == mode { return }
+        // Until the new search answers, keep only files whose names still fit
+        // what is typed now: refining "rep" to "report" keeps them, while an
+        // unrelated query never shows (or opens on Return) the old files.
+        if mode == .content || activeFileSearch?.mode != mode {
+            fileResults = []
+        } else {
+            fileResults = fileResults.filter {
+                $0.dragFileURL != nil && FileProvider.nameContainsAll(query: query, name: $0.title)
+            }
+        }
+        activeFileSearch = (query, mode)
         fileSearchDebounce?.cancel()
         fileSearchGeneration += 1
         let generation = fileSearchGeneration
-        let minLength = mode == .ambient ? 3 : 2
-        guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
-            fileResults = []
-            publish()
-            return
-        }
+        let search = fileSearch
         let work = DispatchWorkItem { [weak self] in
-            FileProvider.search(query, mode: mode) { items in
+            search(query, mode) { items in
                 guard let self, self.fileSearchGeneration == generation else { return }
                 if mode != .ambient, items.isEmpty {
                     self.fileResults = [ResultItem(
@@ -264,7 +314,7 @@ final class SpideyViewModel: ObservableObject {
         if armedCommand == nil, droppedFiles.isEmpty {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             if !trimmed.isEmpty {
-                let boosts = UsageStore.shared.boosts(for: trimmed)
+                let boosts = usageStore.boosts(for: trimmed)
                 if !boosts.isEmpty {
                     for index in combined.indices {
                         guard let key = combined[index].rankingKey,
@@ -478,7 +528,7 @@ final class SpideyViewModel: ObservableObject {
         }
         // Learn from the pick: rows without a rankingKey opted out.
         if let key = item.rankingKey {
-            UsageStore.shared.recordSelection(
+            usageStore.recordSelection(
                 query: query.trimmingCharacters(in: .whitespaces), rankingKey: key
             )
         }

@@ -64,3 +64,30 @@ final class HotKeyCenter {
         eventHandlerInstalled = true
     }
 }
+
+// Which combo ends up registered, and whether the saved preference changes.
+enum HotKeyFallback {
+    struct Outcome: Equatable {
+        var active: HotKeyCombo?
+        var savePreferred: HotKeyCombo?
+    }
+
+    static func resolve(
+        preferred: HotKeyCombo, userPicked: Bool, current: HotKeyCombo?,
+        register: (HotKeyCombo) -> Bool
+    ) -> Outcome {
+        if register(preferred) { return Outcome(active: preferred, savePreferred: nil) }
+        // A combo that was already working stays rather than being swapped out.
+        if let current {
+            // Only a combo just picked in Preferences is saved back over: a
+            // retry at launch or on reopening must keep the user's choice, so
+            // freeing Cmd+Space in System Settings later still takes effect.
+            let revert = userPicked && preferred != current
+            return Outcome(active: current, savePreferred: revert ? current : nil)
+        }
+        if preferred != .optionSpace, register(.optionSpace) {
+            return Outcome(active: .optionSpace, savePreferred: nil)
+        }
+        return Outcome(active: nil, savePreferred: nil)
+    }
+}

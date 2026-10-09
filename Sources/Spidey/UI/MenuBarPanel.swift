@@ -3,9 +3,9 @@ import AppKit
 
 // The panel under the menu bar emblem, laid out like Control Center: today's
 // weather on top, then two switch rows (Keep Mac Awake, automatic Light and
-// Dark), then quiet Preferences and Quit links. It sits on the native popover
-// material and follows the system appearance; the hero theme only lends its
-// accent colour.
+// Dark), then quiet Preferences and Quit links. The cards are Liquid Glass on
+// macOS 26, grouped so they read as one set, and the panel is always dark; the
+// hero theme only lends its accent colour.
 struct MenuBarPanel: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var weather = WeatherStore.shared
@@ -14,38 +14,9 @@ struct MenuBarPanel: View {
 
     var body: some View {
         VStack(spacing: FuturisticStyle.Space.s) {
-            Island(padding: FuturisticStyle.Space.l) {
-                WeatherHeader(state: weather.state, retry: { weather.refresh() })
-                    .frame(minHeight: 44)
-            }
-            .background(alignment: .topTrailing) { AmbientWash() }
-
-            Island(padding: FuturisticStyle.Space.s) {
-                VStack(spacing: FuturisticStyle.Space.xs) {
-                    SwitchRow(
-                        symbol: "cup.and.saucer.fill",
-                        title: "Keep Mac Awake",
-                        subtitle: caffeinate.isActive ? "On, sleep is paused" : "Off",
-                        isOn: Binding(
-                            get: { caffeinate.isActive },
-                            set: { on in if on != caffeinate.isActive { caffeinate.toggle() } }
-                        )
-                    )
-                    SwitchRow(
-                        symbol: "circle.lefthalf.filled",
-                        title: "Automatic Light & Dark",
-                        subtitle: scheduleSubtitle,
-                        isOn: $settings.autoAppearance
-                    )
-                    if settings.autoAppearance {
-                        HStack(spacing: FuturisticStyle.Space.l) {
-                            TimeField(label: "Light", minute: $settings.lightModeMinute)
-                            TimeField(label: "Dark", minute: $settings.darkModeMinute)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.leading, 48)
-                        .padding(.bottom, 6)
-                    }
+            GlassGroup {
+                VStack(spacing: FuturisticStyle.Space.s) {
+                    cards
                 }
             }
 
@@ -54,12 +25,50 @@ struct MenuBarPanel: View {
                 Spacer()
                 LinkButton("Quit Sidekick") { NSApp.terminate(nil) }
             }
-            .padding(.horizontal, FuturisticStyle.Space.xs)
+            .padding(.horizontal, FuturisticStyle.Space.s)
             .padding(.top, 2)
         }
         .padding(FuturisticStyle.Space.m)
         .frame(width: 320)
         .futuristicTheme(settings.theme)
+    }
+
+    @ViewBuilder
+    private var cards: some View {
+        Island(padding: FuturisticStyle.Space.l) {
+            WeatherHeader(state: weather.state, retry: { weather.refresh() })
+                .frame(minHeight: 44)
+        }
+        .background(alignment: .topTrailing) { AmbientWash() }
+
+        Island(padding: FuturisticStyle.Space.s) {
+            VStack(spacing: FuturisticStyle.Space.xs) {
+                SwitchRow(
+                    symbol: "cup.and.saucer.fill",
+                    title: "Keep Mac Awake",
+                    subtitle: caffeinate.isActive ? "On, sleep is paused" : "Off",
+                    isOn: Binding(
+                        get: { caffeinate.isActive },
+                        set: { on in if on != caffeinate.isActive { caffeinate.toggle() } }
+                    )
+                )
+                SwitchRow(
+                    symbol: "circle.lefthalf.filled",
+                    title: "Automatic Light & Dark",
+                    subtitle: scheduleSubtitle,
+                    isOn: $settings.autoAppearance
+                )
+                if settings.autoAppearance {
+                    HStack(spacing: FuturisticStyle.Space.l) {
+                        TimeField(label: "Light", minute: $settings.lightModeMinute)
+                        TimeField(label: "Dark", minute: $settings.darkModeMinute)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, 48)
+                    .padding(.bottom, 6)
+                }
+            }
+        }
     }
 
     private var scheduleSubtitle: String {
@@ -81,10 +90,10 @@ private struct AmbientWash: View {
     @Environment(\.fxTokens) private var fx
     var body: some View {
         RadialGradient(
-            colors: [fx.ambientColor, .clear],
+            colors: [fx.ambient, .clear],
             center: .topTrailing, startRadius: 0, endRadius: 180
         )
-        .clipShape(RoundedRectangle(cornerRadius: FuturisticStyle.Radius.island, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: FuturisticStyle.Radius.lg, style: .continuous))
         .allowsHitTesting(false)
     }
 }
@@ -133,10 +142,10 @@ private struct WeatherHeader: View {
         case .placeholder:
             // First run only: later opens always have the saved forecast.
             HStack(spacing: 14) {
-                Circle().fill(.quaternary).frame(width: 36, height: 36).frame(width: 44)
+                Circle().fill(Color.white.opacity(0.10)).frame(width: 36, height: 36).frame(width: 44)
                 VStack(alignment: .leading, spacing: 6) {
-                    RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm).fill(.quaternary).frame(width: 110, height: 14)
-                    RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm).fill(.quaternary).frame(width: 170, height: 10)
+                    RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.10)).frame(width: 110, height: 14)
+                    RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.10)).frame(width: 170, height: 10)
                 }
             }
             .frame(height: 44)
@@ -158,7 +167,10 @@ private struct WeatherHeader: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 44)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.tail)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 PillButton(button, symbol: prominent ? "arrow.clockwise" : nil, prominent: prominent, action: action)
             }
             Spacer(minLength: 0)
@@ -181,8 +193,8 @@ private struct TimeField: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(label)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .tracking(0.8)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.6)
                 .textCase(.uppercase)
                 .foregroundStyle(.secondary)
             DatePicker("", selection: dateBinding, displayedComponents: .hourAndMinute)

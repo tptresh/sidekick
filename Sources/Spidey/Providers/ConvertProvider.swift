@@ -69,13 +69,20 @@ enum ConvertProvider {
 
     // MARK: - Parsing
 
+    // Compiled once: parse runs on every keystroke.
+    private static let amountPattern = try? NSRegularExpression(
+        pattern: #"^([$£€¥]?)([0-9]+(?:[.,][0-9]+)*)\s*([a-z°/$£€¥]*)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
+    )
+    private static let pairPattern = try? NSRegularExpression(
+        pattern: #"^([a-z°/$£€¥]+)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
+    )
+
     // Accepts "100 usd to gbp", "5km in miles", "72f to c", "$100 in gbp",
     // and "usd to gbp" (an amount of 1) when both sides are known units.
     static func parse(_ query: String) -> Conversion? {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
         if let pair = parseUnitPair(lowered) { return pair }
-        let pattern = #"^([$£€¥]?)([0-9]+(?:[.,][0-9]+)*)\s*([a-z°/$£€¥]*)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = amountPattern,
               let match = regex.firstMatch(
                   in: lowered, range: NSRange(lowered.startIndex..., in: lowered)
               ) else { return nil }
@@ -97,8 +104,7 @@ enum ConvertProvider {
     }
 
     private static func parseUnitPair(_ lowered: String) -> Conversion? {
-        let pattern = #"^([a-z°/$£€¥]+)\s+(?:to|in|as)\s+([a-z°/$£€¥]+)$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = pairPattern,
               let match = regex.firstMatch(
                   in: lowered, range: NSRange(lowered.startIndex..., in: lowered)
               ),

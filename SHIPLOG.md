@@ -434,3 +434,37 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 6928d44 Batman theme removed: Spider-Man is the only theme, so Preferences no longer shows a theme picker and typing batman no longer offers a theme switch
 - main is now at: 0207ab7 (build succeeded, app relaunched)
+
+## 2026-10-09 18:24 - OK - refresh-ui
+- "Liquid Glass redesign: the search panel, menu bar panel, Preferences and large type share one dark glass style with a restrained red accent, always dark, solid fallbacks for Reduce Transparency; plus fixes for clipped text, a stuck shortcut box and layout jumps"
+- merged commits:
+  - 10e096c Buttons on the glass cards are quiet capsules (theme red when prominent) so they never melt into the card, glass cards stay visibly separate, and the search panel's glass is a touch darker so grey subtitles stay readable over bright wallpapers
+  - cef0507 Liquid Glass look for the search panel, menu bar panel, Preferences and large type, always dark: frosted glass cards with soft depth, red kept for the selected row, switched-on icons and focus, larger rounded corners, no glows; long weather errors and large type text no longer get cut off, the clipboard stepper no longer shifts as the count grows, and the shortcut box highlights in the theme red
+- main is now at: 1d92664 (build succeeded, app relaunched)
+
+## 2026-10-09 18:26 - OK - refresh-core
+- "Reliability: your chosen hotkey is never overwritten by the fallback, sites are not flagged dead while offline or waking, timers reload at launch and ring once, weather keeps the city you typed and refreshes after wake, favicons retry, currency works on a fresh install, clipboard trims at once; menu bar panel and Preferences always dark"
+- merged commits:
+  - 20d5854 Reliability: your chosen hotkey is never overwritten by the fallback, sites are not flagged dead while offline or waking, timers reload at launch and ring once, weather keeps the city you typed and refreshes after wake, favicons retry, currency works on a fresh install, clipboard trims at once; menu bar panel and Preferences always dark
+  - c24c50c Merge main into refresh-core
+  - 95b33d6 Lowering the clipboard history size in Preferences trims the history straight away
+  - 6efe9b4 Weather ignores stale lookups while typing a city and refreshes after wake; favicons retry after offline; currency cache folder created on fresh installs
+  - 008b3e7 Hotkey keeps Cmd+Space as your choice while it falls back, site checks ignore offline moments even with one site, timers restored at launch and ring once
+- main is now at: f127a21 (build succeeded, app relaunched)
+
+## 2026-10-09 18:32 - OK - refresh-glass
+- "Liquid Glass now shows through in the menu bar dropdown and Preferences too: both are see-through dark glass like the search panel, instead of glass cards on a solid background"
+- merged commits:
+  - f36fca5 Liquid Glass now shows through in the menu bar dropdown and Preferences too: both are see-through dark glass like the search panel, instead of glass cards on a solid background
+- main is now at: b89a2d4 (build succeeded, app relaunched)
+
+## 2026-10-09 18:34 - OK - refresh-search
+- "Search: right first row for everyday queries (68 checked), typing about 2.5x lighter, find my opens Find My, play stays a music command, no stray Watch rows for win, bm or typed addresses, stale file results no longer linger, and short prefixes still open sites"
+- merged commits:
+  - a12fdc0 Merge main into refresh-search
+  - fe6678c Short prefixes like ste, tar or wire open the site again instead of a toggle or restart row; only a fully typed command word like play pushes a site down
+  - 3a40f6e Typing a non-Latin name no longer offers an unreadable punycode homepage guess; show-title parsing keeps splitting on long dashes without the banned character in source
+  - fea4fa6 Typing is faster: the site directory is scored once per keystroke instead of three times, and address and conversion patterns are compiled once (about 2.3 ms down to 0.9 ms of search work per keystroke)
+  - aa74b15 File results stay in step with typing: another query's files no longer sit on top (or open on Return) while you type, a logo or rate refresh no longer restarts the file search, and a pending search can no longer crash the app or leak into the drop menu
+  - 78cb69b Search picks the right first row in more cases: "find my" opens Find My, "spell" on a correct word keeps the word, "play" stays a music command, and win/bm/typed addresses no longer add Watch rows
+- main is now at: 5585790 (build succeeded, app relaunched)

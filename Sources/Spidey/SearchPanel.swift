@@ -19,6 +19,8 @@ final class SearchPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
+        // Spidey's windows are always dark, whatever the system appearance.
+        appearance = NSAppearance(named: .darkAqua)
         hidesOnDeactivate = false
         // Window-background dragging would swallow row drags (dragging a
         // clipboard file out of the panel), and the panel recenters on every

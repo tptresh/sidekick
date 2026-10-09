@@ -60,6 +60,7 @@ final class ClipboardStore: ObservableObject {
     @Published private(set) var entries: [ClipEntry] = []
 
     private var timer: Timer?
+    private var limitSubscription: AnyCancellable?
     private var lastChangeCount = NSPasteboard.general.changeCount
     // Set while Spidey itself writes to the pasteboard, so we do not re-record it.
     private var ignoreNextChange = false
@@ -87,6 +88,14 @@ final class ClipboardStore: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.poll()
         }
+        // Lowering "Keep up to" in Preferences trims the history straight
+        // away, not only at the next copy. Hopped to the next main-queue turn
+        // because @Published emits before the new value is stored.
+        limitSubscription = SettingsStore.shared.$clipboardLimit
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.trimAndSort() }
     }
 
     private func poll() {
