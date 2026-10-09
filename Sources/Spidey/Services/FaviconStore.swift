@@ -12,6 +12,9 @@ final class FaviconStore {
     private var cache: [String: NSImage] = [:]
     private var missing: Set<String> = []
     private var inFlight: Set<String> = []
+    // Hosts whose download failed for want of a network, and when to try
+    // again, so a logo missed while offline still arrives later.
+    private var retryAfter: [String: Date] = [:]
 
     private let directory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -37,17 +40,23 @@ final class FaviconStore {
     }
 
     private func fetch(host: String) {
+        if let retry = retryAfter[host], retry > Date() { return }
         guard !missing.contains(host), !inFlight.contains(host),
               let url = URL(string: "https://www.google.com/s2/favicons?domain=\(host)&sz=64")
         else { return }
         inFlight.insert(host)
-        URLSession.shared.dataTask(with: url) { data, _, _ in
+        URLSession.shared.dataTask(with: url) { data, _, error in
             DispatchQueue.main.async {
                 self.inFlight.remove(host)
+                if error != nil {
+                    self.retryAfter[host] = Date().addingTimeInterval(5 * 60)
+                    return
+                }
                 guard let data, !data.isEmpty, let image = NSImage(data: data) else {
                     self.missing.insert(host)
                     return
                 }
+                self.retryAfter[host] = nil
                 image.size = NSSize(width: 32, height: 32)
                 try? data.write(to: self.directory.appendingPathComponent(host + ".png"))
                 self.cache[host] = image

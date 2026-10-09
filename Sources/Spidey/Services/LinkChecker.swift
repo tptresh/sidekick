@@ -197,25 +197,27 @@ final class LinkChecker: ObservableObject {
             customSites: SettingsStore.shared.activeCustomMediaSites
         )
         guard !targets.isEmpty else {
-            finish(results: [:])
+            finish(results: [:], inconclusive: [])
             return
         }
         isRunning = true
 
         var results: [String: Status] = [:]
+        var inconclusive: Set<String> = []
         let lock = NSLock()
         let group = DispatchGroup()
         for target in targets {
             group.enter()
-            check(url: target.url) { status in
+            check(url: target.url) { status, offline in
                 lock.lock()
                 results[target.key] = status
+                if offline { inconclusive.insert(target.key) }
                 lock.unlock()
                 group.leave()
             }
         }
         group.notify(queue: .main) { [weak self] in
-            self?.finish(results: results)
+            self?.finish(results: results, inconclusive: inconclusive)
         }
     }
 
@@ -247,20 +249,22 @@ final class LinkChecker: ObservableObject {
 
     // One retry after a short pause, so a single dropped request or slow
     // answer is not reported as a dead site.
-    private func check(url: URL, completion: @escaping (Status) -> Void) {
-        checkOnce(url: url) { [weak self] status in
-            guard !status.ok, let self else { return completion(status) }
+    // The flag is true when the failure was this Mac being offline.
+    private func check(url: URL, completion: @escaping (Status, Bool) -> Void) {
+        checkOnce(url: url) { [weak self] status, offline in
+            guard !status.ok, let self else { return completion(status, offline) }
             DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
                 self.checkOnce(url: url, completion: completion)
             }
         }
     }
 
-    private func checkOnce(url: URL, completion: @escaping (Status) -> Void) {
+    private func checkOnce(url: URL, completion: @escaping (Status, Bool) -> Void) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         session.dataTask(with: request) { _, response, error in
             let status: Status
+            let offline = error.map(Self.isInconclusive) ?? false
             if let error {
                 status = Status(ok: false, detail: error.localizedDescription, date: Date())
             } else if let http = response as? HTTPURLResponse {
@@ -273,7 +277,7 @@ final class LinkChecker: ObservableObject {
             } else {
                 status = Status(ok: true, detail: "Reachable", date: Date())
             }
-            completion(status)
+            completion(status, offline)
         }.resume()
     }
 
@@ -288,19 +292,50 @@ final class LinkChecker: ObservableObject {
         }
     }
 
-    private func finish(results: [String: Status]) {
+    // Errors that say this Mac had no network (just woken, Wi-Fi dropped),
+    // which tell us nothing about whether the site itself is alive.
+    static func isInconclusive(_ error: Error) -> Bool {
+        let inconclusive: Set<Int> = [
+            NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost,
+            NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff,
+            NSURLErrorCallIsActive, NSURLErrorCannotLoadFromNetwork,
+        ]
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && inconclusive.contains(nsError.code)
+    }
+
+    // The statuses to keep after a check, or nil when the whole check looks
+    // like an offline moment and the last real results should stand. A site
+    // whose own check was inconclusive keeps its previous status (or stays
+    // unflagged if it has none).
+    static func merge(
+        previous: [String: Status], fresh: [String: Status], inconclusive: Set<String>
+    ) -> [String: Status]? {
+        let conclusive = fresh.filter { !inconclusive.contains($0.key) }
+        if conclusive.isEmpty, !fresh.isEmpty { return nil }
         // Every site failing at once means this Mac was offline, not that the
-        // whole internet died: keep the last real results and try again later.
-        if results.count > 1, results.values.allSatisfy({ !$0.ok }) {
+        // whole internet died. Counted over every fetched site, so a wake-up
+        // mix of "not connected" and "timed out" still reads as offline.
+        if fresh.count > 1, fresh.values.allSatisfy({ !$0.ok }) { return nil }
+        var merged = conclusive
+        for key in inconclusive where fresh[key] != nil {
+            if let old = previous[key] { merged[key] = old }
+        }
+        return merged
+    }
+
+    private func finish(results: [String: Status], inconclusive: Set<String>) {
+        // Offline: keep the last real results and try again at the next poll.
+        guard let merged = Self.merge(previous: statuses, fresh: results, inconclusive: inconclusive) else {
             isRunning = false
             lastCheckLooksOffline = true
             return
         }
         lastCheckLooksOffline = false
-        statuses = results
+        statuses = merged
         lastRun = Date()
         isRunning = false
-        if let data = try? JSONEncoder().encode(results) {
+        if let data = try? JSONEncoder().encode(merged) {
             defaults.set(data, forKey: "linkCheckStatuses")
         }
         defaults.set(lastRun, forKey: "linkCheckLastRun")

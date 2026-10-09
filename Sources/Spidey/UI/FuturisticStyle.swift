@@ -1,37 +1,37 @@
 import SwiftUI
+import AppKit
 
-// Shared look for the menu bar panel and Preferences: glass islands, one hero
-// accent per theme, mono labels. Views read their colours from the environment
-// so none of them takes an accent colour as a parameter.
+// Shared look for the search panel, the menu bar panel and Preferences: Liquid
+// Glass surfaces on macOS 26 (material on older systems, solid under Reduce
+// Transparency), one spacing and radius scale, and the theme red kept for
+// accents only. Spidey's own windows are always dark, so every colour here is
+// tuned for dark glass. Views read colours from the environment so none of
+// them takes an accent colour as a parameter.
 enum FuturisticStyle {
     struct Tokens {
         let accent: Color
         let accentText: Color
         let onAccent: Color
-        let islandFill: Color
-        let islandFillHover: Color
-        let islandStroke: Color
-        let islandEdgeHighlight: Color
-        let prefsIslandFill: Color
-        let glowColor: Color
-        let glowRadius: CGFloat
-        let ambientColor: Color
+        // Quiet fill for rows and controls that sit on a glass card.
+        let fill: Color
+        let fillHover: Color
+        let hairline: Color
+        // Card colour when Reduce Transparency turns the glass off.
+        let solidSurface: Color
+        let selection: Color
+        let ambient: Color
 
-        static func resolve(theme: HeroTheme, scheme: ColorScheme) -> Tokens {
-            let dark = scheme == .dark
-            let accent = theme.accent(for: scheme)
-            return Tokens(
-                accent: accent,
-                accentText: theme.accentText(for: scheme),
-                onAccent: theme.onAccent(for: scheme),
-                islandFill: dark ? Color.white.opacity(0.055) : Color.black.opacity(0.035),
-                islandFillHover: dark ? Color.white.opacity(0.09) : Color.black.opacity(0.06),
-                islandStroke: dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08),
-                islandEdgeHighlight: dark ? Color.white.opacity(0.14) : Color.white.opacity(0.60),
-                prefsIslandFill: dark ? Color.white.opacity(0.06) : Color.white.opacity(0.72),
-                glowColor: accent.opacity(dark ? 0.45 : 0.30),
-                glowRadius: dark ? 10 : 8,
-                ambientColor: accent.opacity(dark ? 0.14 : 0.08)
+        static func resolve(theme: HeroTheme) -> Tokens {
+            Tokens(
+                accent: theme.accent,
+                accentText: theme.accentText,
+                onAccent: theme.onAccent,
+                fill: Color.white.opacity(0.06),
+                fillHover: Color.white.opacity(0.10),
+                hairline: Color.white.opacity(0.10),
+                solidSurface: Color(white: 0.14),
+                selection: theme.accent.opacity(0.30),
+                ambient: theme.accent.opacity(0.10)
             )
         }
     }
@@ -45,16 +45,21 @@ enum FuturisticStyle {
         static let xxl: CGFloat = 32
     }
 
+    // The one corner radius scale: tiles and small controls, rows, cards, panel.
     enum Radius {
-        static let sm: CGFloat = 4
-        static let md: CGFloat = 8
-        static let island: CGFloat = 12
-        static let badge: CGFloat = 7
+        static let sm: CGFloat = 8
+        static let md: CGFloat = 12
+        static let lg: CGFloat = 18
+        static let xl: CGFloat = 22
+    }
+
+    enum Motion {
+        static let quick = Animation.easeOut(duration: 0.15)
     }
 }
 
 private struct FXTokensKey: EnvironmentKey {
-    static let defaultValue = FuturisticStyle.Tokens.resolve(theme: .spiderman, scheme: .dark)
+    static let defaultValue = FuturisticStyle.Tokens.resolve(theme: .spiderman)
 }
 
 extension EnvironmentValues {
@@ -64,83 +69,126 @@ extension EnvironmentValues {
     }
 }
 
-private struct FuturisticThemeModifier: ViewModifier {
-    let theme: HeroTheme
-    @Environment(\.colorScheme) private var scheme
-
-    func body(content: Content) -> some View {
-        let tokens = FuturisticStyle.Tokens.resolve(theme: theme, scheme: scheme)
-        content
+extension View {
+    // Theme tokens, the red tint, and a dark appearance for the hosting window
+    // whatever the system is set to.
+    func futuristicTheme(_ theme: HeroTheme) -> some View {
+        let tokens = FuturisticStyle.Tokens.resolve(theme: theme)
+        return self
             .environment(\.fxTokens, tokens)
             .tint(tokens.accent)
+            .environment(\.colorScheme, .dark)
+            .background(DarkWindowAppearance())
     }
-}
 
-extension View {
-    func futuristicTheme(_ theme: HeroTheme) -> some View {
-        modifier(FuturisticThemeModifier(theme: theme))
+    // A glass surface in the given shape: real Liquid Glass on macOS 26,
+    // ultra thin material before that, and a solid card under Reduce
+    // Transparency so text never sits on a busy wallpaper.
+    func fxGlass<S: InsettableShape>(in shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
+        modifier(GlassSurface(shape: shape, tint: tint, interactive: interactive))
     }
-}
 
-private extension View {
     // Hover/press animation that switches off under Reduce Motion.
     func fxAnimation<V: Equatable>(_ reduceMotion: Bool, value: V) -> some View {
-        animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: value)
+        animation(reduceMotion ? nil : FuturisticStyle.Motion.quick, value: value)
+    }
+}
+
+// Puts the window that hosts this view into Dark Aqua, so AppKit chrome (the
+// popover, title bar, pickers, text fields) matches the dark SwiftUI content.
+private struct DarkWindowAppearance: NSViewRepresentable {
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ nsView: Probe, context: Context) {}
+}
+
+private struct GlassSurface<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let tint: Color?
+    let interactive: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.fxTokens) private var fx
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+                .background(shape.fill(tint ?? fx.solidSurface))
+                .overlay(shape.strokeBorder(fx.hairline, lineWidth: 1))
+        } else if #available(macOS 26, *) {
+            content.glassEffect(.regular.tint(tint).interactive(interactive), in: shape)
+        } else {
+            content
+                .background(shape.fill(tint ?? Color.clear))
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.strokeBorder(fx.hairline, lineWidth: 0.5))
+        }
+    }
+}
+
+// Groups neighbouring glass surfaces so macOS 26 renders them as one family
+// with shared sampling. Spacing 0 keeps separate cards from melting together.
+// A plain stack before macOS 26.
+struct GlassGroup<Content: View>: View {
+    var spacing: CGFloat
+    @ViewBuilder var content: () -> Content
+
+    init(spacing: CGFloat = 0, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
+
+    var body: some View {
+        if #available(macOS 26, *) {
+            GlassEffectContainer(spacing: spacing) { content() }
+        } else {
+            content()
+        }
     }
 }
 
 // MARK: - Island
 
+// A glass card with an optional small heading above it and a footnote below.
+// Heading and footnote are inset to line up with the text inside the card.
 struct Island<Content: View>: View {
     var label: String?
     var footnote: String?
-    var onWindow: Bool
     var padding: CGFloat
     @ViewBuilder var content: () -> Content
-    @Environment(\.fxTokens) private var fx
 
     init(
-        label: String? = nil, footnote: String? = nil, onWindow: Bool = false,
+        label: String? = nil, footnote: String? = nil,
         padding: CGFloat = FuturisticStyle.Space.m, @ViewBuilder content: @escaping () -> Content
     ) {
         self.label = label
         self.footnote = footnote
-        self.onWindow = onWindow
         self.padding = padding
         self.content = content
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let label { SectionLabel(label) }
+        VStack(alignment: .leading, spacing: FuturisticStyle.Space.s) {
+            if let label {
+                SectionLabel(label).padding(.horizontal, FuturisticStyle.Space.m)
+            }
             content()
                 .padding(padding)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(IslandBackground(fill: onWindow ? fx.prefsIslandFill : fx.islandFill))
+                .fxGlass(in: RoundedRectangle(cornerRadius: FuturisticStyle.Radius.lg, style: .continuous))
             if let footnote {
                 Text(footnote)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, FuturisticStyle.Space.m)
             }
         }
-    }
-}
-
-// Fill, 1pt stroke and a 1pt highlight along the top edge. No drop shadow.
-struct IslandBackground: View {
-    let fill: Color
-    @Environment(\.fxTokens) private var fx
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: FuturisticStyle.Radius.island, style: .continuous)
-        shape.fill(fill)
-            .overlay(shape.strokeBorder(fx.islandStroke, lineWidth: 1))
-            .overlay(alignment: .top) {
-                Rectangle().fill(fx.islandEdgeHighlight).frame(height: 1)
-                    .padding(.horizontal, FuturisticStyle.Radius.island / 2)
-            }
-            .clipShape(shape)
     }
 }
 
@@ -150,15 +198,42 @@ struct SectionLabel: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-            .tracking(1.2)
+            .font(.system(size: 11, weight: .semibold))
+            .tracking(0.6)
             .textCase(.uppercase)
             .foregroundStyle(.secondary)
             .accessibilityAddTraits(.isHeader)
     }
 }
 
+// 1pt line between rows inside a card, inset to the row text.
+struct RowLine: View {
+    @Environment(\.fxTokens) private var fx
+    var body: some View {
+        Rectangle().fill(fx.hairline).frame(height: 1).padding(.horizontal, FuturisticStyle.Space.m)
+    }
+}
+
 // MARK: - Rows and controls
+
+// Rounded square behind a row's symbol: red when the row is on, quiet otherwise.
+struct IconTile: View {
+    let symbol: String
+    let active: Bool
+    @Environment(\.fxTokens) private var fx
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(active ? fx.onAccent : Color.primary)
+            .frame(width: 28, height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm, style: .continuous)
+                    .fill(active ? AnyShapeStyle(fx.accent) : AnyShapeStyle(fx.fillHover))
+            )
+            .accessibilityHidden(true)
+    }
+}
 
 struct SwitchRow: View {
     let symbol: String
@@ -177,17 +252,8 @@ struct SwitchRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isOn ? fx.onAccent : Color.primary)
-                .frame(width: 28, height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: FuturisticStyle.Radius.badge, style: .continuous)
-                        .fill(isOn ? AnyShapeStyle(fx.accent) : AnyShapeStyle(.quaternary))
-                )
-                .shadow(color: isOn ? fx.glowColor : .clear, radius: isOn ? fx.glowRadius : 0)
-                .accessibilityHidden(true)
+        HStack(spacing: FuturisticStyle.Space.m) {
+            IconTile(symbol: symbol, active: isOn)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.system(size: 13, weight: .medium)).lineLimit(1)
                 Text(subtitle)
@@ -196,22 +262,23 @@ struct SwitchRow: View {
                     .monospacedDigit()
                     .lineLimit(1)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: FuturisticStyle.Space.s)
             Toggle(title, isOn: $isOn)
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .labelsHidden()
                 .accessibilityValue(subtitle)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, FuturisticStyle.Space.s)
         .frame(minHeight: 44)
         .background(
             RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
-                .fill(hovering ? fx.islandFillHover : Color.clear)
+                .fill(hovering ? fx.fill : Color.clear)
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .fxAnimation(reduceMotion, value: hovering)
+        .fxAnimation(reduceMotion, value: isOn)
     }
 }
 
@@ -243,14 +310,12 @@ struct Chip: View {
             if let symbol { Image(systemName: symbol).font(.system(size: 9, weight: .semibold)) }
             Text(text).lineLimit(1).truncationMode(.tail)
         }
-        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+        .font(.system(size: 11, weight: .medium))
+        .monospacedDigit()
         .foregroundStyle(color)
-        .padding(.horizontal, 7)
-        .frame(height: 18)
-        .background(
-            RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm, style: .continuous)
-                .fill((tone == .neutral ? Color.gray : color).opacity(0.14))
-        )
+        .padding(.horizontal, 8)
+        .frame(height: 20)
+        .background(Capsule().fill((tone == .neutral ? Color.white : color).opacity(tone == .neutral ? 0.08 : 0.16)))
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
@@ -286,35 +351,51 @@ struct StatusDot: View {
     }
 }
 
+// Small capsule button. It lives on glass cards, so it uses a quiet fill rather
+// than glass of its own (glass on glass inside one container would melt into
+// the card). Prominent ones are filled with the theme red; destructive ones
+// keep the quiet fill and turn the label red.
 private struct PillButtonStyle: ButtonStyle {
-    let prominent: Bool
+    let tone: PillButton.Tone
     @Environment(\.fxTokens) private var fx
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
         configuration.label
             .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(prominent ? fx.onAccent : Color.primary)
-            .padding(.horizontal, 12)
+            .foregroundStyle(labelColor)
+            .padding(.horizontal, FuturisticStyle.Space.m)
             .frame(height: 26)
-            .background(shape.fill(prominent ? fx.accent : fx.islandFill))
-            .overlay(shape.strokeBorder(prominent ? Color.clear : fx.islandStroke, lineWidth: 1))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+            .background(Capsule().fill(tone == .prominent ? fx.accent : (configuration.isPressed ? fx.fillHover : fx.fill)))
+            .overlay(Capsule().strokeBorder(tone == .prominent ? Color.clear : fx.hairline, lineWidth: 1))
+            .opacity(configuration.isPressed && tone == .prominent ? 0.85 : (isEnabled ? 1 : 0.5))
+            .contentShape(Capsule())
+    }
+
+    private var labelColor: Color {
+        switch tone {
+        case .prominent: return fx.onAccent
+        case .destructive: return fx.accentText
+        case .normal: return .primary
+        }
     }
 }
 
 struct PillButton: View {
+    enum Tone { case normal, prominent, destructive }
     let title: String
     let symbol: String?
-    let prominent: Bool
+    let tone: Tone
     let action: () -> Void
 
     init(_ title: String, symbol: String? = nil, prominent: Bool = false, action: @escaping () -> Void) {
+        self.init(title, symbol: symbol, tone: prominent ? .prominent : .normal, action: action)
+    }
+
+    init(_ title: String, symbol: String? = nil, tone: Tone, action: @escaping () -> Void) {
         self.title = title
         self.symbol = symbol
-        self.prominent = prominent
+        self.tone = tone
         self.action = action
     }
 
@@ -322,10 +403,10 @@ struct PillButton: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .semibold)) }
-                Text(title).lineLimit(1)
+                Text(title).lineLimit(1).fixedSize()
             }
         }
-        .buttonStyle(PillButtonStyle(prominent: prominent))
+        .buttonStyle(PillButtonStyle(tone: tone))
     }
 }
 
@@ -345,6 +426,7 @@ struct LinkButton: View {
             Text(title)
                 .font(.system(size: 12))
                 .foregroundStyle(hovering ? .primary : .secondary)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -367,9 +449,49 @@ struct Monogram: View {
             .foregroundStyle(active ? fx.accentText : Color.secondary)
             .frame(width: 28, height: 28)
             .background(
-                RoundedRectangle(cornerRadius: FuturisticStyle.Radius.badge, style: .continuous)
-                    .fill(active ? fx.accent.opacity(0.16) : Color.gray.opacity(0.14))
+                RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm, style: .continuous)
+                    .fill(active ? fx.accent.opacity(0.20) : fx.fillHover)
             )
             .accessibilityHidden(true)
     }
+}
+
+// MARK: - Window backdrop
+
+// The see-through backing for a whole window or panel: dark Liquid Glass on
+// macOS 26, the behind-window HUD blur before that, and solid near-black under
+// Reduce Transparency. The window itself must be non-opaque with a clear
+// background, or the glass has nothing to show through. The dark tint keeps
+// white text readable over a bright wallpaper.
+struct GlassBackdrop<S: Shape>: View {
+    let tint: Color
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        if reduceTransparency {
+            shape.fill(tint)
+        } else if #available(macOS 26, *) {
+            Color.clear.glassEffect(.regular.tint(tint.opacity(0.62)), in: shape)
+        } else {
+            ZStack {
+                BehindWindowBlur()
+                tint.opacity(0.80)
+            }
+            .clipShape(shape)
+        }
+    }
+}
+
+private struct BehindWindowBlur: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
