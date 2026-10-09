@@ -21,6 +21,13 @@ final class SpideyViewModel: ObservableObject {
     private var fileSearchDebounce: DispatchWorkItem?
     // Drops completions from file searches that are no longer current.
     private var fileSearchGeneration = 0
+    // The search scheduled or finished for the current query, so a refresh
+    // of the same query (a logo arriving, rates loading) does not restart it.
+    private var activeFileSearch: (query: String, mode: FileProvider.Mode)?
+    // Spotlight lookup; tests swap in a stub.
+    var fileSearch: (String, FileProvider.Mode, @escaping ([ResultItem]) -> Void) -> Void = {
+        FileProvider.search($0, mode: $1, completion: $2)
+    }
     // Destructive system command waiting for a confirming second Return.
     private var armedCommand: String?
 
@@ -57,7 +64,8 @@ final class SpideyViewModel: ObservableObject {
     func refresh() {
         if !droppedFiles.isEmpty {
             syncResults = droppedFileResults()
-            fileResults = []
+            // Also cancels a pending search so its files cannot land in the drop list.
+            scheduleFileSearch(for: nil)
             publish()
             return
         }
@@ -65,7 +73,7 @@ final class SpideyViewModel: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
             syncResults = []
-            fileResults = []
+            scheduleFileSearch(for: nil)
             armedCommand = nil
             publish()
             return
@@ -77,17 +85,15 @@ final class SpideyViewModel: ObservableObject {
                 ? String(trimmed.dropFirst("clip ".count))
                 : ""
             syncResults = clipboardResults(filter: filter)
-            fileResults = []
-            publish()
             scheduleFileSearch(for: nil)
+            publish()
             return
         }
 
         if lowered == "ss" || lowered == "screenshot" || lowered == "screenshots" {
             syncResults = screenshotResults()
-            fileResults = []
-            publish()
             scheduleFileSearch(for: nil)
+            publish()
             return
         }
 
@@ -108,13 +114,12 @@ final class SpideyViewModel: ObservableObject {
                     score: 500,
                     action: {}
                 )]
-                publish()
                 scheduleFileSearch(for: nil)
+                publish()
             } else {
                 syncResults = pingItems
-                fileResults = []
-                publish()
                 scheduleFileSearch(for: term, mode: .dedicated)
+                publish()
             }
             return
         }
@@ -131,13 +136,12 @@ final class SpideyViewModel: ObservableObject {
                     score: 500,
                     action: {}
                 )]
-                publish()
                 scheduleFileSearch(for: nil)
+                publish()
             } else {
                 syncResults = []
-                fileResults = []
-                publish()
                 scheduleFileSearch(for: phrase, mode: .content)
+                publish()
             }
             return
         }
@@ -235,22 +239,40 @@ final class SpideyViewModel: ObservableObject {
             items.append(fallback)
         }
         syncResults = items
-        publish()
         scheduleFileSearch(for: trimmed)
+        publish()
     }
 
+    // Updates fileResults for the new query (the caller publishes) and starts
+    // the debounced Spotlight search unless that exact search is already
+    // pending or done.
     private func scheduleFileSearch(for query: String?, mode: FileProvider.Mode = .ambient) {
+        let minLength = mode == .ambient ? 3 : 2
+        guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
+            fileSearchDebounce?.cancel()
+            fileSearchGeneration += 1
+            activeFileSearch = nil
+            fileResults = []
+            return
+        }
+        if let active = activeFileSearch, active.query == query, active.mode == mode { return }
+        // Until the new search answers, keep only files whose names still fit
+        // what is typed now: refining "rep" to "report" keeps them, while an
+        // unrelated query never shows (or opens on Return) the old files.
+        if mode == .content || activeFileSearch?.mode != mode {
+            fileResults = []
+        } else {
+            fileResults = fileResults.filter {
+                $0.dragFileURL != nil && FileProvider.nameContainsAll(query: query, name: $0.title)
+            }
+        }
+        activeFileSearch = (query, mode)
         fileSearchDebounce?.cancel()
         fileSearchGeneration += 1
         let generation = fileSearchGeneration
-        let minLength = mode == .ambient ? 3 : 2
-        guard let query, query.count >= minLength, !Calculator.looksLikeExpression(query) else {
-            fileResults = []
-            publish()
-            return
-        }
+        let search = fileSearch
         let work = DispatchWorkItem { [weak self] in
-            FileProvider.search(query, mode: mode) { items in
+            search(query, mode) { items in
                 guard let self, self.fileSearchGeneration == generation else { return }
                 if mode != .ambient, items.isEmpty {
                     self.fileResults = [ResultItem(
