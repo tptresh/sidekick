@@ -41,25 +41,22 @@ struct ThemePalette {
     let fieldOutline: Color
 }
 
-// Futuristic-redesign accents, resolved per theme and system appearance.
+// Accents for Spidey's own windows, which are always dark.
 extension HeroTheme {
-    func accent(for scheme: ColorScheme) -> Color {
-        let dark = scheme == .dark
+    // Fills: selection, switched-on tiles, prominent buttons.
+    var accent: Color {
         switch self {
-        case .spiderman:
-            return dark ? Color(red: 0.90, green: 0.26, blue: 0.30) : Color(red: 0.70, green: 0.13, blue: 0.17)
+        case .spiderman: return Color(red: 0.86, green: 0.20, blue: 0.25)
         }
     }
 
-    // Tinted running text; picked to pass 4.5:1 on the island fills.
-    func accentText(for scheme: ColorScheme) -> Color {
-        let dark = scheme == .dark
+    // Tinted running text; brighter than the fill so it passes 4.5:1 on dark glass.
+    var accentText: Color {
         switch self {
-        case .spiderman:
-            return dark ? Color(red: 1.0, green: 0.42, blue: 0.45) : Color(red: 0.70, green: 0.13, blue: 0.17)
+        case .spiderman: return Color(red: 1.0, green: 0.45, blue: 0.48)
         }
     }
 
     // Glyph colour on top of an accent fill.
-    func onAccent(for scheme: ColorScheme) -> Color { .white }
+    var onAccent: Color { .white }
 }

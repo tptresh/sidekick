@@ -16,35 +16,33 @@ struct SearchView: View {
     static let barHeight: CGFloat = 60
     static let maxVisibleRows = 9
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         let palette = settings.theme.palette
+        let shape = RoundedRectangle(cornerRadius: FuturisticStyle.Radius.xl, style: .continuous)
         VStack(spacing: 0) {
             searchBar(palette: palette)
             if !viewModel.results.isEmpty {
                 Rectangle()
-                    .fill(palette.textPrimary.opacity(0.08))
+                    .fill(Color.white.opacity(0.08))
                     .frame(height: 1)
+                    .padding(.horizontal, FuturisticStyle.Space.m)
                 resultsList(palette: palette)
             }
         }
         .frame(width: Self.panelWidth)
-        .background(
-            ZStack {
-                VisualEffectBackground()
-                LinearGradient(
-                    colors: [palette.backgroundTop.opacity(0.96), palette.background.opacity(0.97)],
-                    startPoint: .top, endPoint: .bottom
-                )
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        // Glass sits on the panel as a whole, never on individual rows, so
+        // scrolling a long result list stays cheap.
+        .background(PanelBackground(palette: palette, shape: shape))
+        .clipShape(shape)
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(
-                    isDropTargeted ? palette.accent.opacity(0.8) : palette.textPrimary.opacity(0.12),
-                    lineWidth: isDropTargeted ? 1.5 : 1
-                )
+            shape.strokeBorder(
+                isDropTargeted ? settings.theme.accent.opacity(0.8) : Color.white.opacity(0.10),
+                lineWidth: isDropTargeted ? 1.5 : 0.5
+            )
         )
+        .futuristicTheme(settings.theme)
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDrop(providers)
         }
@@ -63,37 +61,37 @@ struct SearchView: View {
     }
 
     private func searchBar(palette: ThemePalette) -> some View {
-        ZStack(alignment: .trailing) {
-            HStack(spacing: 12) {
-                themeGlyph(palette: palette)
-                SearchField(
-                    text: $viewModel.query,
-                    placeholder: placeholder,
-                    palette: palette,
-                    font: NSFont.systemFont(ofSize: 24, weight: .light),
-                    onMove: { viewModel.moveSelection(by: $0) },
-                    onEnter: { viewModel.runSelected(commandModifier: $0) },
-                    onEscape: { viewModel.escapePressed() }
-                )
-                .frame(height: 32)
-            }
-            .padding(.horizontal, 18)
-            .frame(height: Self.barHeight)
-
+        HStack(spacing: FuturisticStyle.Space.m) {
+            themeGlyph
+            SearchField(
+                text: $viewModel.query,
+                placeholder: placeholder,
+                palette: palette,
+                font: NSFont.systemFont(ofSize: 24, weight: .light),
+                onMove: { viewModel.moveSelection(by: $0) },
+                onEnter: { viewModel.runSelected(commandModifier: $0) },
+                onEscape: { viewModel.escapePressed() }
+            )
+            .frame(height: 32)
+            // Sits beside the field rather than over it, so a long query never
+            // runs underneath the label.
             if !viewModel.droppedFiles.isEmpty {
-                Text("\(viewModel.droppedFiles.count) file\(viewModel.droppedFiles.count == 1 ? "" : "s") dropped")
-                    .font(.caption)
-                    .foregroundColor(palette.accent)
-                    .padding(.trailing, 18)
+                Chip(
+                    "\(viewModel.droppedFiles.count) file\(viewModel.droppedFiles.count == 1 ? "" : "s") dropped",
+                    tone: .accent, symbol: "doc.on.doc"
+                )
+                .fixedSize()
             }
         }
+        .padding(.horizontal, 20)
+        .frame(height: Self.barHeight)
     }
 
-    private func themeGlyph(palette: ThemePalette) -> some View {
-        Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(palette.accent)))
+    private var themeGlyph: some View {
+        Image(nsImage: StatusIcons.watermark(for: settings.theme, size: 26, color: NSColor(settings.theme.accent)))
             .resizable()
             .frame(width: 26, height: 26)
-            .opacity(0.85)
+            .accessibilityHidden(true)
     }
 
     private var placeholder: String {
@@ -108,6 +106,7 @@ struct SearchView: View {
                         ResultRow(
                             item: item,
                             palette: palette,
+                            accent: settings.theme.accent,
                             isSelected: index == viewModel.selectedIndex
                         )
                         .id(index)
@@ -121,7 +120,7 @@ struct SearchView: View {
             }
             .frame(height: listHeight)
             .onChange(of: viewModel.selectedIndex) { index in
-                withAnimation(.easeOut(duration: 0.1)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
                     proxy.scrollTo(index, anchor: nil)
                 }
                 QuickLookController.shared.selectionChanged()
@@ -163,41 +162,39 @@ struct SearchView: View {
 private struct ResultRow: View {
     let item: ResultItem
     let palette: ThemePalette
+    let accent: Color
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: FuturisticStyle.Space.m) {
             iconView
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(palette.textPrimary)
+                    .font(.system(size: 15, weight: isSelected ? .medium : .regular))
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 Text(item.subtitle)
                     .font(.system(size: 11))
-                    .foregroundColor(palette.textSecondary)
+                    .foregroundStyle(isSelected ? palette.textPrimary.opacity(0.75) : palette.textSecondary)
                     .lineLimit(1)
             }
-            Spacer()
-            if isSelected {
-                Text("↩")
-                    .font(.system(size: 12))
-                    .foregroundColor(palette.textSecondary.opacity(0.8))
-            }
+            Spacer(minLength: FuturisticStyle.Space.s)
+            Image(systemName: "return")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(palette.textPrimary.opacity(0.7))
+                .opacity(isSelected ? 1 : 0)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 14)
         .frame(height: SearchView.rowHeight)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? palette.accent.opacity(0.18) : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? palette.accent.opacity(0.4) : Color.clear, lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
+                .fill(isSelected ? accent.opacity(0.32) : Color.clear)
                 .padding(.horizontal, 6)
         )
         .contentShape(Rectangle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .modifier(DragModifier(url: item.dragFileURL))
     }
 
@@ -210,8 +207,8 @@ private struct ResultRow: View {
                 .aspectRatio(contentMode: .fit)
         case .symbol(let name):
             Image(systemName: name)
-                .font(.system(size: 18, weight: .light))
-                .foregroundColor(palette.accent.opacity(isSelected ? 1.0 : 0.85))
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(isSelected ? palette.textPrimary : accent)
         }
     }
 }
@@ -231,6 +228,28 @@ private struct DragModifier: ViewModifier {
     }
 }
 
+// Dark Liquid Glass on macOS 26, the behind-window HUD blur before that, and
+// solid near-black under Reduce Transparency. The dark tint keeps white text
+// readable over a bright wallpaper.
+private struct PanelBackground: View {
+    let palette: ThemePalette
+    let shape: RoundedRectangle
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        if reduceTransparency {
+            shape.fill(palette.background)
+        } else if #available(macOS 26, *) {
+            Color.clear.glassEffect(.regular.tint(palette.background.opacity(0.55)), in: shape)
+        } else {
+            ZStack {
+                VisualEffectBackground()
+                palette.background.opacity(0.80)
+            }
+        }
+    }
+}
+
 private struct VisualEffectBackground: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSVisualEffectView {
@@ -238,12 +257,11 @@ private struct VisualEffectBackground: NSViewRepresentable {
         view.material = .hudWindow
         view.blendingMode = .behindWindow
         view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.appearance = NSAppearance(named: .darkAqua)
-    }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 // NSTextField wrapper so arrows, Return, and Esc can be intercepted cleanly.
@@ -267,7 +285,7 @@ private struct SearchField: NSViewRepresentable {
         field.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.35),
+                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.45),
                 .font: font,
             ]
         )
@@ -288,7 +306,7 @@ private struct SearchField: NSViewRepresentable {
         nsView.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.35),
+                .foregroundColor: NSColor(palette.textPrimary).withAlphaComponent(0.45),
                 .font: font,
             ]
         )
