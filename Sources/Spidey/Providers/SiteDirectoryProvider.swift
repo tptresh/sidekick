@@ -455,7 +455,8 @@ enum SiteDirectoryProvider {
         let slug = name.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .joined()
-        guard !slug.isEmpty else { return nil }
+        // Non-ASCII names turn into unreadable punycode (www.xn--...), so no guess.
+        guard !slug.isEmpty, slug.allSatisfy(\.isASCII) else { return nil }
         return URL(string: "https://www.\(slug).com")
     }
 }

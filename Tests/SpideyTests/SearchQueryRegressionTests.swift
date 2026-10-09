@@ -164,3 +164,13 @@ final class SearchQueryRegressionTests: XCTestCase {
         XCTAssertTrue(results("   ").isEmpty)
     }
 }
+
+final class SearchHomepageGuessTests: XCTestCase {
+    // A guess like www.ñandú.com shows up as unreadable punycode
+    // (www.xn--and-6ma2c.com), so only plain ASCII names get a guess.
+    func testNonLatinNamesGetNoHomepageGuess() {
+        XCTAssertNil(SiteDirectoryProvider.guessResult(for: "ñandú"))
+        XCTAssertNil(SiteDirectoryProvider.guessResult(for: "日本語"))
+        XCTAssertEqual(SiteDirectoryProvider.guessResult(for: "grand seikoo")?.title, "Open www.grandseikoo.com")
+    }
+}
