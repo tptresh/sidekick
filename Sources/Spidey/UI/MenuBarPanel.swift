@@ -1,11 +1,11 @@
 import SwiftUI
 import AppKit
 
-// The panel under the menu bar emblem, laid out like Control Center: today's
-// weather on top, then two switch rows (Keep Mac Awake, automatic Light and
-// Dark), then quiet Preferences and Quit links. The cards are Liquid Glass on
-// macOS 26, grouped so they read as one set, and the panel is always dark; the
-// hero theme only lends its accent colour.
+// The dropdown under the menu bar emblem. It shares the search panel's look:
+// one dark Liquid Glass slab (drawn by the window), hairline dividers between
+// sections and no cards inside, so it reads as the same family. Today's
+// weather on top, then the two switches with preset times for the Light and
+// Dark schedule, then quiet Preferences and Quit links.
 struct MenuBarPanel: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var weather = WeatherStore.shared
@@ -13,36 +13,23 @@ struct MenuBarPanel: View {
     let openPreferences: () -> Void
 
     var body: some View {
-        VStack(spacing: FuturisticStyle.Space.s) {
-            GlassGroup {
-                VStack(spacing: FuturisticStyle.Space.s) {
-                    cards
-                }
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: FuturisticStyle.Space.s) {
+                Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(0.6)
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+                WeatherHeader(state: weather.state, retry: { weather.refresh() })
+                    .frame(minHeight: 44)
             }
+            .padding(.horizontal, FuturisticStyle.Space.l)
+            .padding(.top, FuturisticStyle.Space.l)
+            .padding(.bottom, FuturisticStyle.Space.m)
 
-            HStack {
-                LinkButton("Preferences…", action: openPreferences)
-                Spacer()
-                LinkButton("Quit Sidekick") { NSApp.terminate(nil) }
-            }
-            .padding(.horizontal, FuturisticStyle.Space.s)
-            .padding(.top, 2)
-        }
-        .padding(FuturisticStyle.Space.m)
-        .frame(width: 320)
-        .futuristicTheme(settings.theme)
-    }
+            Hairline()
 
-    @ViewBuilder
-    private var cards: some View {
-        Island(padding: FuturisticStyle.Space.l) {
-            WeatherHeader(state: weather.state, retry: { weather.refresh() })
-                .frame(minHeight: 44)
-        }
-        .background(alignment: .topTrailing) { AmbientWash() }
-
-        Island(padding: FuturisticStyle.Space.s) {
-            VStack(spacing: FuturisticStyle.Space.xs) {
+            VStack(spacing: 2) {
                 SwitchRow(
                     symbol: "cup.and.saucer.fill",
                     title: "Keep Mac Awake",
@@ -59,16 +46,30 @@ struct MenuBarPanel: View {
                     isOn: $settings.autoAppearance
                 )
                 if settings.autoAppearance {
-                    HStack(spacing: FuturisticStyle.Space.l) {
-                        TimeField(label: "Light", minute: $settings.lightModeMinute)
-                        TimeField(label: "Dark", minute: $settings.darkModeMinute)
-                        Spacer(minLength: 0)
+                    VStack(alignment: .leading, spacing: FuturisticStyle.Space.s) {
+                        PresetTimes(label: "Light", options: PresetTimes.lightOptions, minute: $settings.lightModeMinute)
+                        PresetTimes(label: "Dark", options: PresetTimes.darkOptions, minute: $settings.darkModeMinute)
                     }
                     .padding(.leading, 48)
-                    .padding(.bottom, 6)
+                    .padding(.trailing, FuturisticStyle.Space.s)
+                    .padding(.vertical, FuturisticStyle.Space.xs)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .padding(6)
+
+            Hairline()
+
+            HStack {
+                LinkButton("Preferences…", action: openPreferences)
+                Spacer()
+                LinkButton("Quit Sidekick") { NSApp.terminate(nil) }
+            }
+            .padding(.horizontal, FuturisticStyle.Space.m)
+            .frame(height: 40)
         }
+        .frame(width: 340)
+        .futuristicTheme(settings.theme)
     }
 
     private var scheduleSubtitle: String {
@@ -78,25 +79,20 @@ struct MenuBarPanel: View {
         func untilNext(_ minute: Int) -> Int { (minute - now + 1440) % 1440 }
         let goesDark = untilNext(settings.darkModeMinute) < untilNext(settings.lightModeMinute)
         let minute = goesDark ? settings.darkModeMinute : settings.lightModeMinute
-        return "\(goesDark ? "Dark" : "Light") at \(TimeField.format(minute))"
+        return "\(goesDark ? "Dark" : "Light") at \(PresetTimes.format(minute))"
+    }
+}
+
+private struct Hairline: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.08))
+            .frame(height: 1)
+            .padding(.horizontal, FuturisticStyle.Space.m)
     }
 }
 
 // MARK: - Weather
-
-// Soft accent glow behind the weather island. Reads the theme from its own
-// environment so it follows the hero theme and appearance.
-private struct AmbientWash: View {
-    @Environment(\.fxTokens) private var fx
-    var body: some View {
-        RadialGradient(
-            colors: [fx.ambient, .clear],
-            center: .topTrailing, startRadius: 0, endRadius: 180
-        )
-        .clipShape(RoundedRectangle(cornerRadius: FuturisticStyle.Radius.lg, style: .continuous))
-        .allowsHitTesting(false)
-    }
-}
 
 private struct WeatherHeader: View {
     let state: WeatherStore.State
@@ -181,45 +177,5 @@ private struct WeatherHeader: View {
     static func temperature(_ celsius: Double) -> String {
         let value = Locale.current.measurementSystem == .us ? celsius * 9 / 5 + 32 : celsius
         return "\(Int(value.rounded()))°"
-    }
-}
-
-// MARK: - Rows
-
-private struct TimeField: View {
-    let label: String
-    @Binding var minute: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-            DatePicker("", selection: dateBinding, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-                .datePickerStyle(.field)
-                .controlSize(.small)
-                .monospacedDigit()
-        }
-    }
-
-    private var dateBinding: Binding<Date> {
-        Binding(
-            get: { Self.date(for: minute) },
-            set: { date in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                minute = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            }
-        )
-    }
-
-    static func date(for minute: Int) -> Date {
-        Calendar.current.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()) ?? Date()
-    }
-
-    static func format(_ minute: Int) -> String {
-        date(for: minute).formatted(date: .omitted, time: .shortened)
     }
 }

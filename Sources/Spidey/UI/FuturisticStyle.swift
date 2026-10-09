@@ -495,3 +495,114 @@ private struct BehindWindowBlur: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
+
+// MARK: - Preset times
+
+// A row of time choices for the Light and Dark schedule: tap one, no typing.
+// A saved time that is not a preset (set before presets existed) still shows,
+// selected, so nothing changes until the user picks.
+struct PresetTimes: View {
+    static let lightOptions = [6 * 60, 7 * 60, 8 * 60, 9 * 60]
+    static let darkOptions = [16 * 60 + 30, 18 * 60, 19 * 60 + 30, 21 * 60]
+
+    let label: String
+    let options: [Int]
+    @Binding var minute: Int
+    // Preferences already names the row, so it hides the inline label.
+    var showsLabel = true
+    @Environment(\.fxTokens) private var fx
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: FuturisticStyle.Space.s) {
+            if showsLabel {
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.6)
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 38, alignment: .leading)
+            }
+            HStack(spacing: FuturisticStyle.Space.xs) {
+                ForEach(Self.choices(options, current: minute), id: \.self) { option in
+                    let selected = option == minute
+                    Button { minute = option } label: {
+                        Text(Self.format(option))
+                            .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .fixedSize()
+                            .foregroundStyle(selected ? Color.white : Color.secondary)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule().fill(selected ? fx.accent.opacity(0.45) : fx.fill)
+                            )
+                            .overlay(
+                                Capsule().strokeBorder(selected ? fx.accent.opacity(0.8) : fx.hairline, lineWidth: 0.5)
+                            )
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(label) at \(Self.format(option))")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+            .fxAnimation(reduceMotion, value: minute)
+        }
+    }
+
+    static func choices(_ options: [Int], current: Int) -> [Int] {
+        options.contains(current) ? options : (options + [current]).sorted()
+    }
+
+    static func format(_ minute: Int) -> String {
+        let date = Calendar.current.date(
+            bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()
+        ) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
+// MARK: - Site icon
+
+// A media site's real logo (fetched once and cached by FaviconStore), with the
+// letter monogram while it loads or when the site has none.
+struct SiteIcon: View {
+    let name: String
+    let urlString: String
+    let active: Bool
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: FuturisticStyle.Radius.sm, style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                    )
+                    .saturation(active ? 1 : 0)
+                    .opacity(active ? 1 : 0.5)
+                    .accessibilityHidden(true)
+            } else {
+                Monogram(name, active: active)
+            }
+        }
+        .onAppear { image = FaviconStore.shared.icon(for: Self.normalized(urlString)) }
+        .onReceive(NotificationCenter.default.publisher(for: .spideyFaviconLoaded)) { _ in
+            image = FaviconStore.shared.icon(for: Self.normalized(urlString))
+        }
+    }
+
+    // Custom sites may be saved without a scheme ("example.com").
+    static func normalized(_ urlString: String) -> String {
+        let trimmed = urlString.trimmingCharacters(in: .whitespaces)
+        return trimmed.contains("://") ? trimmed : "https://" + trimmed
+    }
+}

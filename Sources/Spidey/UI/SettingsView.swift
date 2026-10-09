@@ -108,13 +108,13 @@ private struct SettingsPage: View {
                 if settings.autoAppearance {
                     rowLine
                     prefsRow("Light Mode at") {
-                        DatePicker("Light Mode at", selection: minuteBinding(\.lightModeMinute),
-                                   displayedComponents: .hourAndMinute).labelsHidden()
+                        PresetTimes(label: "Light", options: PresetTimes.lightOptions,
+                                    minute: $settings.lightModeMinute, showsLabel: false)
                     }
                     rowLine
                     prefsRow("Dark Mode at") {
-                        DatePicker("Dark Mode at", selection: minuteBinding(\.darkModeMinute),
-                                   displayedComponents: .hourAndMinute).labelsHidden()
+                        PresetTimes(label: "Dark", options: PresetTimes.darkOptions,
+                                    minute: $settings.darkModeMinute, showsLabel: false)
                     }
                 }
             }
@@ -337,7 +337,7 @@ private struct SettingsPage: View {
         let status = siteStatus(for: entry)
         let learning = isLearning(entry) && isOn.wrappedValue
         return SiteRowChrome(dimmed: !isOn.wrappedValue) {
-            Monogram(name, active: isOn.wrappedValue)
+            SiteIcon(name: name, urlString: entryURL(entry), active: isOn.wrappedValue)
             Text(name)
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
@@ -407,6 +407,13 @@ private struct SettingsPage: View {
         settings.orderedMediaEntries.compactMap { entry in
             guard let status = siteStatus(for: entry), !status.ok else { return nil }
             return entryName(entry)
+        }
+    }
+
+    private func entryURL(_ entry: MediaEntry) -> String {
+        switch entry {
+        case .service(let service): return service.searchURL("").absoluteString
+        case .custom(let site): return site.urlString
         }
     }
 
@@ -545,22 +552,6 @@ private struct SettingsPage: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return "Links checked \(formatter.localizedString(for: lastRun, relativeTo: Date()))."
-    }
-
-    // Bridges a minutes-after-midnight setting to a DatePicker's Date.
-    private func minuteBinding(_ keyPath: ReferenceWritableKeyPath<SettingsStore, Int>) -> Binding<Date> {
-        Binding(
-            get: {
-                let minute = settings[keyPath: keyPath]
-                return Calendar.current.date(
-                    bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()
-                ) ?? Date()
-            },
-            set: { date in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                settings[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            }
-        )
     }
 
     // MARK: - Weather
