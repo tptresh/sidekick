@@ -11,6 +11,10 @@ final class AppearanceScheduler {
     private let defaults = UserDefaults.standard
     private let appliedKey = "appearanceAppliedAt"
     private var timer: Timer?
+    private var inFlight = false
+    private var failedBoundary: Date?
+    private var failedAttempts = 0
+    static let maxAttempts = 5
     private var cancellables = Set<AnyCancellable>()
 
     func start() {
@@ -21,6 +25,7 @@ final class AppearanceScheduler {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.defaults.removeObject(forKey: self.appliedKey)
+                self.failedAttempts = 0
                 self.check()
             }
             .store(in: &cancellables)
@@ -45,10 +50,29 @@ final class AppearanceScheduler {
               )
         else { return }
         if let applied = defaults.object(forKey: appliedKey) as? Date, applied >= boundary.date { return }
-        defaults.set(Date(), forKey: appliedKey)
+        guard !inFlight else { return }
+        if failedBoundary != boundary.date { failedBoundary = boundary.date; failedAttempts = 0 }
+        guard failedAttempts < Self.maxAttempts else { return }
+        inFlight = true
+        // Only record the switch as done once macOS accepted it; a denied
+        // permission is retried on the next tick, up to a cap.
         SystemProvider.runAppleScript(
             "tell application \"System Events\" to tell appearance preferences to set dark mode to \(boundary.dark)"
-        )
+        ) { [weak self] ok in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.inFlight = false
+                if ok {
+                    self.defaults.set(Date(), forKey: self.appliedKey)
+                    self.failedAttempts = 0
+                } else {
+                    self.failedAttempts += 1
+                    if self.failedAttempts == Self.maxAttempts {
+                        NSLog("Spidey: Light/Dark switch failed; allow Sidekick to control System Events in System Settings > Privacy & Security > Automation")
+                    }
+                }
+            }
+        }
     }
 
     // The most recent scheduled switch at or before `now`, and whether it

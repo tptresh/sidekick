@@ -6,3 +6,4 @@ build/
 .claude/worktrees/
 .claude/settings.local.json
 dist/
+.claude/agent-runs/

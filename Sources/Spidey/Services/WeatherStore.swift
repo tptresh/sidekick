@@ -36,6 +36,14 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
         case failed(String)
     }
 
+    enum LocationSource: Equatable { case manual, coreLocation, network }
+
+    struct Place: Equatable {
+        var name: String
+        var latitude: Double
+        var longitude: Double
+    }
+
     @Published private(set) var state: State = .placeholder
     @Published private(set) var updatedAt: Date?
 
@@ -48,6 +56,13 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var cache: Cache?
     private var timer: Timer?
     private var isFetching = false
+    private var coreLocationFailed = false
+    private var locationTimeout: Timer?
+    private var settingsObserver: AnyCancellable?
+    // Bumped on every refresh so a slow lookup for an old city cannot win.
+    private var generation = 0
+    private var cachedSource: LocationSource?
+    private static let locationTimeoutSeconds: TimeInterval = 15
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 10
@@ -63,6 +78,27 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
             cache = cached
             state = .ready(cached.today)
             updatedAt = cached.fetchedAt
+        }
+        settingsObserver = SettingsStore.shared.$weatherCity
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.coreLocationFailed = false
+                self?.refresh()
+            }
+    }
+
+    private var manualCity: String? {
+        let city = SettingsStore.shared.weatherCity.trimmingCharacters(in: .whitespacesAndNewlines)
+        return city.isEmpty ? nil : city
+    }
+
+    private var isAuthorized: Bool {
+        switch locationManager.authorizationStatus {
+        case .notDetermined, .denied, .restricted: false
+        default: true
         }
     }
 
@@ -90,55 +126,166 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 
     func refresh() {
+        generation += 1
+        let current = generation
+        stopLocating()
+        if let city = manualCity {
+            resolveManual(city, generation: current)
+            return
+        }
         switch locationManager.authorizationStatus {
         case .notDetermined:
             if cache == nil { state = .needsLocation }
             locationManager.requestWhenInUseAuthorization()
         case .denied, .restricted:
-            if cache == nil { state = .needsLocation }
+            resolveNetwork(generation: current)
         default:
             // Forecast for the remembered spot right away; a fresh fix only
             // matters if the Mac has actually moved.
-            if let known = locationManager.location ?? cache.map({
+            if cachedSource != .manual, let known = locationManager.location ?? cache.map({
                 CLLocation(latitude: $0.latitude, longitude: $0.longitude)
             }) {
                 fetch(for: known)
             }
-            locationManager.requestLocation()
+            startLocating(generation: current)
         }
+    }
+
+    // requestLocation() times out on some Macs even when access is granted, so
+    // listen for updates, take the first fix, and give up after a while.
+    private func startLocating(generation current: Int) {
+        locationManager.startUpdatingLocation()
+        let timer = Timer(timeInterval: Self.locationTimeoutSeconds, repeats: false) { [weak self] _ in
+            guard let self, self.generation == current else { return }
+            self.coreLocationGaveUp()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        locationTimeout = timer
+    }
+
+    private func stopLocating() {
+        locationManager.stopUpdatingLocation()
+        locationTimeout?.invalidate()
+        locationTimeout = nil
+    }
+
+    private func coreLocationGaveUp() {
+        stopLocating()
+        coreLocationFailed = true
+        resolveNetwork(generation: generation)
+    }
+
+    // MARK: - Fallback locations
+
+    static func locationSource(authorized: Bool, coreLocationFailed: Bool, manualCity: String?) -> LocationSource {
+        if let city = manualCity?.trimmingCharacters(in: .whitespacesAndNewlines), !city.isEmpty {
+            return .manual
+        }
+        return authorized && !coreLocationFailed ? .coreLocation : .network
+    }
+
+    static func parseGeocoding(_ data: Data) -> Place? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let first = (json["results"] as? [[String: Any]])?.first,
+              let name = first["name"] as? String,
+              let latitude = (first["latitude"] as? NSNumber)?.doubleValue,
+              let longitude = (first["longitude"] as? NSNumber)?.doubleValue
+        else { return nil }
+        return Place(name: name, latitude: latitude, longitude: longitude)
+    }
+
+    static func parseNetworkLocation(_ data: Data) -> Place? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              (json["success"] as? Bool) == true,
+              let latitude = (json["latitude"] as? NSNumber)?.doubleValue,
+              let longitude = (json["longitude"] as? NSNumber)?.doubleValue
+        else { return nil }
+        let name = (json["city"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? (json["region"] as? String) ?? (json["country"] as? String) ?? "Your area"
+        return Place(name: name, latitude: latitude, longitude: longitude)
+    }
+
+    private func resolveManual(_ city: String, generation current: Int) {
+        var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")
+        components?.queryItems = [URLQueryItem(name: "name", value: city), URLQueryItem(name: "count", value: "1")]
+        guard let url = components?.url else { return }
+        session.dataTask(with: url) { [weak self] data, _, _ in
+            let place = data.flatMap(Self.parseGeocoding)
+            DispatchQueue.main.async {
+                guard let self, self.generation == current else { return }
+                guard let place else {
+                    // A dropped connection keeps the last forecast; only an
+                    // answer with no match means the city name is wrong.
+                    if data != nil || self.cache == nil {
+                        self.state = .failed(data == nil
+                            ? "Weather is unavailable right now"
+                            : "Could not find \"\(city)\"")
+                    }
+                    return
+                }
+                self.fetch(for: place, source: .manual)
+            }
+        }.resume()
+    }
+
+    private func resolveNetwork(generation current: Int) {
+        guard let url = URL(string: "https://ipwho.is/") else { return }
+        session.dataTask(with: url) { [weak self] data, _, _ in
+            let place = data.flatMap(Self.parseNetworkLocation)
+            DispatchQueue.main.async {
+                guard let self, self.generation == current else { return }
+                guard let place else {
+                    if self.cache == nil || self.cachedSource == .manual {
+                        self.state = .failed("Could not find your location")
+                    }
+                    return
+                }
+                self.fetch(for: place, source: .network)
+            }
+        }.resume()
     }
 
     // MARK: - CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
-        case .denied, .restricted, .notDetermined:
+        case .notDetermined:
             break
         default:
             if case .needsLocation = state { refresh() }
+            else if !isAuthorized { refresh() }
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        if let cache {
+        guard let location = locations.last, manualCity == nil else { return }
+        stopLocating()
+        coreLocationFailed = false
+        if let cache, cachedSource != .manual, cachedSource != .network {
             let previous = CLLocation(latitude: cache.latitude, longitude: cache.longitude)
             guard location.distance(from: previous) > Self.moveThreshold else { return }
         }
-        fetch(for: location, force: true)
+        fetch(for: location, force: true, source: .coreLocation)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        if (error as? CLError)?.code == .denied, cache == nil {
-            state = .needsLocation
-        } else if cache == nil, !isFetching {
-            state = .failed("Could not find your location")
-        }
+        // A transient "location unknown" keeps waiting for the timeout.
+        if (error as? CLError)?.code == .locationUnknown { return }
+        guard manualCity == nil else { return }
+        coreLocationGaveUp()
     }
 
     // MARK: - Forecast
 
-    private func fetch(for location: CLLocation, force: Bool = false) {
+    private func fetch(for place: Place, source: LocationSource) {
+        fetch(
+            for: CLLocation(latitude: place.latitude, longitude: place.longitude),
+            force: true, source: source, placeName: place.name
+        )
+    }
+
+    private func fetch(for location: CLLocation, force: Bool = false,
+                       source: LocationSource? = nil, placeName: String? = nil) {
         guard !isFetching || force else { return }
         let lat = String(format: "%.3f", location.coordinate.latitude)
         let lon = String(format: "%.3f", location.coordinate.longitude)
@@ -161,7 +308,8 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
                     location.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude))
                         > Self.moveThreshold
                 } ?? true
-                today.place = moved ? nil : self.cache?.today.place
+                today.place = placeName ?? (moved ? nil : self.cache?.today.place)
+                if let source { self.cachedSource = source }
                 self.store(today, at: location)
                 if today.place == nil { self.lookUpPlace(for: location) }
             }

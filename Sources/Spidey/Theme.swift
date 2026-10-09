@@ -53,3 +53,33 @@ struct ThemePalette {
     let textSecondary: Color
     let fieldOutline: Color
 }
+
+// Futuristic-redesign accents, resolved per theme and system appearance.
+extension HeroTheme {
+    func accent(for scheme: ColorScheme) -> Color {
+        let dark = scheme == .dark
+        switch self {
+        case .spiderman:
+            return dark ? Color(red: 0.90, green: 0.26, blue: 0.30) : Color(red: 0.70, green: 0.13, blue: 0.17)
+        case .batman:
+            return dark ? Color(red: 0.66, green: 0.69, blue: 0.74) : Color(red: 0.36, green: 0.40, blue: 0.45)
+        }
+    }
+
+    // Tinted running text; picked to pass 4.5:1 on the island fills.
+    func accentText(for scheme: ColorScheme) -> Color {
+        let dark = scheme == .dark
+        switch self {
+        case .spiderman:
+            return dark ? Color(red: 1.0, green: 0.42, blue: 0.45) : Color(red: 0.70, green: 0.13, blue: 0.17)
+        case .batman:
+            return dark ? Color(red: 0.80, green: 0.83, blue: 0.87) : Color(red: 0.36, green: 0.40, blue: 0.45)
+        }
+    }
+
+    // Glyph colour on top of an accent fill.
+    func onAccent(for scheme: ColorScheme) -> Color {
+        if self == .batman && scheme == .dark { return Color(white: 0.08) }
+        return .white
+    }
+}

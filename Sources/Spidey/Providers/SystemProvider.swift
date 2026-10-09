@@ -92,25 +92,26 @@ enum SystemProvider {
         return items
     }
 
-    static func runAppleScript(_ source: String) {
+    static func runAppleScript(_ source: String, completion: (@Sendable (Bool) -> Void)? = nil) {
         DispatchQueue.global(qos: .userInitiated).async {
             var error: NSDictionary?
             NSAppleScript(source: source)?.executeAndReturnError(&error)
             if let error {
                 NSLog("Spidey AppleScript error: \(error)")
             }
+            completion?(error == nil)
         }
     }
 
+    // CGSession no longer exists on current macOS; Control-Command-Q is the
+    // system's own lock shortcut.
+    static let lockScreenScript =
+        "tell application \"System Events\" to keystroke \"q\" using {command down, control down}"
+
     static func lockScreen() {
-        // CGSession -suspend is the real lock; fall back to display sleep.
-        let cgSession = "/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession"
-        if FileManager.default.isExecutableFile(atPath: cgSession) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: cgSession)
-            process.arguments = ["-suspend"]
-            try? process.run()
-        } else {
+        runAppleScript(lockScreenScript) { ok in
+            guard !ok else { return }
+            // Without the Automation grant, at least turn the display off.
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
             process.arguments = ["displaysleepnow"]

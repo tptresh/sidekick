@@ -38,3 +38,28 @@ final class AppearanceSchedulerTests: XCTestCase {
         XCTAssertNil(AppearanceScheduler.latestBoundary(before: at(12, 0), lightMinute: 600, darkMinute: 600))
     }
 }
+
+final class LockAndTimerFixTests: XCTestCase {
+    func testLockScriptUsesSystemShortcutNotCGSession() {
+        XCTAssertTrue(SystemProvider.lockScreenScript.contains("command down, control down"))
+        XCTAssertFalse(SystemProvider.lockScreenScript.contains("CGSession"))
+    }
+
+    func testRunAppleScriptReportsFailure() {
+        let done = expectation(description: "completion")
+        SystemProvider.runAppleScript("this is not valid applescript !!") { ok in
+            XCTAssertFalse(ok)
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+    }
+
+    func testStartedTimerIsRememberedForRelaunch() {
+        let center = TimerCenter.shared
+        center.start(seconds: 600, label: "persist-test")
+        let data = UserDefaults.standard.data(forKey: "runningTimers")
+        XCTAssertNotNil(data)
+        XCTAssertTrue(String(decoding: data ?? Data(), as: UTF8.self).contains("persist-test"))
+        if let entry = center.entries.first(where: { $0.label == "persist-test" }) { center.cancel(entry.id) }
+    }
+}

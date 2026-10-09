@@ -4,46 +4,98 @@ import Combine
 import ServiceManagement
 import Carbon.HIToolbox
 
-// One scrolling page in the System Settings grouped style: a section per
-// topic, labels on the left, controls on the right, one-line footnotes.
+// One scrolling page of glass islands: a section per topic, labels on the
+// left, controls on the right, one-line footnotes under each island.
 struct SettingsView: View {
+    @ObservedObject var settings: SettingsStore
+
+    // Tokens are injected here so SettingsPage reads the themed environment.
+    var body: some View {
+        SettingsPage(settings: settings).futuristicTheme(settings.theme)
+    }
+}
+
+private struct SettingsPage: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var clipboard = ClipboardStore.shared
     @ObservedObject var linkChecker = LinkChecker.shared
     @ObservedObject var setup = SetupCenter.shared
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var launchAtLoginError: String?
-    // Which media row's ⓘ popover is open, by entry id.
+    // Which media row's info popover is open, by entry id.
     @State private var infoEntryID: String?
     // Add Site form state - a row is only created once a link is entered.
     @State private var showingAddSite = false
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
+    @State private var addHovering = false
     // Permission state has no change notification API, so it is re-read on a
     // slow tick while the window is open.
     @State private var permissionRows: [SetupCenter.PermissionRow] = SetupCenter.shared.permissionRows()
     private let permissionRefresh = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    @Environment(\.fxTokens) private var fx
+
+    private typealias Space = FuturisticStyle.Space
+    private typealias Radius = FuturisticStyle.Radius
 
     var body: some View {
-        Form {
-            appearanceSection
-            shortcutSection
-            mediaSection
-            clipboardSection
-            claudeSection
-            permissionsSection
+        ScrollView {
+            VStack(spacing: Space.l) {
+                appearanceSection
+                shortcutSection
+                mediaSection
+                weatherSection
+                clipboardSection
+                claudeSection
+                permissionsSection
+            }
+            .padding(Space.xl)
         }
-        .formStyle(.grouped)
+        .background(Color(nsColor: .windowBackgroundColor))
         .frame(minWidth: 520, idealWidth: 600, minHeight: 480, idealHeight: 720)
         .onReceive(permissionRefresh) { _ in permissionRows = setup.permissionRows() }
+    }
+
+    // MARK: - Row building blocks
+
+    // A 36pt row: label on the left, control on the right.
+    private func prefsRow<Control: View>(
+        _ label: String, detail: String? = nil, @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(spacing: Space.m) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.system(size: 13))
+                if let detail {
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+            Spacer(minLength: Space.s)
+            control()
+        }
+        .padding(.horizontal, Space.m)
+        .padding(.vertical, detail == nil ? 0 : 4)
+        .frame(minHeight: 36)
+    }
+
+    // 1pt line between rows, inset 12 (not a Divider).
+    private var rowLine: some View {
+        Rectangle().fill(fx.islandStroke).frame(height: 1).padding(.horizontal, Space.m)
+    }
+
+    private func toggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
+        prefsRow(label) {
+            Toggle(label, isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.small)
+        }
     }
 
     // MARK: - Appearance
 
     private var appearanceSection: some View {
-        Section {
-            LabeledContent("Theme") {
-                HStack(spacing: 10) {
+        Island(label: "Appearance",
+               footnote: "A manual switch in between stays until the next scheduled time.",
+               onWindow: true, padding: 0) {
+            VStack(spacing: 0) {
+                HStack(spacing: Space.m) {
                     ForEach(HeroTheme.allCases, id: \.self) { theme in
                         ThemePreviewButton(
                             theme: theme,
@@ -51,130 +103,156 @@ struct SettingsView: View {
                             select: { settings.theme = theme }
                         )
                     }
+                    Spacer(minLength: 0)
+                }
+                .padding(Space.m)
+                rowLine
+                toggleRow("Switch Light and Dark automatically", isOn: $settings.autoAppearance)
+                if settings.autoAppearance {
+                    rowLine
+                    prefsRow("Light Mode at") {
+                        DatePicker("Light Mode at", selection: minuteBinding(\.lightModeMinute),
+                                   displayedComponents: .hourAndMinute).labelsHidden()
+                    }
+                    rowLine
+                    prefsRow("Dark Mode at") {
+                        DatePicker("Dark Mode at", selection: minuteBinding(\.darkModeMinute),
+                                   displayedComponents: .hourAndMinute).labelsHidden()
+                    }
                 }
             }
-            Toggle("Switch Light and Dark automatically", isOn: $settings.autoAppearance)
-            if settings.autoAppearance {
-                DatePicker("Light Mode at", selection: minuteBinding(\.lightModeMinute), displayedComponents: .hourAndMinute)
-                DatePicker("Dark Mode at", selection: minuteBinding(\.darkModeMinute), displayedComponents: .hourAndMinute)
-            }
-        } header: {
-            Text("Appearance")
-        } footer: {
-            footnote("A manual switch in between stays until the next scheduled time.")
         }
     }
 
     // MARK: - Shortcut & startup
 
     private var shortcutSection: some View {
-        Section {
-            LabeledContent("Open Sidekick with") {
-                HotKeyRecorder(combo: $settings.hotKey)
-                    .frame(width: 150, height: 24)
-            }
-            if let active = settings.activeHotKey, active != settings.hotKey {
-                Label("\(settings.hotKey.displayString) is taken, so Sidekick is using \(active.displayString)",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.callout)
-            }
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { enabled in
-                    do {
-                        if enabled {
-                            try SMAppService.mainApp.register()
-                        } else {
-                            try SMAppService.mainApp.unregister()
-                        }
-                        launchAtLoginError = nil
-                    } catch {
-                        launchAtLoginError = error.localizedDescription
-                        launchAtLogin = SMAppService.mainApp.status == .enabled
-                    }
-                }
-            if let launchAtLoginError {
-                Text(launchAtLoginError).font(.callout).foregroundStyle(.orange)
-            }
-        } header: {
-            Text("Shortcut & Startup")
-        } footer: {
-            footnote(settings.hotKey == .commandSpace
+        Island(label: "Shortcut & Startup",
+               footnote: settings.hotKey == .commandSpace
                 ? "Click the box and press a new combination. For ⌘Space, first turn off Spotlight's shortcut in System Settings > Keyboard > Keyboard Shortcuts."
-                : "Click the box and press a new combination.")
+                : "Click the box and press a new combination.",
+               onWindow: true, padding: 0) {
+            VStack(spacing: 0) {
+                prefsRow("Open Sidekick with") {
+                    HotKeyRecorder(combo: $settings.hotKey).frame(width: 150, height: 24)
+                }
+                if let active = settings.activeHotKey, active != settings.hotKey {
+                    rowLine
+                    HStack(spacing: Space.s) {
+                        Chip("Using \(active.displayString)", tone: .warning,
+                             symbol: "exclamationmark.triangle.fill")
+                        Text("\(settings.hotKey.displayString) is taken, so Sidekick is using \(active.displayString)")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, Space.m)
+                    .padding(.vertical, Space.s)
+                }
+                rowLine
+                toggleRow("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { enabled in
+                        do {
+                            if enabled {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                            launchAtLoginError = nil
+                        } catch {
+                            launchAtLoginError = error.localizedDescription
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
+                        }
+                    }
+                if let launchAtLoginError {
+                    Text(launchAtLoginError)
+                        .font(.system(size: 11)).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Space.m).padding(.bottom, Space.s)
+                }
+            }
         }
     }
 
     // MARK: - Media sites
 
     private var mediaSection: some View {
-        Section {
-            siteHealthRow
-            ForEach(settings.orderedMediaEntries) { entry in
-                mediaRow(for: entry)
-                    .contextMenu { moveMenu(for: entry) }
-            }
-            .onMove { source, destination in
-                settings.moveMediaEntries(fromOffsets: source, toOffset: destination)
-            }
-            HStack {
-                Button("Add Site…") { showingAddSite = true }
-                    .popover(isPresented: $showingAddSite, arrowEdge: .bottom) { addSitePopover }
-                Spacer()
-                if linkChecker.isRunning {
-                    ProgressView().controlSize(.small)
-                    Text("Checking…").foregroundStyle(.secondary)
-                } else {
-                    Text(lastCheckDescription).foregroundStyle(.secondary).font(.callout)
-                    Button("Check Now") {
-                        linkChecker.checkNow()
-                        linkChecker.retryFailedDiscoveries()
+        let entries = settings.orderedMediaEntries
+        return Island(label: "Media Sites",
+                      footnote: "Typing a show name offers it on each site that is on. Drag or right-click to reorder; the info button shows or edits a site's link.",
+                      onWindow: true, padding: Space.m) {
+            VStack(spacing: Space.s) {
+                siteHealthStrip
+                List {
+                    ForEach(entries) { entry in
+                        siteRow(for: entry)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Space.xs, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .contextMenu { moveMenu(for: entry) }
+                    }
+                    .onMove { source, destination in
+                        settings.moveMediaEntries(fromOffsets: source, toOffset: destination)
                     }
                 }
+                .listStyle(.plain)
+                .scrollDisabled(true)
+                .scrollContentBackground(.hidden)
+                .frame(height: CGFloat(entries.count) * 48)
+                addSiteTile
+                siteStatusLine
             }
-        } header: {
-            Text("Media Sites")
-        } footer: {
-            footnote("Typing a show name offers it on each site that is on. Drag or right-click to reorder; ⓘ shows or edits a site's link.")
         }
     }
 
-    // One summary line: offline, failing sites, or all clear.
+    private enum StripTone { case neutral, warning, success }
+
+    // One summary strip: offline, failing sites, or all clear.
     @ViewBuilder
-    private var siteHealthRow: some View {
+    private var siteHealthStrip: some View {
         let failing = failingSiteNames
         if linkChecker.lastCheckLooksOffline {
-            healthLine(
-                symbol: "wifi.slash", tint: .secondary,
+            healthStrip(
+                symbol: "wifi.slash", tone: .neutral,
                 title: "Could not check your sites",
                 detail: "This Mac looked offline. The last real results are shown."
             )
         } else if !failing.isEmpty {
-            healthLine(
-                symbol: "exclamationmark.triangle.fill", tint: .orange,
+            healthStrip(
+                symbol: "exclamationmark.triangle.fill", tone: .warning,
                 title: failing.count == 1 ? "\(failing[0]) is not responding" : "\(failing.count) sites are not responding",
                 detail: failing.count == 1
                     ? "It may be down or have moved. Hover its dot for the reason."
                     : failing.joined(separator: ", ") + ". Hover a dot for the reason."
             )
         } else if linkChecker.lastRun != nil {
-            healthLine(
-                symbol: "checkmark.circle.fill", tint: .green,
+            healthStrip(
+                symbol: "checkmark.circle.fill", tone: .success,
                 title: "All sites are reachable", detail: nil
             )
         }
     }
 
-    private func healthLine(symbol: String, tint: Color, title: String, detail: String?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(tint)
+    private func healthStrip(symbol: String, tone: StripTone, title: String, detail: String?) -> some View {
+        let color: Color = tone == .warning ? .orange : (tone == .success ? .green : .secondary)
+        return HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+            Image(systemName: symbol).foregroundStyle(color)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).fontWeight(.medium)
+                Text(title).font(.system(size: 13, weight: .medium))
                 if let detail {
-                    Text(detail).font(.callout).foregroundStyle(.secondary)
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
+            Spacer(minLength: 0)
         }
+        .padding(Space.s + 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                .fill((tone == .neutral ? Color.gray : color).opacity(0.10))
+        )
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -189,6 +267,44 @@ struct SettingsView: View {
                 settings.moveMediaEntries(fromOffsets: IndexSet(integer: index), toOffset: index + 2)
             }
             .disabled(index == entries.count - 1)
+        }
+    }
+
+    private var addSiteTile: some View {
+        Button { showingAddSite = true } label: {
+            HStack(spacing: Space.s) {
+                Image(systemName: "plus.circle")
+                Text("Add Site").font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(addHovering ? AnyShapeStyle(fx.accentText) : AnyShapeStyle(.secondary))
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .strokeBorder(fx.islandStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { addHovering = $0 }
+        .popover(isPresented: $showingAddSite, arrowEdge: .bottom) { addSitePopover }
+    }
+
+    private var siteStatusLine: some View {
+        HStack(spacing: Space.s) {
+            if linkChecker.isRunning {
+                ProgressView().controlSize(.small)
+                Text("Checking…").font(.system(size: 11)).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            } else {
+                Text(lastCheckDescription)
+                    .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+                Spacer(minLength: Space.s)
+                PillButton("Check Now", symbol: "arrow.clockwise") {
+                    linkChecker.checkNow()
+                    linkChecker.retryFailedDiscoveries()
+                }
+            }
         }
     }
 
@@ -218,45 +334,73 @@ struct SettingsView: View {
         .frame(width: 320)
     }
 
-    private func mediaRow(for entry: MediaEntry) -> some View {
-        HStack(spacing: 10) {
-            statusDot(for: entry)
-            switch entry {
-            case .service(let service):
-                Text(service.name)
-                Spacer()
-                infoButton(for: entry)
-                Toggle("", isOn: Binding(
-                    get: { settings.enabledServices.contains(service.id) },
-                    set: { enabled in
-                        if enabled {
-                            settings.enabledServices.insert(service.id)
-                        } else {
-                            settings.enabledServices.remove(service.id)
-                        }
+    private func siteRow(for entry: MediaEntry) -> some View {
+        let name = entryName(entry)
+        let isOn = entryEnabledBinding(entry)
+        let status = siteStatus(for: entry)
+        let learning = isLearning(entry) && isOn.wrappedValue
+        return SiteRowChrome(dimmed: !isOn.wrappedValue) {
+            Monogram(name, active: isOn.wrappedValue)
+            Text(name)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(0)
+            Spacer(minLength: Space.s)
+            if isOn.wrappedValue {
+                if learning {
+                    ProgressView().controlSize(.small)
+                    Chip("Learning search", tone: .accent).layoutPriority(1)
+                } else if let status {
+                    if status.ok {
+                        StatusDot(tone: .healthy, help: "Reachable at the last check")
+                    } else {
+                        StatusDot(tone: .failing, help: status.detail)
+                        Chip("Not responding", tone: .warning).layoutPriority(1)
                     }
-                ))
+                } else {
+                    Chip("Not checked", tone: .neutral).layoutPriority(1)
+                }
+            }
+            infoButton(for: entry)
+            Toggle(name, isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.small)
-            case .custom(let site):
-                let binding = siteBinding(site)
-                Text(binding.wrappedValue.displayName)
-                if let host = binding.wrappedValue.host,
-                   linkChecker.discoveringHosts.contains(host) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .scaleEffect(0.6)
-                        .help("Learning this site's search - can take a few minutes")
-                }
-                Spacer()
-                infoButton(for: entry)
-                Toggle("", isOn: binding.enabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(siteAccessibilityLabel(name: name, on: isOn.wrappedValue, status: status, learning: learning))
+    }
+
+    private func siteAccessibilityLabel(name: String, on: Bool, status: LinkChecker.Status?, learning: Bool) -> String {
+        guard on else { return "\(name), off" }
+        if learning { return "\(name), on, learning search" }
+        guard let status else { return "\(name), on, not checked" }
+        return status.ok ? "\(name), on, reachable" : "\(name), on, not responding"
+    }
+
+    private func entryEnabledBinding(_ entry: MediaEntry) -> Binding<Bool> {
+        switch entry {
+        case .service(let service):
+            return Binding(
+                get: { settings.enabledServices.contains(service.id) },
+                set: { enabled in
+                    if enabled {
+                        settings.enabledServices.insert(service.id)
+                    } else {
+                        settings.enabledServices.remove(service.id)
+                    }
+                }
+            )
+        case .custom(let site):
+            return siteBinding(site).enabled
+        }
+    }
+
+    private func isLearning(_ entry: MediaEntry) -> Bool {
+        guard case .custom(let site) = entry,
+              let host = siteBinding(site).wrappedValue.host else { return false }
+        return linkChecker.discoveringHosts.contains(host)
     }
 
     // MARK: - Site health
@@ -288,34 +432,10 @@ struct SettingsView: View {
         }
     }
 
-    // Green when the last check passed, orange when it failed, grey when the
-    // site is off or has not been checked yet.
-    private func statusDot(for entry: MediaEntry) -> some View {
-        let status = siteStatus(for: entry)
-        let color: Color
-        let help: String
-        if let status {
-            color = status.ok ? .green : .orange
-            help = status.ok ? "Reachable at the last check" : status.detail
-        } else {
-            color = Color.secondary.opacity(0.4)
-            help = "Not checked yet"
-        }
-        return Circle()
-            .fill(color)
-            .frame(width: 8, height: 8)
-            .help(help)
-    }
-
     private func infoButton(for entry: MediaEntry) -> some View {
-        Button {
+        InfoButton {
             infoEntryID = entry.id
-        } label: {
-            Image(systemName: "info.circle")
-                .foregroundColor(.secondary)
         }
-        .buttonStyle(.plain)
-        .help("Show this site's link")
         .popover(isPresented: Binding(
             get: { infoEntryID == entry.id },
             set: { shown in
@@ -446,35 +566,72 @@ struct SettingsView: View {
         )
     }
 
+    // MARK: - Weather
+
+    private var weatherSection: some View {
+        Island(label: "Weather",
+               footnote: "Leave empty to use your Mac's location. Otherwise weather follows this city.",
+               onWindow: true, padding: 0) {
+            prefsRow("City") {
+                TextField("Automatic", text: $settings.weatherCity)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .frame(width: 220)
+            }
+        }
+    }
+
     // MARK: - Clipboard
 
     private var clipboardSection: some View {
-        Section {
-            Stepper(value: $settings.clipboardLimit, in: 10...1000, step: 10) {
-                LabeledContent("Keep up to", value: "\(settings.clipboardLimit) items")
+        Island(label: "Clipboard",
+               footnote: "Type \"clip\" to browse history, or \"ss\" for the last \(ClipboardStore.screenshotKeepCount) screenshots.",
+               onWindow: true, padding: 0) {
+            VStack(spacing: 0) {
+                prefsRow("Keep up to") {
+                    HStack(spacing: Space.s) {
+                        Text("\(settings.clipboardLimit) items")
+                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                        Stepper("Keep up to", value: $settings.clipboardLimit, in: 10...1000, step: 10)
+                            .labelsHidden()
+                    }
+                }
+                rowLine
+                toggleRow("Keep recent screenshots", isOn: $settings.screenshotsToClipboard)
+                rowLine
+                prefsRow("Holding \(clipboard.entries.count) item\(clipboard.entries.count == 1 ? "" : "s")") {
+                    Button { clipboard.clear() } label: {
+                        Text("Clear History").font(.system(size: 12, weight: .medium)).foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, Space.m)
+                    .frame(height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous).fill(fx.islandFill)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .strokeBorder(fx.islandStroke, lineWidth: 1)
+                    )
+                }
             }
-            Toggle("Keep recent screenshots", isOn: $settings.screenshotsToClipboard)
-            LabeledContent("Holding \(clipboard.entries.count) item\(clipboard.entries.count == 1 ? "" : "s")") {
-                Button("Clear History", role: .destructive) { clipboard.clear() }
-            }
-        } header: {
-            Text("Clipboard")
-        } footer: {
-            footnote("Type \"clip\" to browse history, or \"ss\" for the last \(ClipboardStore.screenshotKeepCount) screenshots.")
         }
     }
 
     // MARK: - Claude Code
 
     private var claudeSection: some View {
-        Section {
-            LabeledContent("Default folder") {
-                HStack(spacing: 8) {
+        Island(label: "Claude Code",
+               footnote: "\"claude <task>\" starts a Claude Code session in this folder.",
+               onWindow: true, padding: 0) {
+            prefsRow("Default folder") {
+                HStack(spacing: Space.s) {
                     Text(abbreviatedPath(settings.claudeDirectory))
+                        .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Button("Choose…") {
+                    PillButton("Choose…") {
                         let panel = NSOpenPanel()
                         panel.canChooseFiles = false
                         panel.canChooseDirectories = true
@@ -485,10 +642,6 @@ struct SettingsView: View {
                     }
                 }
             }
-        } header: {
-            Text("Claude Code")
-        } footer: {
-            footnote("\"claude <task>\" starts a Claude Code session in this folder.")
         }
     }
 
@@ -500,32 +653,28 @@ struct SettingsView: View {
     // MARK: - Permissions
 
     private var permissionsSection: some View {
-        Section {
-            ForEach(permissionRows) { row in
-                LabeledContent {
-                    permissionStatus(row)
-                } label: {
-                    Text(row.name)
-                    Text(row.detail)
+        Island(label: "Permissions",
+               footnote: "Sidekick asks for these at launch and installs its own tools.",
+               onWindow: true, padding: 0) {
+            VStack(spacing: 0) {
+                ForEach(permissionRows) { row in
+                    prefsRow(row.name, detail: row.detail) { permissionStatus(row) }
+                    rowLine
                 }
-            }
-            ForEach(SetupCenter.tools, id: \.name) { tool in
-                LabeledContent {
-                    toolStatus(setup.toolStates[tool.name] ?? .missing)
-                } label: {
-                    Text(tool.name)
-                    Text("for \(tool.purpose)")
+                ForEach(SetupCenter.tools, id: \.name) { tool in
+                    prefsRow(tool.name, detail: "for \(tool.purpose)") {
+                        toolStatus(setup.toolStates[tool.name] ?? .missing)
+                    }
+                    rowLine
                 }
+                HStack(spacing: Space.s) {
+                    Spacer()
+                    PillButton("Ask Again") { SetupCenter.shared.requestPermissions() }
+                    PillButton("Retry Install") { SetupCenter.shared.installMissingTools() }
+                }
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.s)
             }
-            HStack {
-                Spacer()
-                Button("Ask Again") { SetupCenter.shared.requestPermissions() }
-                Button("Retry Install") { SetupCenter.shared.installMissingTools() }
-            }
-        } header: {
-            Text("Permissions")
-        } footer: {
-            footnote("Sidekick asks for these at launch and installs its own tools.")
         }
     }
 
@@ -533,11 +682,11 @@ struct SettingsView: View {
     private func permissionStatus(_ row: SetupCenter.PermissionRow) -> some View {
         switch row.state {
         case .granted:
-            Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+            Chip("Allowed", tone: .success, symbol: "checkmark.circle.fill")
         case .pending:
-            Text("Not asked yet").foregroundStyle(.secondary)
+            Chip("Not asked yet", tone: .neutral)
         case .denied:
-            Button("Open Settings") { setup.openPrivacySettings(anchor: row.settingsAnchor) }
+            PillButton("Open Settings") { setup.openPrivacySettings(anchor: row.settingsAnchor) }
         }
     }
 
@@ -545,24 +694,64 @@ struct SettingsView: View {
     private func toolStatus(_ state: SetupCenter.ToolState) -> some View {
         switch state {
         case .installed:
-            Label("Installed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+            Chip("Installed", tone: .success)
         case .installing:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Installing").foregroundStyle(.secondary)
+                Text("Installing").font(.system(size: 11)).foregroundStyle(.secondary)
             }
         case .noHomebrew:
-            Text("Needs Homebrew").foregroundStyle(.orange)
+            Chip("Needs Homebrew", tone: .warning)
         case .missing:
-            Text("Not installed yet").foregroundStyle(.secondary)
+            Chip("Not installed yet", tone: .neutral)
         }
     }
+}
 
-    private func footnote(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+// MARK: - Site row pieces
+
+// The 44pt card behind one media site: fill, hover and Reduce Motion handling.
+private struct SiteRowChrome<Content: View>: View {
+    let dimmed: Bool
+    @ViewBuilder var content: () -> Content
+    @Environment(\.fxTokens) private var fx
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 10) { content() }
+            .padding(.horizontal, FuturisticStyle.Space.m)
+            .frame(height: 44)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
+                    .fill(hovering ? fx.islandFillHover : fx.islandFill)
+            )
+            .opacity(dimmed ? 0.55 : 1)
+            .onHover { hovering = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: hovering)
+    }
+}
+
+// Always a real Button so keyboard users reach it; brighter on hover or focus.
+private struct InfoButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+                .opacity(hovering || focused ? 1 : 0.55)
+        }
+        .buttonStyle(.plain)
+        .focusable()
+        .focused($focused)
+        .onHover { hovering = $0 }
+        .help("Show this site's link")
+        .accessibilityLabel("Site link")
     }
 }
 
@@ -570,31 +759,38 @@ private struct ThemePreviewButton: View {
     let theme: HeroTheme
     let isSelected: Bool
     let select: () -> Void
+    @Environment(\.fxTokens) private var fx
+    @State private var hovering = false
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
         Button(action: select) {
             VStack(spacing: 6) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(theme.palette.background)
-                        .frame(width: 96, height: 56)
+                ZStack(alignment: .bottomTrailing) {
+                    shape.fill(theme.palette.background)
                     Image(nsImage: StatusIcons.watermark(
-                        for: theme, size: 28, color: NSColor(theme.palette.accent)
+                        for: theme, size: 28, color: NSColor(theme.accent(for: .dark))
                     ))
                     .resizable()
                     .frame(width: 28, height: 28)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if isSelected {
+                        Chip("Active", tone: .accent).padding(4)
+                            .environment(\.fxTokens, FuturisticStyle.Tokens.resolve(theme: theme, scheme: .dark))
+                    }
                 }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor),
-                                lineWidth: isSelected ? 2.5 : 1)
-                )
+                .frame(width: 112, height: 64)
+                .overlay(shape.strokeBorder(isSelected ? fx.accent : fx.islandStroke,
+                                            lineWidth: isSelected ? 2 : 1))
+                .shadow(color: isSelected ? fx.glowColor : .clear, radius: isSelected ? fx.glowRadius : 0)
+                .opacity(isSelected || hovering ? 1 : 0.85)
                 Text(theme.displayName)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
         }
         .buttonStyle(.plain)
+        .onHover { hovering = $0 }
         .accessibilityLabel("\(theme.displayName) theme")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

@@ -134,6 +134,10 @@ final class SettingsStore: ObservableObject {
     @Published var darkModeMinute: Int {
         didSet { defaults.set(darkModeMinute, forKey: "darkModeMinute") }
     }
+    // Optional typed city for the weather; empty means automatic location.
+    @Published var weatherCity: String {
+        didSet { defaults.set(weatherCity, forKey: "weatherCity") }
+    }
     // The combo actually registered right now (falls back if the preferred one is taken).
     @Published var activeHotKey: HotKeyCombo?
 
@@ -162,6 +166,7 @@ final class SettingsStore: ObservableObject {
             claudeDir = Self.defaultClaudeDirectory
         }
         claudeDirectory = claudeDir
+        weatherCity = defaults.string(forKey: "weatherCity") ?? ""
         let limit = defaults.integer(forKey: "clipboardLimit")
         clipboardLimit = limit > 0 ? limit : 200
         screenshotsToClipboard = defaults.object(forKey: "screenshotsToClipboard") as? Bool ?? true
