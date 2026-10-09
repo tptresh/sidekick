@@ -457,3 +457,14 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - f36fca5 Liquid Glass now shows through in the menu bar dropdown and Preferences too: both are see-through dark glass like the search panel, instead of glass cards on a solid background
 - main is now at: b89a2d4 (build succeeded, app relaunched)
+
+## 2026-10-09 18:34 - OK - refresh-search
+- "Search: right first row for everyday queries (68 checked), typing about 2.5x lighter, find my opens Find My, play stays a music command, no stray Watch rows for win, bm or typed addresses, stale file results no longer linger, and short prefixes still open sites"
+- merged commits:
+  - a12fdc0 Merge main into refresh-search
+  - fe6678c Short prefixes like ste, tar or wire open the site again instead of a toggle or restart row; only a fully typed command word like play pushes a site down
+  - 3a40f6e Typing a non-Latin name no longer offers an unreadable punycode homepage guess; show-title parsing keeps splitting on long dashes without the banned character in source
+  - fea4fa6 Typing is faster: the site directory is scored once per keystroke instead of three times, and address and conversion patterns are compiled once (about 2.3 ms down to 0.9 ms of search work per keystroke)
+  - aa74b15 File results stay in step with typing: another query's files no longer sit on top (or open on Return) while you type, a logo or rate refresh no longer restarts the file search, and a pending search can no longer crash the app or leak into the drop menu
+  - 78cb69b Search picks the right first row in more cases: "find my" opens Find My, "spell" on a correct word keeps the word, "play" stays a music command, and win/bm/typed addresses no longer add Watch rows
+- main is now at: 5585790 (build succeeded, app relaunched)
