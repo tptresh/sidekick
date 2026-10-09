@@ -55,30 +55,75 @@ enum ProcessProvider {
             ))
         }
 
-        // Background processes, only for the explicit kill keyword.
+        // Background processes, only for the explicit kill keyword. Several
+        // processes often share a name (node, python), so they get one row.
         if force {
-            for process in backgroundProcesses(matching: term).prefix(5) {
+            for group in groupedByName(backgroundProcesses(matching: term)).prefix(5) {
+                let pidList = group.pids.map(String.init).joined(separator: ", ")
                 items.append(ResultItem(
-                    title: "Kill \(process.name)",
-                    subtitle: "Sends SIGKILL to process \(process.pid)",
+                    title: "Kill \(group.name)",
+                    subtitle: group.pids.count == 1
+                        ? "Sends SIGKILL to process \(pidList)"
+                        : "Sends SIGKILL to all \(group.pids.count) of them (processes \(pidList))",
                     icon: .symbol("bolt.slash.fill"),
                     score: 930,
-                    action: {
-                        // Processes owned by root or another user refuse the
-                        // signal; say so instead of looking like it worked.
-                        if kill(process.pid, SIGKILL) != 0 {
-                            SystemProvider.tellUser(
-                                title: "Could not kill \(process.name)",
-                                body: errno == EPERM
-                                    ? "It belongs to the system or another user, so macOS did not allow it."
-                                    : "It may have already quit."
-                            )
-                        }
-                    }
+                    action: { killAll(group) }
                 ))
             }
         }
+
+        // Without this, "quit chrome" with Chrome closed left an unrelated
+        // row (a streaming search) on top, as if it were the answer.
+        if items.isEmpty {
+            let name = term.trimmingCharacters(in: .whitespaces).capitalized
+            items.append(ResultItem(
+                title: "\(name) is not running",
+                subtitle: force
+                    ? "No open app or background process matches, so there is nothing to kill"
+                    : "No open app matches, so there is nothing to quit",
+                icon: .symbol("xmark.circle"),
+                score: 900,
+                action: {}
+            ))
+        }
         return items
+    }
+
+    struct ProcessGroup {
+        let name: String
+        let pids: [pid_t]
+    }
+
+    static func groupedByName(_ processes: [BackgroundProcess]) -> [ProcessGroup] {
+        var order: [String] = []
+        var pids: [String: [pid_t]] = [:]
+        for process in processes {
+            if pids[process.name] == nil { order.append(process.name) }
+            pids[process.name, default: []].append(process.pid)
+        }
+        return order.map { ProcessGroup(name: $0, pids: pids[$0] ?? []) }
+    }
+
+    private static func killAll(_ group: ProcessGroup) {
+        var refused = false
+        var failed = 0
+        for pid in group.pids where kill(pid, SIGKILL) != 0 {
+            // Read errno straight away, before anything else can overwrite it.
+            let code = errno
+            failed += 1
+            if code == EPERM { refused = true }
+        }
+        guard failed > 0 else { return }
+        // Processes owned by root or another user refuse the signal; say so
+        // instead of looking like it worked.
+        let some = failed < group.pids.count ? "Some of them could not be killed. " : ""
+        SystemProvider.tellUser(
+            title: "Could not kill \(group.name)",
+            body: some + (refused
+                ? "\(group.pids.count == 1 ? "It belongs" : "They belong") to the system or another user, "
+                    + "so macOS did not allow it."
+                : "\(group.pids.count == 1 ? "It" : "They") may have already quit.")
+        )
     }
 
     struct BackgroundProcess {
