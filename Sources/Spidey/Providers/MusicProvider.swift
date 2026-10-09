@@ -38,6 +38,16 @@ enum MusicProvider {
             }
         }
 
+        var noun: String {
+            switch self {
+            case .play, .toggle: return "play or pause"
+            case .pause: return "pause"
+            case .next: return "skip"
+            case .previous: return "go back to"
+            case .nowPlaying: return "show"
+            }
+        }
+
         // The AppleScript verb; Spotify and Music share the same vocabulary.
         var verb: String? {
             switch self {
@@ -76,9 +86,11 @@ enum MusicProvider {
             return app.map { (player, $0) }
         }
 
-        // With no player running, only "play" gets rows: launch offers.
+        // With no player running, "play" offers to launch one and the other
+        // commands say there is nothing to control.
         guard !running.isEmpty else {
-            return command == .play ? launchRows() : []
+            if command == .play { return launchRows() }
+            return noPlayerRow(for: query).map { [$0] } ?? []
         }
 
         let baseScore = (command == .next && normalized == "next") ? nextQueryScore : controlScore
@@ -90,6 +102,27 @@ enum MusicProvider {
             }
             return controlRow(command: command, player: player, app: app, score: score)
         }
+    }
+
+    // "back" and "playing" alone are too common to answer with a music row.
+    private static let quietWords: Set<String> = ["back", "playing"]
+
+    // Below the calendar's next-event row (950) and exact app names (900), so
+    // "next" with no player running still shows the next meeting first.
+    private static let noPlayerScore: Double = 860
+
+    static func noPlayerRow(for query: String) -> ResultItem? {
+        let normalized = query.lowercased().split(separator: " ").joined(separator: " ")
+        guard !quietWords.contains(normalized),
+              let command = Command.allCases.first(where: { $0.phrases.contains(normalized) }),
+              command != .play else { return nil }
+        return ResultItem(
+            title: "Nothing is playing",
+            subtitle: "Spotify and Music are not running, so there is nothing to \(command.noun)",
+            icon: .symbol("speaker.slash"),
+            score: noPlayerScore,
+            action: {}
+        )
     }
 
     private static func controlRow(
