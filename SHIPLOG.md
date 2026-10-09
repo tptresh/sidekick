@@ -468,3 +468,19 @@ last worked, and inspect its listed commit hashes with `git show`.
   - aa74b15 File results stay in step with typing: another query's files no longer sit on top (or open on Return) while you type, a logo or rate refresh no longer restarts the file search, and a pending search can no longer crash the app or leak into the drop menu
   - 78cb69b Search picks the right first row in more cases: "find my" opens Find My, "spell" on a correct word keeps the word, "play" stays a music command, and win/bm/typed addresses no longer add Watch rows
 - main is now at: 5585790 (build succeeded, app relaunched)
+
+## 2026-10-09 18:37 - OK - refresh-integrations
+- "Ping my iPhone rings your own device, never a family member's, and always says why when it cannot; scripts can no longer hang; music, volume, tabs, window snapping, menu search, toggles, quit and kill say when they fail; Calendar updates at once"
+- merged commits:
+  - 1f0ab54 Ping my iPhone rings your own device, never a family member's, and always says why when it cannot; scripts can no longer hang; music, volume, tabs, window snapping, menu search, toggles, quit and kill say when they fail; Calendar updates at once
+  - 0b3498b Merge main into refresh-integrations
+  - add3b4e Menu items that open a dialog (Print, Save As, Export) no longer trigger a false Could not run that menu item warning
+  - 802b337 Turning Bluetooth on or off no longer reports a false failure while the radio is still switching
+  - 1ebb171 Pause, next and other music commands say Nothing is playing when Spotify and Music are closed, instead of showing nothing
+  - 9686410 Quit or kill an app that is not running now says so instead of showing an unrelated row first; kill node shows one row that ends every node process instead of identical duplicates
+  - 0f34f25 Switching to a tab that has since been closed now says the tab is gone instead of opening whichever tab took its place; locking the screen waits long enough for a first-time permission prompt
+  - be03eb2 Ping my iPhone and ping AirPods Pro now ring your own device first, even when a family device has the plain default name; typing a full device name still picks that exact device
+  - 72f02d0 Music, volume, tab switching, window snapping, menu search and reminders now say when they did not work; scripts can no longer hang, and Calendar shows new events at once
+  - 933714b Focus, quit, kill, Wi-Fi, Bluetooth, dark mode and keep-awake now say when they did not work instead of failing silently; Wi-Fi and Bluetooth switches no longer freeze the panel
+  - afd7899 Ping my phone finds the device even when typed without the apostrophe or with extra words, prefers your own iPhone over a family one, and always says why when it could not ring
+- main is now at: b84e244 (build succeeded, app relaunched)
