@@ -434,3 +434,10 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 6928d44 Batman theme removed: Spider-Man is the only theme, so Preferences no longer shows a theme picker and typing batman no longer offers a theme switch
 - main is now at: 0207ab7 (build succeeded, app relaunched)
+
+## 2026-10-09 18:24 - OK - refresh-ui
+- "Liquid Glass redesign: the search panel, menu bar panel, Preferences and large type share one dark glass style with a restrained red accent, always dark, solid fallbacks for Reduce Transparency; plus fixes for clipped text, a stuck shortcut box and layout jumps"
+- merged commits:
+  - 10e096c Buttons on the glass cards are quiet capsules (theme red when prominent) so they never melt into the card, glass cards stay visibly separate, and the search panel's glass is a touch darker so grey subtitles stay readable over bright wallpapers
+  - cef0507 Liquid Glass look for the search panel, menu bar panel, Preferences and large type, always dark: frosted glass cards with soft depth, red kept for the selected row, switched-on icons and focus, larger rounded corners, no glows; long weather errors and large type text no longer get cut off, the clipboard stepper no longer shifts as the count grows, and the shortcut box highlights in the theme red
+- main is now at: 1d92664 (build succeeded, app relaunched)

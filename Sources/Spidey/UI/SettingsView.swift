@@ -4,8 +4,8 @@ import Combine
 import ServiceManagement
 import Carbon.HIToolbox
 
-// One scrolling page of glass islands: a section per topic, labels on the
-// left, controls on the right, one-line footnotes under each island.
+// One scrolling page of Liquid Glass cards over a dark backdrop: a section per
+// topic, labels on the left, controls on the right, a footnote under each card.
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
 
@@ -40,18 +40,28 @@ private struct SettingsPage: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Space.l) {
-                appearanceSection
-                shortcutSection
-                mediaSection
-                weatherSection
-                clipboardSection
-                claudeSection
-                permissionsSection
+            GlassGroup {
+                VStack(spacing: Space.xl) {
+                    appearanceSection
+                    shortcutSection
+                    mediaSection
+                    weatherSection
+                    clipboardSection
+                    claudeSection
+                    permissionsSection
+                }
+                .padding(Space.xl)
             }
-            .padding(Space.xl)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(alignment: .top) {
+            // A faint red wash at the top gives the glass something to bend.
+            ZStack(alignment: .top) {
+                Color(nsColor: .windowBackgroundColor)
+                RadialGradient(colors: [fx.ambient, .clear], center: .top, startRadius: 0, endRadius: 420)
+                    .frame(height: 420)
+            }
+            .ignoresSafeArea()
+        }
         .frame(minWidth: 520, idealWidth: 600, minHeight: 480, idealHeight: 720)
         .onReceive(permissionRefresh) { _ in permissionRows = setup.permissionRows() }
     }
@@ -64,9 +74,11 @@ private struct SettingsPage: View {
     ) -> some View {
         HStack(spacing: Space.m) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(label).font(.system(size: 13))
+                // Labels never wrap or squeeze; a wide control gives way first.
+                Text(label).font(.system(size: 13)).lineLimit(1).fixedSize()
                 if let detail {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: Space.s)
@@ -77,10 +89,7 @@ private struct SettingsPage: View {
         .frame(minHeight: 36)
     }
 
-    // 1pt line between rows, inset 12 (not a Divider).
-    private var rowLine: some View {
-        Rectangle().fill(fx.islandStroke).frame(height: 1).padding(.horizontal, Space.m)
-    }
+    private var rowLine: some View { RowLine() }
 
     private func toggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
         prefsRow(label) {
@@ -93,7 +102,7 @@ private struct SettingsPage: View {
     private var appearanceSection: some View {
         Island(label: "Appearance",
                footnote: "A manual switch in between stays until the next scheduled time.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             VStack(spacing: 0) {
                 toggleRow("Switch Light and Dark automatically", isOn: $settings.autoAppearance)
                 if settings.autoAppearance {
@@ -119,10 +128,10 @@ private struct SettingsPage: View {
                footnote: settings.hotKey == .commandSpace
                 ? "Click the box and press a new combination. For ⌘Space, first turn off Spotlight's shortcut in System Settings > Keyboard > Keyboard Shortcuts."
                 : "Click the box and press a new combination.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             VStack(spacing: 0) {
                 prefsRow("Open Sidekick with") {
-                    HotKeyRecorder(combo: $settings.hotKey).frame(width: 150, height: 24)
+                    HotKeyRecorder(combo: $settings.hotKey, accent: NSColor(fx.accent)).frame(width: 150, height: 26)
                 }
                 if let active = settings.activeHotKey, active != settings.hotKey {
                     rowLine
@@ -169,7 +178,7 @@ private struct SettingsPage: View {
         let entries = settings.orderedMediaEntries
         return Island(label: "Media Sites",
                       footnote: "Typing a show name offers it on each site that is on. Drag or right-click to reorder; the info button shows or edits a site's link.",
-                      onWindow: true, padding: Space.m) {
+                      padding: Space.m) {
             VStack(spacing: Space.s) {
                 siteHealthStrip
                 List {
@@ -238,7 +247,7 @@ private struct SettingsPage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                .fill((tone == .neutral ? Color.gray : color).opacity(0.10))
+                .fill((tone == .neutral ? Color.white : color).opacity(tone == .neutral ? 0.06 : 0.12))
         )
         .accessibilityElement(children: .combine)
     }
@@ -269,7 +278,7 @@ private struct SettingsPage: View {
             .frame(height: 40)
             .background(
                 RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .strokeBorder(fx.islandStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .strokeBorder(fx.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             )
             .contentShape(Rectangle())
         }
@@ -559,7 +568,7 @@ private struct SettingsPage: View {
     private var weatherSection: some View {
         Island(label: "Weather",
                footnote: "Leave empty to use your Mac's location. Otherwise weather follows this city.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             prefsRow("City") {
                 TextField("Automatic", text: $settings.weatherCity)
                     .textFieldStyle(.roundedBorder)
@@ -574,12 +583,14 @@ private struct SettingsPage: View {
     private var clipboardSection: some View {
         Island(label: "Clipboard",
                footnote: "Type \"clip\" to browse history, or \"ss\" for the last \(ClipboardStore.screenshotKeepCount) screenshots.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             VStack(spacing: 0) {
                 prefsRow("Keep up to") {
                     HStack(spacing: Space.s) {
+                        // Fixed width so the stepper does not shift as the count grows.
                         Text("\(settings.clipboardLimit) items")
-                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                            .font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary)
+                            .frame(minWidth: 72, alignment: .trailing)
                         Stepper("Keep up to", value: $settings.clipboardLimit, in: 10...1000, step: 10)
                             .labelsHidden()
                     }
@@ -588,19 +599,7 @@ private struct SettingsPage: View {
                 toggleRow("Keep recent screenshots", isOn: $settings.screenshotsToClipboard)
                 rowLine
                 prefsRow("Holding \(clipboard.entries.count) item\(clipboard.entries.count == 1 ? "" : "s")") {
-                    Button { clipboard.clear() } label: {
-                        Text("Clear History").font(.system(size: 12, weight: .medium)).foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, Space.m)
-                    .frame(height: 26)
-                    .background(
-                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous).fill(fx.islandFill)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                            .strokeBorder(fx.islandStroke, lineWidth: 1)
-                    )
+                    PillButton("Clear History", tone: .destructive) { clipboard.clear() }
                 }
             }
         }
@@ -611,7 +610,7 @@ private struct SettingsPage: View {
     private var claudeSection: some View {
         Island(label: "Claude Code",
                footnote: "\"claude <task>\" starts a Claude Code session in this folder.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             prefsRow("Default folder") {
                 HStack(spacing: Space.s) {
                     Text(abbreviatedPath(settings.claudeDirectory))
@@ -643,7 +642,7 @@ private struct SettingsPage: View {
     private var permissionsSection: some View {
         Island(label: "Permissions",
                footnote: "Sidekick asks for these at launch and installs its own tools.",
-               onWindow: true, padding: 0) {
+               padding: 0) {
             VStack(spacing: 0) {
                 ForEach(permissionRows) { row in
                     prefsRow(row.name, detail: row.detail) { permissionStatus(row) }
@@ -713,7 +712,7 @@ private struct SiteRowChrome<Content: View>: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
-                    .fill(hovering ? fx.islandFillHover : fx.islandFill)
+                    .fill(hovering ? fx.fillHover : fx.fill)
             )
             .opacity(dimmed ? 0.55 : 1)
             .onHover { hovering = $0 }
@@ -746,9 +745,11 @@ private struct InfoButton: View {
 // Click to focus, then press a key combo. Esc cancels, Delete resets to Cmd+Space.
 private struct HotKeyRecorder: NSViewRepresentable {
     @Binding var combo: HotKeyCombo
+    let accent: NSColor
 
     func makeNSView(context: Context) -> RecorderView {
         let view = RecorderView()
+        view.accent = accent
         view.onCombo = { combo = $0 }
         view.display = combo.displayString
         return view
@@ -762,6 +763,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
     final class RecorderView: NSView {
         var onCombo: ((HotKeyCombo) -> Void)?
         var display: String = ""
+        var accent: NSColor = .controlAccentColor
         private var recording = false
 
         override var acceptsFirstResponder: Bool { true }
@@ -793,6 +795,7 @@ private struct HotKeyRecorder: NSViewRepresentable {
                 onCombo?(.commandSpace)
                 recording = false
                 window?.makeFirstResponder(nil)
+                needsDisplay = true
                 return
             }
             var carbon: UInt32 = 0
@@ -806,14 +809,16 @@ private struct HotKeyRecorder: NSViewRepresentable {
             onCombo?(HotKeyCombo(keyCode: UInt32(event.keyCode), carbonModifiers: carbon))
             recording = false
             window?.makeFirstResponder(nil)
+            needsDisplay = true
         }
 
         override func draw(_ dirtyRect: NSRect) {
-            let background = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6)
-            (recording ? NSColor.controlAccentColor.withAlphaComponent(0.2) : NSColor.controlBackgroundColor).setFill()
+            let inset = bounds.insetBy(dx: 1, dy: 1)
+            let background = NSBezierPath(roundedRect: inset, xRadius: inset.height / 2, yRadius: inset.height / 2)
+            (recording ? accent.withAlphaComponent(0.22) : NSColor.white.withAlphaComponent(0.07)).setFill()
             background.fill()
-            (recording ? NSColor.controlAccentColor : NSColor.separatorColor).setStroke()
-            background.lineWidth = recording ? 2 : 1
+            (recording ? accent : NSColor.white.withAlphaComponent(0.12)).setStroke()
+            background.lineWidth = recording ? 1.5 : 1
             background.stroke()
 
             let text = recording ? "Press keys…" : display
