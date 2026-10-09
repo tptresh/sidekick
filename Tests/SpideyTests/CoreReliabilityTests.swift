@@ -91,6 +91,15 @@ final class CoreReliabilityTests: XCTestCase {
         ))
     }
 
+    // Waking from sleep: two sites report "not connected", one "timed out".
+    func testMixedOfflineAndTimeoutIsTreatedAsOffline() {
+        XCTAssertNil(LinkChecker.merge(
+            previous: [:],
+            fresh: ["a": status(false, "offline"), "b": status(false, "offline"), "c": status(false, "timed out")],
+            inconclusive: ["a", "b"]
+        ))
+    }
+
     func testRealFailureIsStillFlagged() {
         let merged = LinkChecker.merge(
             previous: ["a": status(true)],

@@ -43,6 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // @Published emits on willSet, so read the emitted value, not settings.hotKey.
         settings.$hotKey
             .dropFirst()
+            // Hop to the next main-queue turn so a save-back inside registerHotKey
+            // lands after this willSet has finished storing the picked value.
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] combo in self?.registerHotKey(preferred: combo, userPicked: true) }
             .store(in: &cancellables)
         settings.$theme
@@ -249,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
+        popover.appearance = NSAppearance(named: .darkAqua)
         let controller = NSHostingController(rootView: MenuBarPanel(
             settings: settings,
             openPreferences: { [weak self] in
@@ -355,6 +359,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 defer: false
             )
             window.title = "Sidekick Preferences"
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(settings: settings))
             window.contentMinSize = NSSize(width: 520, height: 480)

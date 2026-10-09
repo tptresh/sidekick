@@ -314,8 +314,9 @@ final class LinkChecker: ObservableObject {
         let conclusive = fresh.filter { !inconclusive.contains($0.key) }
         if conclusive.isEmpty, !fresh.isEmpty { return nil }
         // Every site failing at once means this Mac was offline, not that the
-        // whole internet died.
-        if conclusive.count > 1, conclusive.values.allSatisfy({ !$0.ok }) { return nil }
+        // whole internet died. Counted over every fetched site, so a wake-up
+        // mix of "not connected" and "timed out" still reads as offline.
+        if fresh.count > 1, fresh.values.allSatisfy({ !$0.ok }) { return nil }
         var merged = conclusive
         for key in inconclusive where fresh[key] != nil {
             if let old = previous[key] { merged[key] = old }
