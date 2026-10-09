@@ -451,3 +451,9 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 6efe9b4 Weather ignores stale lookups while typing a city and refreshes after wake; favicons retry after offline; currency cache folder created on fresh installs
   - 008b3e7 Hotkey keeps Cmd+Space as your choice while it falls back, site checks ignore offline moments even with one site, timers restored at launch and ring once
 - main is now at: f127a21 (build succeeded, app relaunched)
+
+## 2026-10-09 18:32 - OK - refresh-glass
+- "Liquid Glass now shows through in the menu bar dropdown and Preferences too: both are see-through dark glass like the search panel, instead of glass cards on a solid background"
+- merged commits:
+  - f36fca5 Liquid Glass now shows through in the menu bar dropdown and Preferences too: both are see-through dark glass like the search panel, instead of glass cards on a solid background
+- main is now at: b89a2d4 (build succeeded, app relaunched)
