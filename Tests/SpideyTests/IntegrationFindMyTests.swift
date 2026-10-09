@@ -36,6 +36,32 @@ final class IntegrationFindMyTests: XCTestCase {
         XCTAssertEqual(P.bestMatch(labels, term: "iphone", owner: nil), 0)
     }
 
+    func testOwnPhoneBeatsFamilyPhoneWithTheDefaultName() {
+        // A family phone left with the iOS default name "iPhone" is an exact
+        // match for "ping my iphone", but your own phone must still ring.
+        let labels = ["iPhone, Leeds, Now", "Tanush's iPhone, Home, Now"]
+        XCTAssertEqual(P.bestMatch(labels, term: "iphone", owner: "Tanush Pandey"), 1)
+    }
+
+    func testOwnAirPodsProBeatPlainAirPods() {
+        // "ping airpods pro" searches the AirPods kind term.
+        let labels = ["AirPods, Leeds, 1 hr ago", "Tanush's AirPods Pro, Home, Now"]
+        XCTAssertEqual(P.bestMatch(labels, term: "airpods", owner: "Tanush Pandey"), 1)
+        XCTAssertEqual(P.bestMatch(labels, term: "airpods pro", owner: "Tanush Pandey"), 1)
+    }
+
+    func testFullDeviceNameTypedStillWinsOverOwnDevice() {
+        let labels = ["Tanush's iPhone, Home, Now", "Mum's iPhone, Leeds, Now"]
+        XCTAssertEqual(P.bestMatch(labels, term: "mum's iphone", owner: "Tanush Pandey"), 1)
+        let plain = ["Tanush's iPhone 15, Home, Now", "Work Phone, Office, Now"]
+        XCTAssertEqual(P.bestMatch(plain, term: "work phone", owner: "Tanush Pandey"), 1)
+    }
+
+    func testOwnDeviceOnlyMatchingByLocationDoesNotBeatANameMatch() {
+        let labels = ["Tanush's Keys, Mac Lane, Now", "Mum's MacBook, Leeds, Now"]
+        XCTAssertEqual(P.bestMatch(labels, term: "mac", owner: "Tanush Pandey"), 1)
+    }
+
     func testNameMatchBeatsLocationMatch() {
         // "home" is only in the location of the first row but is the name of the second.
         let labels = ["Tanush's iPhone, Home, Now", "Home Keys, Office, 1 hr ago"]

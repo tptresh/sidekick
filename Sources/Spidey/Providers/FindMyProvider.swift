@@ -200,21 +200,35 @@ enum FindMyProvider {
         return normalized(label).contains(term) ? 1 : nil
     }
 
-    // Index of the label that best answers the term. Ties go to a device whose
-    // name carries the Mac user's first name (your iPhone before a family
-    // member's), then to the earlier row.
+    // Index of the label that best answers the term. A device whose name
+    // carries the Mac user's first name counts as yours. For a device-kind
+    // search ("ping my iphone", "ping airpods pro") any name match of yours
+    // beats a family device, even one left with the bare default name
+    // "iPhone". For any other term (a full name like "mum's iphone") the
+    // closest name wins and being yours only breaks ties. Location-only
+    // matches always come after name matches; the earlier row breaks the
+    // remaining ties.
     static func bestMatch(_ labels: [String], term: String, owner: String?) -> Int? {
         let ownerWord = owner.flatMap { words($0).first }
-        var best: (index: Int, rank: Int, mine: Bool)?
+        let kindSearch = isKindTerm(term)
+        var best: (index: Int, key: [Int])?
         for (index, label) in labels.enumerated() {
             guard let rank = matchRank(label: label, term: term) else { continue }
             let mine = ownerWord.map { owner in
                 words(deviceName(fromRowLabel: label)).contains { $0.hasPrefix(owner) }
             } ?? false
-            if let current = best, (current.rank, current.mine ? 1 : 0) >= (rank, mine ? 1 : 0) { continue }
-            best = (index, rank, mine)
+            let byName = rank >= 2 ? 1 : 0
+            let key = kindSearch ? [byName, mine ? 1 : 0, rank] : [rank, mine ? 1 : 0]
+            if let current = best, current.key.lexicographicallyPrecedes(key) == false { continue }
+            best = (index, key)
         }
         return best?.index
+    }
+
+    // True when the term names a kind of device rather than one device.
+    static func isKindTerm(_ term: String) -> Bool {
+        let term = normalized(term)
+        return kinds.contains { $0.searchTerm == term || $0.matchNames.contains(term) }
     }
 
     // Which button of a confirmation sheet to press after Play Sound, if any.
