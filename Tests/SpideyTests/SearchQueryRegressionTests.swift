@@ -121,6 +121,12 @@ final class SearchQueryRegressionTests: XCTestCase {
             ("best buy", titled("Open Best Buy"), "popular site"),
             ("cartier", titled("Open Cartier"), "popular brand"),
             ("the pitt", contains("the pitt"), "show search"),
+            // A site prefix only loses to a command whose own word was typed in full.
+            ("ste", { !$0.title.contains("Light Mode") && !$0.title.contains("Dark Mode") }, "site prefix over appearance toggle"),
+            ("tar", { !$0.title.contains("Restart") }, "site prefix over restart"),
+            ("out", { !$0.title.contains("Log Out") }, "site prefix over log out"),
+            ("righ", { !$0.title.contains("Right Half") }, "site prefix over window snap"),
+            ("wire", { !$0.title.contains("Wi-Fi") }, "site prefix over wifi"),
             ("breaking bad", contains("breaking bad"), "show search"),
         ]
     }

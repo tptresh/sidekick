@@ -2,6 +2,10 @@ import AppKit
 import Combine
 
 final class SpideyViewModel: ObservableObject {
+    private static let bareCommandWords: Set<String> = [
+        "play", "pause", "next", "skip", "prev", "previous", "back", "playing",
+    ]
+
     @Published var query = "" {
         didSet { refresh() }
     }
@@ -216,8 +220,17 @@ final class SpideyViewModel: ObservableObject {
         items += ContactsProvider.results(for: trimmed)
         items += WindowSwitcherProvider.results(for: trimmed)
         // A bare keyword like "play" must not lose to a site it happens to
-        // start ("Playstation"); exact site names keep their full rank.
-        items += SiteDirectoryProvider.results(for: trimmed, demotePrefixMatches: !commandItems.isEmpty)
+        // start ("Playstation"); exact site names keep their full rank. Only a
+        // command whose own first word was typed in full counts, so a short
+        // prefix like "ste" still opens Steam rather than a fuzzy toggle row.
+        // The music rows can be titled "Open Spotify" when nothing is running,
+        // so their bare verbs are listed outright.
+        let typedWord = trimmed.lowercased()
+        let typedCommandWord = !commandItems.isEmpty && (Self.bareCommandWords.contains(typedWord)
+            || commandItems.contains { item in
+                item.title.lowercased().split(whereSeparator: { !$0.isLetter }).first.map(String.init) == typedWord
+            })
+        items += SiteDirectoryProvider.results(for: trimmed, demotePrefixMatches: typedCommandWord)
         if let typedAddress {
             items.append(typedAddress)
         }
