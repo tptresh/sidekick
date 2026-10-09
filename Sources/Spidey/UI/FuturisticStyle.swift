@@ -455,3 +455,43 @@ struct Monogram: View {
             .accessibilityHidden(true)
     }
 }
+
+// MARK: - Window backdrop
+
+// The see-through backing for a whole window or panel: dark Liquid Glass on
+// macOS 26, the behind-window HUD blur before that, and solid near-black under
+// Reduce Transparency. The window itself must be non-opaque with a clear
+// background, or the glass has nothing to show through. The dark tint keeps
+// white text readable over a bright wallpaper.
+struct GlassBackdrop<S: Shape>: View {
+    let tint: Color
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        if reduceTransparency {
+            shape.fill(tint)
+        } else if #available(macOS 26, *) {
+            Color.clear.glassEffect(.regular.tint(tint.opacity(0.62)), in: shape)
+        } else {
+            ZStack {
+                BehindWindowBlur()
+                tint.opacity(0.80)
+            }
+            .clipShape(shape)
+        }
+    }
+}
+
+private struct BehindWindowBlur: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}

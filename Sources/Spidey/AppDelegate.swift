@@ -2,13 +2,14 @@ import AppKit
 import SwiftUI
 import Combine
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings = SettingsStore.shared
     let viewModel = SpideyViewModel()
 
     private var statusItem: NSStatusItem!
-    private var menuBarPopover: NSPopover?
-    private var menuBarPopoverClosedAt = Date.distantPast
+    private var menuBarDropdown: MenuBarDropdown?
+    private var menuBarDropdownClosedAt = Date.distantPast
+    private var menuBarDropdownTop = NSPoint.zero
     private var panel: SearchPanel!
     private var settingsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -230,44 +231,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func toggleMenuBarPopover() {
-        if let popover = menuBarPopover, popover.isShown {
-            popover.performClose(nil)
+        if let dropdown = menuBarDropdown, dropdown.isVisible {
+            closeMenuBarDropdown()
             return
         }
-        // A transient popover closes on mouse-down outside it, which includes
-        // the emblem itself; without this the same click would reopen it.
-        guard Date().timeIntervalSince(menuBarPopoverClosedAt) > 0.3,
-              let button = statusItem.button else { return }
+        // Clicking the emblem while the dropdown is open first resigns it
+        // (which closes it); without this the same click would reopen it.
+        guard Date().timeIntervalSince(menuBarDropdownClosedAt) > 0.3,
+              let button = statusItem.button, let buttonWindow = button.window else { return }
         // Built fresh each time so the date and next switch time are current.
-        let popover = makeMenuBarPopover()
-        menuBarPopover = popover
         WeatherStore.shared.refreshIfStale()
+        let dropdown = makeMenuBarDropdown()
+        menuBarDropdown = dropdown
+
+        let buttonRect = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        let size = dropdown.contentView?.fittingSize ?? NSSize(width: 320, height: 300)
+        var x = buttonRect.midX - size.width / 2
+        if let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame {
+            x = min(max(x, visible.minX + 8), visible.maxX - size.width - 8)
+        }
+        menuBarDropdownTop = NSPoint(x: x, y: buttonRect.minY - 6)
+        dropdown.setContentSize(size)
+        dropdown.setFrameTopLeftPoint(menuBarDropdownTop)
         NSApp.activate(ignoringOtherApps: true)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
+        dropdown.makeKeyAndOrderFront(nil)
     }
 
-    private func makeMenuBarPopover() -> NSPopover {
-        let popover = NSPopover()
-        popover.behavior = .transient
-        popover.delegate = self
-        popover.animates = true
-        popover.appearance = NSAppearance(named: .darkAqua)
-        let controller = NSHostingController(rootView: MenuBarPanel(
+    // A borderless see-through panel instead of an NSPopover: a popover paints
+    // its own opaque backing, which hides the Liquid Glass underneath.
+    private func makeMenuBarDropdown() -> MenuBarDropdown {
+        let dropdown = MenuBarDropdown(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 300),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        dropdown.isOpaque = false
+        dropdown.backgroundColor = .clear
+        dropdown.hasShadow = true
+        dropdown.level = .popUpMenu
+        dropdown.isReleasedWhenClosed = false
+        dropdown.appearance = NSAppearance(named: .darkAqua)
+        dropdown.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        dropdown.onCancel = { [weak self] in self?.closeMenuBarDropdown() }
+
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        let host = NSHostingView(rootView: MenuBarPanel(
             settings: settings,
             openPreferences: { [weak self] in
-                self?.menuBarPopover?.performClose(nil)
+                self?.closeMenuBarDropdown()
                 self?.openPreferences()
             }
-        ))
-        controller.sizingOptions = .preferredContentSize
-        popover.contentViewController = controller
-        return popover
+        )
+        .background(GlassBackdrop(tint: settings.theme.palette.background, shape: shape))
+        .clipShape(shape))
+        host.sizingOptions = [.intrinsicContentSize]
+        dropdown.contentView = host
+
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: dropdown, queue: .main
+        ) { [weak self] _ in self?.closeMenuBarDropdown() }
+        // Weather loading in changes the height; keep the top pinned under the emblem.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResizeNotification, object: dropdown, queue: .main
+        ) { [weak self] note in
+            guard let self, let window = note.object as? NSWindow,
+                  window.frame.maxY != self.menuBarDropdownTop.y else { return }
+            window.setFrameTopLeftPoint(self.menuBarDropdownTop)
+        }
+        return dropdown
     }
 
-    func popoverDidClose(_ notification: Notification) {
-        menuBarPopoverClosedAt = Date()
-        menuBarPopover = nil
+    private func closeMenuBarDropdown() {
+        guard let dropdown = menuBarDropdown else { return }
+        menuBarDropdown = nil
+        menuBarDropdownClosedAt = Date()
+        NotificationCenter.default.removeObserver(self, name: nil, object: dropdown)
+        dropdown.orderOut(nil)
     }
 
     // MARK: - Panel
@@ -354,11 +394,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if settingsWindow == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 600, height: 720),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
             window.title = "Sidekick Preferences"
+            // See-through so the Liquid Glass backdrop shows the desktop behind it.
+            window.isOpaque = false
+            window.backgroundColor = .clear
             window.appearance = NSAppearance(named: .darkAqua)
             window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
@@ -395,4 +438,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // The caffeinate child process would otherwise outlive the app.
         CaffeinateManager.shared.stop()
     }
+}
+
+// The menu bar dropdown: borderless, so it must opt in to becoming key for its
+// switches and links, and closes on Esc.
+final class MenuBarDropdown: NSPanel {
+    var onCancel: (() -> Void)?
+    override var canBecomeKey: Bool { true }
+    override func cancelOperation(_ sender: Any?) { onCancel?() }
 }
