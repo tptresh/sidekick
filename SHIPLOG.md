@@ -428,3 +428,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 05501e5 Batman menu bar icon is a hollow outline while Keep Mac Awake is off and fills in white when it is on
 - main is now at: 9cfdbb3 (build succeeded, app relaunched)
+
+## 2026-10-09 09:44 - OK - worktree-futuristic-redesign
+- "Batman theme removed: Spider-Man is the only theme, so Preferences no longer shows a theme picker and typing batman no longer offers a theme switch"
+- merged commits:
+  - 6928d44 Batman theme removed: Spider-Man is the only theme, so Preferences no longer shows a theme picker and typing batman no longer offers a theme switch
+- main is now at: 0207ab7 (build succeeded, app relaunched)
