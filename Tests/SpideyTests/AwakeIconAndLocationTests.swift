@@ -68,12 +68,25 @@ final class AwakeIconTests: XCTestCase {
 
     // Visibility: the bat covered about 10% of its square and read as a smudge
     // at menu bar size; Spider-Man was about 34%. Neither may be fainter than this.
+    // The idle bat is an outline, so its bar is the filled awake bat.
     func testEmblemsHaveEnoughInkToBeVisible() {
-        let minimum: [HeroTheme: Double] = [.spiderman: 0.34, .batman: 0.18]
-        for theme in HeroTheme.allCases {
-            let ink = opaqueColors(StatusIcons.menuBarIcon(for: theme, awake: false)).count
-            XCTAssertGreaterThan(Double(ink) / (36 * 36), minimum[theme] ?? 0.2, "\(theme) emblem is too faint")
-        }
+        let spider = opaqueColors(StatusIcons.menuBarIcon(for: .spiderman, awake: false)).count
+        XCTAssertGreaterThan(Double(spider) / (36 * 36), 0.34, "Spider-Man emblem is too faint")
+        let bat = opaqueColors(StatusIcons.menuBarIcon(for: .batman, awake: true)).count
+        XCTAssertGreaterThan(Double(bat) / (36 * 36), 0.18, "bat emblem is too faint")
+    }
+
+    // Batman: idle is a hollow outline, awake fills in, so the change is obvious.
+    func testBatIsOutlineWhenIdleAndFilledWhenAwake() {
+        let idle = pixels(StatusIcons.menuBarIcon(for: .batman, awake: false))
+        let awake = pixels(StatusIcons.menuBarIcon(for: .batman, awake: true))
+        // A point inside the bat's left wing, well away from its edges
+        // (bitmap rows count from the top).
+        let (x, row) = (10, 16)
+        XCTAssertLessThan(idle.colorAt(x: x, y: row)?.alphaComponent ?? 1, 0.2, "idle bat should be hollow")
+        XCTAssertGreaterThan(awake.colorAt(x: x, y: row)?.alphaComponent ?? 0, 0.9, "awake bat should be filled")
+        let idleInk = opaqueColors(StatusIcons.menuBarIcon(for: .batman, awake: false)).count
+        XCTAssertGreaterThan(Double(idleInk) / (36 * 36), 0.08, "idle outline is too faint")
     }
 }
 
