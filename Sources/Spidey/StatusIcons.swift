@@ -26,6 +26,13 @@ enum StatusIcons {
                     rim.stroke()
                 }
                 draw(theme, color: tint)
+            } else if theme == .batman {
+                // Idle bat is a hollow outline so filling in reads as "awake".
+                let outline = batSymbolPath()
+                NSColor.black.setStroke()
+                outline.lineWidth = 1.3
+                outline.lineJoinStyle = .round
+                outline.stroke()
             } else {
                 NSColor.black.setFill()
                 draw(theme, color: .black)
