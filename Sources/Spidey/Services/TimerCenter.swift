@@ -208,16 +208,29 @@ final class TimerCenter {
         entries.removeAll { $0.id == id }
         persist()
         NSSound(named: "Glass")?.play()
-        // The notification was scheduled at start(); macOS delivers it now.
-        // Re-add it only if that scheduling was lost (same id replaces it).
+        // The notification was scheduled at start(); macOS usually delivers
+        // it by itself. Post it here only if it has not rung yet.
         guard Self.canNotify else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Timer done"
-        content.body = label
-        content.sound = .default
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: id.uuidString, content: content, trigger: nil)
-        )
+        let center = UNUserNotificationCenter.current()
+        let identifier = id.uuidString
+        center.getDeliveredNotifications { delivered in
+            guard Self.needsFallbackNotification(
+                id: identifier, delivered: delivered.map(\.request.identifier)
+            ) else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Timer done"
+            content.body = label
+            content.sound = .default
+            center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+        }
+    }
+
+    // Posts the "Timer done" notification now unless the one scheduled at
+    // start() has already rung. One still queued (macOS has not caught up
+    // after sleep) is replaced in place by the immediate one, since both
+    // share an identifier, so it never rings twice.
+    static func needsFallbackNotification(id: String, delivered: [String]) -> Bool {
+        !delivered.contains(id)
     }
 
     private func requestAuthorizationIfNeeded() {

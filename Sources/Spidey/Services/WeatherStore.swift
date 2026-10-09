@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import CoreLocation
 import Combine
 
@@ -59,6 +59,7 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var coreLocationFailed = false
     private var locationTimeout: Timer?
     private var settingsObserver: AnyCancellable?
+    private var wakeObserver: NSObjectProtocol?
     // Bumped on every refresh so a slow lookup for an old city cannot win.
     private var generation = 0
     private var cachedSource: LocationSource?
@@ -83,7 +84,9 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .removeDuplicates()
             .dropFirst()
-            .receive(on: DispatchQueue.main)
+            // The city box saves on every keystroke; look up the finished
+            // name, not "L", "Lo", "Lon".
+            .debounce(for: .milliseconds(800), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.coreLocationFailed = false
                 self?.refresh()
@@ -118,6 +121,14 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
         timer.tolerance = 60
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+        // The repeating timer pauses while the Mac sleeps, so after a night
+        // with the lid shut the forecast would stay yesterday's for up to
+        // half an hour. Refresh once Wi-Fi has had a moment to reconnect.
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { self?.refreshIfStale() }
+        }
     }
 
     func refreshIfStale() {
@@ -128,6 +139,9 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     func refresh() {
         generation += 1
         let current = generation
+        // Any forecast still in flight belongs to the old generation and will
+        // be dropped, so it must not block this refresh's own fetch.
+        isFetching = false
         stopLocating()
         if let city = manualCity {
             resolveManual(city, generation: current)
@@ -294,11 +308,14 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
             + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
             + "&forecast_days=1&timezone=auto") else { return }
         isFetching = true
+        let requestGeneration = generation
 
         session.dataTask(with: url) { [weak self] data, _, error in
             let parsed = data.flatMap(Self.parse)
             DispatchQueue.main.async {
-                guard let self else { return }
+                // A forecast for a spot an older refresh asked about (before
+                // a city was typed or cleared) must not overwrite the new one.
+                guard let self, requestGeneration == self.generation else { return }
                 self.isFetching = false
                 guard error == nil, var today = parsed else {
                     if self.cache == nil { self.state = .failed("Weather is unavailable right now") }
@@ -332,7 +349,11 @@ final class WeatherStore: NSObject, ObservableObject, CLLocationManagerDelegate 
     private func lookUpPlace(for location: CLLocation) {
         CLGeocoder().reverseGeocodeLocation(location) { [weak self] placemarks, _ in
             guard let self, let place = placemarks?.first?.locality ?? placemarks?.first?.name,
-                  var cache = self.cache else { return }
+                  var cache = self.cache,
+                  // The forecast may have moved on to another spot meanwhile.
+                  cache.latitude == location.coordinate.latitude,
+                  cache.longitude == location.coordinate.longitude,
+                  cache.today.place == nil else { return }
             cache.today.place = place
             self.cache = cache
             self.state = .ready(cache.today)

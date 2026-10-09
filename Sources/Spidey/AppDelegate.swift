@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ClipboardStore.shared.start()
         ScreenshotWatcher.shared.start()
         registerHotKey()
+        // Timers left running at the last quit are restored now, so they ring
+        // with their sound on time instead of only once "timer" is typed.
+        _ = TimerCenter.shared
         _ = AppProvider.shared
         FileProvider.warmUp()
         ContactIndex.shared.warmUp()
@@ -40,7 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // @Published emits on willSet, so read the emitted value, not settings.hotKey.
         settings.$hotKey
             .dropFirst()
-            .sink { [weak self] combo in self?.registerHotKey(preferred: combo) }
+            // Hop to the next main-queue turn so a save-back inside registerHotKey
+            // lands after this willSet has finished storing the picked value.
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] combo in self?.registerHotKey(preferred: combo, userPicked: true) }
             .store(in: &cancellables)
         settings.$theme
             .combineLatest(CaffeinateManager.shared.$isActive)
@@ -246,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
+        popover.appearance = NSAppearance(named: .darkAqua)
         let controller = NSHostingController(rootView: MenuBarPanel(
             settings: settings,
             openPreferences: { [weak self] in
@@ -325,27 +332,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: - Hotkey
 
-    private func registerHotKey(preferred: HotKeyCombo? = nil) {
+    private func registerHotKey(preferred: HotKeyCombo? = nil, userPicked: Bool = false) {
         let preferred = preferred ?? settings.hotKey
-        if HotKeyCenter.shared.register(preferred, handler: { [weak self] in self?.togglePanel() }) {
-            settings.activeHotKey = preferred
-            return
-        }
-        // A combo that was already working stays rather than being swapped out.
-        if let current = HotKeyCenter.shared.currentCombo {
-            settings.activeHotKey = current
-            // Saved too, so the next launch starts from the working combo
-            // rather than retrying the refused one and landing on Option+Space.
-            if settings.hotKey != current { settings.hotKey = current }
-            return
-        }
-        // Usually means Spotlight still owns Cmd+Space; fall back to Option+Space.
-        if preferred != .optionSpace,
-           HotKeyCenter.shared.register(.optionSpace, handler: { [weak self] in self?.togglePanel() }) {
-            settings.activeHotKey = .optionSpace
-        } else {
-            settings.activeHotKey = nil
-        }
+        // A refused pick from Preferences is saved back to the working combo,
+        // so the next launch does not retry it and land on Option+Space. A
+        // fallback (usually Spotlight still owning Cmd+Space) keeps the choice.
+        let outcome = HotKeyFallback.resolve(
+            preferred: preferred, userPicked: userPicked,
+            current: HotKeyCenter.shared.currentCombo,
+            register: { combo in
+                HotKeyCenter.shared.register(combo, handler: { [weak self] in self?.togglePanel() })
+            }
+        )
+        settings.activeHotKey = outcome.active
+        if let save = outcome.savePreferred, settings.hotKey != save { settings.hotKey = save }
     }
 
     // MARK: - Preferences
@@ -359,6 +359,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 defer: false
             )
             window.title = "Sidekick Preferences"
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(settings: settings))
             window.contentMinSize = NSSize(width: 520, height: 480)
