@@ -122,11 +122,29 @@ enum MenuItemsProvider {
         }
     }
 
+    // An item that opens a modal dialog (Print..., Save As...) often answers
+    // cannotComplete once the AX call times out, even though it worked. That
+    // is indistinguishable from a busy app, so it is not reported: a false
+    // "could not run" while the dialog is on screen is worse than silence.
+    static func pressFailed(_ result: AXError) -> Bool {
+        result != .success && result != .cannotComplete
+    }
+
     private static func press(_ entry: Entry, in app: NSRunningApplication) {
         app.activate(options: [.activateIgnoringOtherApps])
         // Give the target app a beat to take focus so the action lands on it.
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.15) {
-            AXUIElementPerformAction(entry.element, kAXPressAction as CFString)
+            let result = AXUIElementPerformAction(entry.element, kAXPressAction as CFString)
+            // The menu tree is cached for a few seconds, and apps rebuild
+            // their menus, so a press can land on an item that no longer
+            // exists or is greyed out right now. Drop the cache and say so.
+            guard pressFailed(result) else { return }
+            DispatchQueue.main.async { cache = nil }
+            SystemProvider.tellUser(
+                title: "Could not run that menu item",
+                body: "\(app.localizedName ?? "The app") did not accept it. It may be greyed out right now; "
+                    + "try the menu by hand or search again."
+            )
         }
     }
 

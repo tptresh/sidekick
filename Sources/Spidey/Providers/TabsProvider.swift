@@ -126,14 +126,38 @@ enum TabsProvider {
     }
 
     private static func activate(_ tab: Tab, in browser: Browser) {
-        let script = """
-        tell application "\(browser.appleScriptName)"
-            set active tab index of window \(tab.windowIndex) to \(tab.tabIndex)
-            set index of window \(tab.windowIndex) to 1
-            activate
+        SystemProvider.runAppleScript(
+            activateScript(tab, appName: browser.appleScriptName),
+            failureTitle: "Could not switch to that tab", timeout: 15
+        )
+    }
+
+    // The list can be a few seconds old, and closing a tab shifts the ones
+    // after it, so the tab is found again by its address only. Its old
+    // position could now hold a different tab, so a tab that has gone is
+    // reported rather than guessed at.
+    static func activateScript(_ tab: Tab, appName: String) -> String {
+        """
+        tell application "\(appName)"
+            repeat with w in windows
+                set ti to 0
+                repeat with t in tabs of w
+                    set ti to ti + 1
+                    if (URL of t) is "\(appleScriptEscaped(tab.url))" then
+                        set active tab index of w to ti
+                        set index of w to 1
+                        activate
+                        return
+                    end if
+                end repeat
+            end repeat
+            error "That tab has been closed since the list was shown. Search again to see the open tabs." number \(SystemProvider.messageErrorNumber)
         end tell
         """
-        SystemProvider.runAppleScript(script)
+    }
+
+    static func appleScriptEscaped(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     // MARK: - Fetching the tab list

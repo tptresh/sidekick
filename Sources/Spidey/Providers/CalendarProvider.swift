@@ -36,6 +36,27 @@ enum CalendarProvider {
     private static var eventCache: (events: [EventInfo], fetchedAt: Date)?
     private static var eventsLoading = false
     private static let cacheTTL: TimeInterval = 60
+    private static var observingChanges = false
+
+    // An event added, moved or deleted in Calendar should show at once, not
+    // after the minute-long cache runs out.
+    private static func observeChangesOnce() {
+        lock.lock()
+        let first = !observingChanges
+        observingChanges = true
+        lock.unlock()
+        guard first else { return }
+        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: nil) { _ in
+            invalidateEvents()
+        }
+    }
+
+    private static func invalidateEvents() {
+        lock.lock()
+        eventCache = nil
+        lock.unlock()
+        NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
+    }
 
     // MARK: - Entry point
 
@@ -215,6 +236,10 @@ enum CalendarProvider {
             guard let list = store.defaultCalendarForNewReminders()
                 ?? store.calendars(for: .reminder).first else {
                 NSLog("Spidey reminder: no Reminders list available")
+                SystemProvider.tellUser(
+                    title: "Reminder not saved",
+                    body: "Reminders has no list to put it in. Create a list in Reminders, then try again."
+                )
                 return
             }
             reminder.calendar = list
@@ -228,6 +253,10 @@ enum CalendarProvider {
                 try store.save(reminder, commit: true)
             } catch {
                 NSLog("Spidey reminder save failed: \(error.localizedDescription)")
+                SystemProvider.tellUser(
+                    title: "Reminder not saved",
+                    body: "Reminders said: \(error.localizedDescription)"
+                )
             }
         }
     }
@@ -288,7 +317,7 @@ enum CalendarProvider {
     private static func requestAccess(_ type: EKEntityType) {
         let done: (Bool, Error?) -> Void = { _, _ in
             // Re-run the visible query so granted access takes effect at once.
-            NotificationCenter.default.post(name: .spideyFaviconLoaded, object: nil)
+            invalidateEvents()
         }
         if #available(macOS 14.0, *) {
             if type == .event {
@@ -325,6 +354,7 @@ enum CalendarProvider {
         if !alreadyRunning { eventsLoading = true }
         lock.unlock()
         guard !alreadyRunning else { return }
+        observeChangesOnce()
 
         fetchQueue.async {
             let now = Date()

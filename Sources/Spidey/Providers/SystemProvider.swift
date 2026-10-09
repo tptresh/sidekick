@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 enum SystemProvider {
     struct Command {
@@ -92,15 +93,75 @@ enum SystemProvider {
         return items
     }
 
-    static func runAppleScript(_ source: String, completion: (@Sendable (Bool) -> Void)? = nil) {
+    // Scripts run through osascript rather than in-process NSAppleScript:
+    // NSAppleScript is not safe off the main thread and cannot be stopped,
+    // while a child process can be timed out. The timeout is generous because
+    // the first run waits on the Automation consent prompt.
+    //
+    // With a failureTitle, a script that fails or hangs tells the user why;
+    // without one the caller handles failure through the completion.
+    static func runAppleScript(
+        _ source: String, failureTitle: String? = nil, timeout: TimeInterval = 30,
+        completion: (@Sendable (Bool) -> Void)? = nil
+    ) {
         DispatchQueue.global(qos: .userInitiated).async {
-            var error: NSDictionary?
-            NSAppleScript(source: source)?.executeAndReturnError(&error)
-            if let error {
-                NSLog("Spidey AppleScript error: \(error)")
+            let result = Shell.runStatus("/usr/bin/osascript", ["-e", source], timeout: timeout)
+            let ok = result.status == 0
+            if !ok {
+                NSLog("Spidey AppleScript failed (\(result.status.map(String.init) ?? "timed out")): \(result.error)")
+                if let failureTitle {
+                    tellUser(
+                        title: failureTitle,
+                        body: scriptFailureText(result.status == nil ? nil : result.error, app: scriptTarget(source))
+                    )
+                }
             }
-            completion?(error == nil)
+            completion?(ok)
         }
+    }
+
+    // The app a one-line `tell application "X" ...` script talks to.
+    static func scriptTarget(_ source: String) -> String? {
+        guard let start = source.range(of: "tell application \"") else { return nil }
+        let rest = source[start.upperBound...]
+        guard let end = rest.firstIndex(of: "\"") else { return nil }
+        return String(rest[..<end])
+    }
+
+    // A plain explanation of an osascript failure. A nil error means the
+    // script was stopped for taking too long.
+    static func scriptFailureText(_ error: String?, app: String?) -> String {
+        let name = app ?? "the app"
+        guard let error else {
+            return "\(name) did not answer in time, so nothing changed."
+        }
+        if let message = ownScriptMessage(error) { return message }
+        if error.contains("-1743") || error.lowercased().contains("not authorized") {
+            return "macOS blocked Spidey from controlling \(name). Allow it in System Settings > "
+                + "Privacy & Security > Automation, then try again."
+        }
+        if error.contains("-600") || error.lowercased().contains("isn't running")
+            || error.contains("isn\u{2019}t running") {
+            return "\(name) is not running, so there was nothing to control."
+        }
+        return "\(name) reported an error, so nothing changed."
+    }
+
+    // Spidey's own scripts raise this error number with a sentence meant for
+    // the user, which osascript prints as "execution error: <sentence> (7401)".
+    static let messageErrorNumber = 7401
+
+    private static func ownScriptMessage(_ error: String) -> String? {
+        let suffix = " (\(messageErrorNumber))"
+        guard let marker = error.range(of: "execution error: "),
+              let end = error.range(of: suffix, options: .backwards),
+              marker.upperBound <= end.lowerBound else { return nil }
+        var message = error[marker.upperBound..<end.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+        // Raised inside a tell block, it can come back as "<App> got an error: <sentence>".
+        if let prefix = message.range(of: "got an error: ") {
+            message = String(message[prefix.upperBound...])
+        }
+        return message.isEmpty ? nil : message
     }
 
     // CGSession no longer exists on current macOS; Control-Command-Q is the
@@ -108,8 +169,12 @@ enum SystemProvider {
     static let lockScreenScript =
         "tell application \"System Events\" to keystroke \"q\" using {command down, control down}"
 
+    // Long enough for a first-time Automation prompt to be read and answered;
+    // a short limit killed the script while the dialog was still up.
+    static let lockScreenTimeout: TimeInterval = 60
+
     static func lockScreen() {
-        runAppleScript(lockScreenScript) { ok in
+        runAppleScript(lockScreenScript, timeout: lockScreenTimeout) { ok in
             guard !ok else { return }
             // Without the Automation grant, at least turn the display off.
             let process = Process()
@@ -117,5 +182,43 @@ enum SystemProvider {
             process.arguments = ["displaysleepnow"]
             try? process.run()
         }
+    }
+
+    // Tells the user an automation did not work: a notification when they
+    // are allowed, otherwise an alert, so a failure is never silent. Safe to
+    // call from any thread.
+    static func tellUser(title: String, body: String) {
+        DispatchQueue.main.async {
+            NSSound(named: "Funk")?.play()
+            // Notifications need a real app bundle; running bare from .build
+            // during development falls straight through to the alert.
+            guard Bundle.main.bundleIdentifier != nil else {
+                showAlert(title: title, body: body)
+                return
+            }
+            let center = UNUserNotificationCenter.current()
+            center.getNotificationSettings { settings in
+                let allowed = settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional
+                guard allowed else {
+                    DispatchQueue.main.async { showAlert(title: title, body: body) }
+                    return
+                }
+                let content = UNMutableNotificationContent()
+                content.title = title
+                content.body = body
+                center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+            }
+        }
+    }
+
+    private static func showAlert(title: String, body: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 }

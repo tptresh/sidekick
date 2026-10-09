@@ -42,28 +42,88 @@ enum ProcessProvider {
                 icon: icon.map { ResultIcon.appIcon($0) } ?? .symbol("xmark.circle.fill"),
                 score: 940 + match * 40,
                 action: {
-                    if force {
-                        app.forceTerminate()
-                    } else {
-                        app.terminate()
+                    let sent = force ? app.forceTerminate() : app.terminate()
+                    if !sent, !app.isTerminated {
+                        SystemProvider.tellUser(
+                            title: "Could not quit \(name)",
+                            body: force
+                                ? "macOS refused to force quit it."
+                                : "It did not accept the request. Try kill \(name.lowercased()) to force it."
+                        )
                     }
                 }
             ))
         }
 
-        // Background processes, only for the explicit kill keyword.
+        // Background processes, only for the explicit kill keyword. Several
+        // processes often share a name (node, python), so they get one row.
         if force {
-            for process in backgroundProcesses(matching: term).prefix(5) {
+            for group in groupedByName(backgroundProcesses(matching: term)).prefix(5) {
+                let pidList = group.pids.map(String.init).joined(separator: ", ")
                 items.append(ResultItem(
-                    title: "Kill \(process.name)",
-                    subtitle: "Sends SIGKILL to process \(process.pid)",
+                    title: "Kill \(group.name)",
+                    subtitle: group.pids.count == 1
+                        ? "Sends SIGKILL to process \(pidList)"
+                        : "Sends SIGKILL to all \(group.pids.count) of them (processes \(pidList))",
                     icon: .symbol("bolt.slash.fill"),
                     score: 930,
-                    action: { kill(process.pid, SIGKILL) }
+                    action: { killAll(group) }
                 ))
             }
         }
+
+        // Without this, "quit chrome" with Chrome closed left an unrelated
+        // row (a streaming search) on top, as if it were the answer.
+        if items.isEmpty {
+            let name = term.trimmingCharacters(in: .whitespaces).capitalized
+            items.append(ResultItem(
+                title: "\(name) is not running",
+                subtitle: force
+                    ? "No open app or background process matches, so there is nothing to kill"
+                    : "No open app matches, so there is nothing to quit",
+                icon: .symbol("xmark.circle"),
+                score: 900,
+                action: {}
+            ))
+        }
         return items
+    }
+
+    struct ProcessGroup {
+        let name: String
+        let pids: [pid_t]
+    }
+
+    static func groupedByName(_ processes: [BackgroundProcess]) -> [ProcessGroup] {
+        var order: [String] = []
+        var pids: [String: [pid_t]] = [:]
+        for process in processes {
+            if pids[process.name] == nil { order.append(process.name) }
+            pids[process.name, default: []].append(process.pid)
+        }
+        return order.map { ProcessGroup(name: $0, pids: pids[$0] ?? []) }
+    }
+
+    private static func killAll(_ group: ProcessGroup) {
+        var refused = false
+        var failed = 0
+        for pid in group.pids where kill(pid, SIGKILL) != 0 {
+            // Read errno straight away, before anything else can overwrite it.
+            let code = errno
+            failed += 1
+            if code == EPERM { refused = true }
+        }
+        guard failed > 0 else { return }
+        // Processes owned by root or another user refuse the signal; say so
+        // instead of looking like it worked.
+        let some = failed < group.pids.count ? "Some of them could not be killed. " : ""
+        SystemProvider.tellUser(
+            title: "Could not kill \(group.name)",
+            body: some + (refused
+                ? "\(group.pids.count == 1 ? "It belongs" : "They belong") to the system or another user, "
+                    + "so macOS did not allow it."
+                : "\(group.pids.count == 1 ? "It" : "They") may have already quit.")
+        )
     }
 
     struct BackgroundProcess {
@@ -72,21 +132,15 @@ enum ProcessProvider {
     }
 
     static func backgroundProcesses(matching term: String) -> [BackgroundProcess] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-il", term]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        guard (try? process.run()) != nil else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        // Runs on every keystroke on the main thread, so it is bounded: a
+        // stuck pgrep costs at most a second, never a frozen panel.
+        let output = Shell.run("/usr/bin/pgrep", ["-il", term], timeout: 1)
 
         // Names already offered as running apps stay out of the pgrep list.
         let appPids = Set(NSWorkspace.shared.runningApplications.map(\.processIdentifier))
         let ownPid = ProcessInfo.processInfo.processIdentifier
 
-        return String(decoding: data, as: UTF8.self)
+        return output
             .split(separator: "\n")
             .compactMap { line in
                 let parts = line.split(separator: " ", maxSplits: 1)
