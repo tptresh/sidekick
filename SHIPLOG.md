@@ -422,3 +422,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - 3b7d34c Futuristic redesign of the menu bar panel and Preferences (glass cards, new website picker, weather city box); the menu bar emblem turns red (Spider-Man) or white (Batman) while Keep Mac Awake is on and the bat is bolder; weather now finds your location (falls back to network location or a typed city); Lock Screen really locks, Light/Dark retries if it fails, timers survive a relaunch
 - main is now at: c42d36f (build succeeded, app relaunched)
+
+## 2026-10-09 09:37 - OK - worktree-futuristic-redesign
+- "Batman menu bar icon is a hollow outline while Keep Mac Awake is off and fills in white when it is on"
+- merged commits:
+  - 05501e5 Batman menu bar icon is a hollow outline while Keep Mac Awake is off and fills in white when it is on
+- main is now at: 9cfdbb3 (build succeeded, app relaunched)
