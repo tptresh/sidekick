@@ -95,18 +95,6 @@ private struct SettingsPage: View {
                footnote: "A manual switch in between stays until the next scheduled time.",
                onWindow: true, padding: 0) {
             VStack(spacing: 0) {
-                HStack(spacing: Space.m) {
-                    ForEach(HeroTheme.allCases, id: \.self) { theme in
-                        ThemePreviewButton(
-                            theme: theme,
-                            isSelected: settings.theme == theme,
-                            select: { settings.theme = theme }
-                        )
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(Space.m)
-                rowLine
                 toggleRow("Switch Light and Dark automatically", isOn: $settings.autoAppearance)
                 if settings.autoAppearance {
                     rowLine
@@ -752,47 +740,6 @@ private struct InfoButton: View {
         .onHover { hovering = $0 }
         .help("Show this site's link")
         .accessibilityLabel("Site link")
-    }
-}
-
-private struct ThemePreviewButton: View {
-    let theme: HeroTheme
-    let isSelected: Bool
-    let select: () -> Void
-    @Environment(\.fxTokens) private var fx
-    @State private var hovering = false
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: FuturisticStyle.Radius.md, style: .continuous)
-        Button(action: select) {
-            VStack(spacing: 6) {
-                ZStack(alignment: .bottomTrailing) {
-                    shape.fill(theme.palette.background)
-                    Image(nsImage: StatusIcons.watermark(
-                        for: theme, size: 28, color: NSColor(theme.accent(for: .dark))
-                    ))
-                    .resizable()
-                    .frame(width: 28, height: 28)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if isSelected {
-                        Chip("Active", tone: .accent).padding(4)
-                            .environment(\.fxTokens, FuturisticStyle.Tokens.resolve(theme: theme, scheme: .dark))
-                    }
-                }
-                .frame(width: 112, height: 64)
-                .overlay(shape.strokeBorder(isSelected ? fx.accent : fx.islandStroke,
-                                            lineWidth: isSelected ? 2 : 1))
-                .shadow(color: isSelected ? fx.glowColor : .clear, radius: isSelected ? fx.glowRadius : 0)
-                .opacity(isSelected || hovering ? 1 : 0.85)
-                Text(theme.displayName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-            }
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityLabel("\(theme.displayName) theme")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
