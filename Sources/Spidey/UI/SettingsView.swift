@@ -56,7 +56,7 @@ private struct SettingsPage: View {
         .background(alignment: .top) {
             // A faint red wash at the top gives the glass something to bend.
             ZStack(alignment: .top) {
-                Color(nsColor: .windowBackgroundColor)
+                GlassBackdrop(tint: settings.theme.palette.background, shape: Rectangle())
                 RadialGradient(colors: [fx.ambient, .clear], center: .top, startRadius: 0, endRadius: 420)
                     .frame(height: 420)
             }

@@ -34,7 +34,7 @@ struct SearchView: View {
         .frame(width: Self.panelWidth)
         // Glass sits on the panel as a whole, never on individual rows, so
         // scrolling a long result list stays cheap.
-        .background(PanelBackground(palette: palette, shape: shape))
+        .background(GlassBackdrop(tint: palette.background, shape: shape))
         .clipShape(shape)
         .overlay(
             shape.strokeBorder(
@@ -226,42 +226,6 @@ private struct DragModifier: ViewModifier {
             content
         }
     }
-}
-
-// Dark Liquid Glass on macOS 26, the behind-window HUD blur before that, and
-// solid near-black under Reduce Transparency. The dark tint keeps white text
-// readable over a bright wallpaper.
-private struct PanelBackground: View {
-    let palette: ThemePalette
-    let shape: RoundedRectangle
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    var body: some View {
-        if reduceTransparency {
-            shape.fill(palette.background)
-        } else if #available(macOS 26, *) {
-            Color.clear.glassEffect(.regular.tint(palette.background.opacity(0.62)), in: shape)
-        } else {
-            ZStack {
-                VisualEffectBackground()
-                palette.background.opacity(0.80)
-            }
-        }
-    }
-}
-
-private struct VisualEffectBackground: NSViewRepresentable {
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .hudWindow
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.appearance = NSAppearance(named: .darkAqua)
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 // NSTextField wrapper so arrows, Return, and Esc can be intercepted cleanly.
