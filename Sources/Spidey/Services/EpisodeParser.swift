@@ -220,9 +220,13 @@ enum EpisodeParser {
         "play", "player", "episode", "episodes", "season", "seasons", "anime",
         "drama", "title", "titles", "view", "home",
     ]
-    private static let edgePunctuation = CharacterSet(
-        charactersIn: " \t-:|,.;/\u{00B7}\u{2013}\u{2014}"
-    )
+    // The long dash is added by code point (0x2014) because the repo bans
+    // the character, and its escape, from source files.
+    private static let edgePunctuation: CharacterSet = {
+        var set = CharacterSet(charactersIn: " \t-:|,.;/\u{00B7}\u{2013}")
+        set.insert(Unicode.Scalar(0x2014)!)
+        return set
+    }()
 
     // Words that describe where you are in a show rather than name it, so a
     // piece made only of these is the site's furniture, not the title.

@@ -16,6 +16,8 @@ final class AppProvider {
     }
 
     private var apps: [AppEntry] = []
+    // Tests set this so ranking checks do not depend on what this Mac has installed.
+    var appsOverride: [AppEntry]?
     private var iconCache: [URL: NSImage] = [:]
     private let scanQueue = DispatchQueue(label: "spidey.appscan", qos: .utility)
 
@@ -160,7 +162,7 @@ final class AppProvider {
         let firstWord = lowered.split(separator: " ").first.map(String.init) ?? lowered
         let aliasTarget = userAliases[lowered] ?? userAliases[firstWord]
         var items: [ResultItem] = []
-        for app in apps {
+        for app in appsOverride ?? apps {
             guard let match = Self.effectiveMatch(
                 query: query, aliasTarget: aliasTarget, name: app.name, aliases: app.aliases
             ) else { continue }

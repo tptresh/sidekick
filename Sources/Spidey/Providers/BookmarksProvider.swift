@@ -8,10 +8,18 @@ enum BookmarksProvider {
         case dedicated
     }
 
+    static let prefixes = ["bm", "bookmark", "bookmarks"]
+
+    // "bm <query>" and friends: the query asks for bookmarks only.
+    static func isExplicit(_ query: String) -> Bool {
+        let lowered = query.trimmingCharacters(in: .whitespaces).lowercased()
+        return prefixes.contains { lowered == $0 || lowered.hasPrefix($0 + " ") }
+    }
+
     static func results(for query: String) -> [ResultItem] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let lowered = trimmed.lowercased()
-        for prefix in ["bm", "bookmark", "bookmarks"] {
+        for prefix in prefixes {
             if lowered == prefix {
                 return [ResultItem(
                     title: "Search bookmarks",
