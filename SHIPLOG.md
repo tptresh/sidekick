@@ -484,3 +484,9 @@ last worked, and inspect its listed commit hashes with `git show`.
   - 933714b Focus, quit, kill, Wi-Fi, Bluetooth, dark mode and keep-awake now say when they did not work instead of failing silently; Wi-Fi and Bluetooth switches no longer freeze the panel
   - afd7899 Ping my phone finds the device even when typed without the apostrophe or with extra words, prefers your own iPhone over a family one, and always says why when it could not ring
 - main is now at: b84e244 (build succeeded, app relaunched)
+
+## 2026-10-09 18:48 - OK - refresh-polish
+- "Menu bar dropdown matches the search panel: one glass slab with the date, weather, switches and hairline dividers instead of cards; Light and Dark times are picked from preset buttons in the dropdown and Preferences; media sites in Preferences show their real logos"
+- merged commits:
+  - e63125d Menu bar dropdown matches the search panel: one glass slab with the date, weather, switches and hairline dividers instead of cards; Light and Dark times are picked from preset buttons in the dropdown and Preferences; media sites in Preferences show their real logos
+- main is now at: d68ac6e (build succeeded, app relaunched)
