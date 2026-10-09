@@ -95,7 +95,17 @@ final class SetupCenter: ObservableObject {
                 process.standardError = FileHandle.nullDevice
                 do {
                     try process.run()
-                    process.waitUntilExit()
+                    // A brew stuck on a lock or a dead mirror would otherwise
+                    // leave the tool showing "installing" forever and hold
+                    // up every install after it.
+                    let deadline = Date().addingTimeInterval(600)
+                    while process.isRunning, Date() < deadline {
+                        Thread.sleep(forTimeInterval: 0.5)
+                    }
+                    if process.isRunning {
+                        NSLog("Spidey setup: brew install \(tool.name) took over 10 minutes, stopping it")
+                        process.terminate()
+                    }
                 } catch {
                     NSLog("Spidey setup: could not run brew install \(tool.name): \(error)")
                 }

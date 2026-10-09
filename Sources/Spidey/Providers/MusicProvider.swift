@@ -101,7 +101,9 @@ enum MusicProvider {
             subtitle: "Controls \(player.name) - macOS may ask for permission once",
             icon: icon(for: player, running: app),
             score: score,
-            action: { SystemProvider.runAppleScript(source) }
+            action: {
+                SystemProvider.runAppleScript(source, failureTitle: "Could not control \(player.name)", timeout: 15)
+            }
         )
     }
 

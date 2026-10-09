@@ -85,7 +85,7 @@ enum VolumeProvider {
     ) -> ResultItem {
         ResultItem(
             title: title, subtitle: subtitle, icon: .symbol(symbol), score: 950,
-            action: { SystemProvider.runAppleScript(script) }
+            action: { SystemProvider.runAppleScript(script, failureTitle: "Could not change the volume", timeout: 10) }
         )
     }
 

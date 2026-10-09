@@ -66,15 +66,9 @@ enum ToggleProvider {
                 symbol: isDark ? "sun.max.fill" : "moon.fill",
                 apply: { _ in
                     SystemProvider.runAppleScript(
-                        "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"
-                    ) { ok in
-                        guard !ok else { return }
-                        SystemProvider.tellUser(
-                            title: "Could not switch appearance",
-                            body: "macOS blocked Spidey from asking System Events. Allow it in System Settings > "
-                                + "Privacy & Security > Automation, then try again."
-                        )
-                    }
+                        "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode",
+                        failureTitle: "Could not switch appearance"
+                    )
                 }
             ))
         }
@@ -198,17 +192,37 @@ enum ToggleProvider {
 enum Shell {
     @discardableResult
     static func run(_ path: String, _ arguments: [String], timeout: TimeInterval = 5) -> String {
+        let result = runStatus(path, arguments, timeout: timeout, keepStderr: false)
+        return result.status == nil ? "" : result.output
+    }
+
+    // Like run, but also hands back the exit status (nil when the tool could
+    // not start or was stopped for taking too long) and, when asked, stderr.
+    static func runStatus(
+        _ path: String, _ arguments: [String], timeout: TimeInterval = 5, keepStderr: Bool = true
+    ) -> (status: Int32?, output: String, error: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return "" }
+        let errorPipe = keepStderr ? Pipe() : nil
+        process.standardError = errorPipe ?? FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return (nil, "", "") }
 
         let lock = NSLock()
         var output = Data()
+        var errorOutput = Data()
         let done = DispatchSemaphore(value: 0)
+        let group = DispatchGroup()
+        if let errorPipe {
+            DispatchQueue.global(qos: .userInitiated).async(group: group) {
+                let data = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                lock.lock()
+                errorOutput = data
+                lock.unlock()
+            }
+        }
         DispatchQueue.global(qos: .userInitiated).async {
             // Draining stdout to EOF also unblocks a child stuck writing.
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -216,6 +230,7 @@ enum Shell {
             output = data
             lock.unlock()
             process.waitUntilExit()
+            group.wait()
             done.signal()
         }
         if done.wait(timeout: .now() + timeout) == .timedOut {
@@ -223,11 +238,12 @@ enum Shell {
             if done.wait(timeout: .now() + 1) == .timedOut {
                 kill(process.processIdentifier, SIGKILL)
             }
-            return ""
+            return (nil, "", "")
         }
         lock.lock()
         defer { lock.unlock() }
-        return String(decoding: output, as: UTF8.self)
+        return (process.terminationStatus, String(decoding: output, as: UTF8.self),
+                String(decoding: errorOutput, as: UTF8.self))
     }
 }
 

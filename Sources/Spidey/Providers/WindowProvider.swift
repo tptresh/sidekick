@@ -130,7 +130,16 @@ enum WindowProvider {
     }
 
     static func apply(_ snap: Snap) {
-        guard let axWindow = frontWindow() else { return }
+        // Bounded so a busy front app cannot freeze the panel for the
+        // six-second default.
+        guard let axWindow = frontWindow(messagingTimeout: 1) else {
+            let app = NSWorkspace.shared.frontmostApplication?.localizedName ?? "The front app"
+            SystemProvider.tellUser(
+                title: "No window to move",
+                body: "\(app) has no window Spidey can reach. Click the window first, then try again."
+            )
+            return
+        }
         switch snap.action {
         case .fullScreen:
             setFullScreen(axWindow, to: !isFullScreen(axWindow))
@@ -229,11 +238,18 @@ enum WindowProvider {
         if let sizeValue = AXValueCreate(.cgSize, &size) {
             AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
         }
+        var moved = false
         if let positionValue = AXValueCreate(.cgPoint, &position) {
-            AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+            moved = AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue) == .success
         }
         if let sizeValue = AXValueCreate(.cgSize, &size) {
             AXUIElementSetAttributeValue(axWindow, kAXSizeAttribute as CFString, sizeValue)
+        }
+        if !moved {
+            SystemProvider.tellUser(
+                title: "That window would not move",
+                body: "The app refused the move. Some apps, and windows in another app's full screen, cannot be snapped."
+            )
         }
     }
 

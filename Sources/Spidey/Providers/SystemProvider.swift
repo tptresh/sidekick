@@ -93,19 +93,57 @@ enum SystemProvider {
         return items
     }
 
-    // NSAppleScript is not safe to run on two threads at once, so every
-    // script goes through one serial queue instead of the shared global one.
-    private static let scriptQueue = DispatchQueue(label: "dev.opensource.spidey.applescript", qos: .userInitiated)
-
-    static func runAppleScript(_ source: String, completion: (@Sendable (Bool) -> Void)? = nil) {
-        scriptQueue.async {
-            var error: NSDictionary?
-            NSAppleScript(source: source)?.executeAndReturnError(&error)
-            if let error {
-                NSLog("Spidey AppleScript error: \(error)")
+    // Scripts run through osascript rather than in-process NSAppleScript:
+    // NSAppleScript is not safe off the main thread and cannot be stopped,
+    // while a child process can be timed out. The timeout is generous because
+    // the first run waits on the Automation consent prompt.
+    //
+    // With a failureTitle, a script that fails or hangs tells the user why;
+    // without one the caller handles failure through the completion.
+    static func runAppleScript(
+        _ source: String, failureTitle: String? = nil, timeout: TimeInterval = 30,
+        completion: (@Sendable (Bool) -> Void)? = nil
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Shell.runStatus("/usr/bin/osascript", ["-e", source], timeout: timeout)
+            let ok = result.status == 0
+            if !ok {
+                NSLog("Spidey AppleScript failed (\(result.status.map(String.init) ?? "timed out")): \(result.error)")
+                if let failureTitle {
+                    tellUser(
+                        title: failureTitle,
+                        body: scriptFailureText(result.status == nil ? nil : result.error, app: scriptTarget(source))
+                    )
+                }
             }
-            completion?(error == nil)
+            completion?(ok)
         }
+    }
+
+    // The app a one-line `tell application "X" ...` script talks to.
+    static func scriptTarget(_ source: String) -> String? {
+        guard let start = source.range(of: "tell application \"") else { return nil }
+        let rest = source[start.upperBound...]
+        guard let end = rest.firstIndex(of: "\"") else { return nil }
+        return String(rest[..<end])
+    }
+
+    // A plain explanation of an osascript failure. A nil error means the
+    // script was stopped for taking too long.
+    static func scriptFailureText(_ error: String?, app: String?) -> String {
+        let name = app ?? "the app"
+        guard let error else {
+            return "\(name) did not answer in time, so nothing changed."
+        }
+        if error.contains("-1743") || error.lowercased().contains("not authorized") {
+            return "macOS blocked Spidey from controlling \(name). Allow it in System Settings > "
+                + "Privacy & Security > Automation, then try again."
+        }
+        if error.contains("-600") || error.lowercased().contains("isn't running")
+            || error.contains("isn\u{2019}t running") {
+            return "\(name) is not running, so there was nothing to control."
+        }
+        return "\(name) reported an error, so nothing changed."
     }
 
     // CGSession no longer exists on current macOS; Control-Command-Q is the
@@ -114,7 +152,7 @@ enum SystemProvider {
         "tell application \"System Events\" to keystroke \"q\" using {command down, control down}"
 
     static func lockScreen() {
-        runAppleScript(lockScreenScript) { ok in
+        runAppleScript(lockScreenScript, timeout: 5) { ok in
             guard !ok else { return }
             // Without the Automation grant, at least turn the display off.
             let process = Process()
