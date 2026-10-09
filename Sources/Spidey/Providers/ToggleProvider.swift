@@ -67,7 +67,14 @@ enum ToggleProvider {
                 apply: { _ in
                     SystemProvider.runAppleScript(
                         "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"
-                    )
+                    ) { ok in
+                        guard !ok else { return }
+                        SystemProvider.tellUser(
+                            title: "Could not switch appearance",
+                            body: "macOS blocked Spidey from asking System Events. Allow it in System Settings > "
+                                + "Privacy & Security > Automation, then try again."
+                        )
+                    }
                 }
             ))
         }
@@ -81,7 +88,18 @@ enum ToggleProvider {
                     settledTitle: "Wi-Fi is already \(isOn ? "on" : "off")",
                     subtitle: "Wi-Fi is currently \(isOn ? "on" : "off") (\(device))",
                     symbol: isOn ? "wifi.slash" : "wifi",
-                    apply: { WifiControl.setPower($0, device: device) }
+                    apply: { on in
+                        // networksetup can take seconds; never on the main thread.
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            WifiControl.setPower(on, device: device)
+                            if WifiControl.isOn(device: device) != on {
+                                SystemProvider.tellUser(
+                                    title: "Wi-Fi did not turn \(on ? "on" : "off")",
+                                    body: "macOS did not accept the change. Try the Wi-Fi menu in the menu bar."
+                                )
+                            }
+                        }
+                    }
                 ))
             }
         }
@@ -95,7 +113,19 @@ enum ToggleProvider {
                     settledTitle: "Bluetooth is already \(isOn ? "on" : "off")",
                     subtitle: "Bluetooth is currently \(isOn ? "on" : "off")",
                     symbol: "wave.3.right",
-                    apply: { _ = Shell.run(blueutil, ["-p", $0 ? "1" : "0"]) }
+                    apply: { on in
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            Shell.run(blueutil, ["-p", on ? "1" : "0"])
+                            let now = Shell.run(blueutil, ["-p"]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            if now != (on ? "1" : "0") {
+                                SystemProvider.tellUser(
+                                    title: "Bluetooth did not turn \(on ? "on" : "off")",
+                                    body: "blueutil could not change it, which usually means Spidey needs "
+                                        + "Bluetooth permission in System Settings > Privacy & Security > Bluetooth."
+                                )
+                            }
+                        }
+                    }
                 ))
             } else {
                 add(ResultItem(
@@ -255,7 +285,10 @@ final class CaffeinateManager: ObservableObject {
                     self.isActive = false
                 }
             }
-            guard (try? caffeinate.run()) != nil else { return }
+            guard (try? caffeinate.run()) != nil else {
+                SystemProvider.tellUser(title: "Could not keep the Mac awake", body: "The caffeinate tool would not start.")
+                return
+            }
             process = caffeinate
             isActive = true
         }

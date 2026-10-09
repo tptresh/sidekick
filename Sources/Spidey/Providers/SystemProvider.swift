@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 enum SystemProvider {
     struct Command {
@@ -92,8 +93,12 @@ enum SystemProvider {
         return items
     }
 
+    // NSAppleScript is not safe to run on two threads at once, so every
+    // script goes through one serial queue instead of the shared global one.
+    private static let scriptQueue = DispatchQueue(label: "dev.opensource.spidey.applescript", qos: .userInitiated)
+
     static func runAppleScript(_ source: String, completion: (@Sendable (Bool) -> Void)? = nil) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        scriptQueue.async {
             var error: NSDictionary?
             NSAppleScript(source: source)?.executeAndReturnError(&error)
             if let error {
@@ -117,5 +122,43 @@ enum SystemProvider {
             process.arguments = ["displaysleepnow"]
             try? process.run()
         }
+    }
+
+    // Tells the user an automation did not work: a notification when they
+    // are allowed, otherwise an alert, so a failure is never silent. Safe to
+    // call from any thread.
+    static func tellUser(title: String, body: String) {
+        DispatchQueue.main.async {
+            NSSound(named: "Funk")?.play()
+            // Notifications need a real app bundle; running bare from .build
+            // during development falls straight through to the alert.
+            guard Bundle.main.bundleIdentifier != nil else {
+                showAlert(title: title, body: body)
+                return
+            }
+            let center = UNUserNotificationCenter.current()
+            center.getNotificationSettings { settings in
+                let allowed = settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional
+                guard allowed else {
+                    DispatchQueue.main.async { showAlert(title: title, body: body) }
+                    return
+                }
+                let content = UNMutableNotificationContent()
+                content.title = title
+                content.body = body
+                center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+            }
+        }
+    }
+
+    private static func showAlert(title: String, body: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 }

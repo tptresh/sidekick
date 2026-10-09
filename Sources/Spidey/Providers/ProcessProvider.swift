@@ -42,10 +42,14 @@ enum ProcessProvider {
                 icon: icon.map { ResultIcon.appIcon($0) } ?? .symbol("xmark.circle.fill"),
                 score: 940 + match * 40,
                 action: {
-                    if force {
-                        app.forceTerminate()
-                    } else {
-                        app.terminate()
+                    let sent = force ? app.forceTerminate() : app.terminate()
+                    if !sent, !app.isTerminated {
+                        SystemProvider.tellUser(
+                            title: "Could not quit \(name)",
+                            body: force
+                                ? "macOS refused to force quit it."
+                                : "It did not accept the request. Try kill \(name.lowercased()) to force it."
+                        )
                     }
                 }
             ))
@@ -59,7 +63,18 @@ enum ProcessProvider {
                     subtitle: "Sends SIGKILL to process \(process.pid)",
                     icon: .symbol("bolt.slash.fill"),
                     score: 930,
-                    action: { kill(process.pid, SIGKILL) }
+                    action: {
+                        // Processes owned by root or another user refuse the
+                        // signal; say so instead of looking like it worked.
+                        if kill(process.pid, SIGKILL) != 0 {
+                            SystemProvider.tellUser(
+                                title: "Could not kill \(process.name)",
+                                body: errno == EPERM
+                                    ? "It belongs to the system or another user, so macOS did not allow it."
+                                    : "It may have already quit."
+                            )
+                        }
+                    }
                 ))
             }
         }
@@ -72,21 +87,15 @@ enum ProcessProvider {
     }
 
     static func backgroundProcesses(matching term: String) -> [BackgroundProcess] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-il", term]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        guard (try? process.run()) != nil else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        // Runs on every keystroke on the main thread, so it is bounded: a
+        // stuck pgrep costs at most a second, never a frozen panel.
+        let output = Shell.run("/usr/bin/pgrep", ["-il", term], timeout: 1)
 
         // Names already offered as running apps stay out of the pgrep list.
         let appPids = Set(NSWorkspace.shared.runningApplications.map(\.processIdentifier))
         let ownPid = ProcessInfo.processInfo.processIdentifier
 
-        return String(decoding: data, as: UTF8.self)
+        return output
             .split(separator: "\n")
             .compactMap { line in
                 let parts = line.split(separator: " ", maxSplits: 1)

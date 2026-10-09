@@ -254,16 +254,33 @@ enum FocusProvider {
             process.standardError = stderrPipe
             do {
                 try process.run()
+                // Drain stderr before waiting: a child that fills the pipe
+                // would otherwise never exit.
+                let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
                 if process.terminationStatus != 0 {
-                    let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
                     let message = String(data: data, encoding: .utf8) ?? ""
                     NSLog("Spidey: shortcuts run \"\(name)\" failed: \(message)")
+                    SystemProvider.tellUser(title: "Could not run \(name)", body: shortcutFailureText(message))
                 }
             } catch {
                 NSLog("Spidey: could not launch shortcuts CLI: \(error)")
+                SystemProvider.tellUser(
+                    title: "Could not run \(name)",
+                    body: "The Shortcuts command line tool would not start, so nothing changed."
+                )
             }
         }
+    }
+
+    // What to tell the user when `shortcuts run` fails: its own first error
+    // line when it gave one, otherwise a plain hint.
+    static func shortcutFailureText(_ stderr: String) -> String {
+        let line = stderr.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
+        let hint = "Check the shortcut in the Shortcuts app; nothing changed."
+        guard let line else { return hint }
+        return "Shortcuts said: \(line). \(hint)"
     }
 
     // Synchronous; call from a background queue only.

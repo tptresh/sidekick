@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import UserNotifications
 
 // "ping my iphone", "ping airpods", "find my keys": plays a sound on an Apple
 // device through the Find My app. macOS has no public Find My API and the
@@ -750,43 +749,8 @@ enum FindMyProvider {
     // Without this a failed ping looks exactly like a working one: Find My
     // comes to the front and the device stays silent. Find My is brought
     // forward again so the message and the place to finish are side by side.
-    // If notifications are turned off the message comes up as an alert
-    // instead, so it is never lost.
     private static func report(_ outcome: Outcome, term: String) {
-        let title = "Could not ping \(term)"
-        let body = failureMessage(outcome, term: term)
-        DispatchQueue.main.async {
-            NSSound(named: "Funk")?.play()
-            if outcome != .couldNotLaunch { openFindMy() }
-            // Notifications need a real app bundle; running bare from .build
-            // during development falls straight through to the alert.
-            guard Bundle.main.bundleIdentifier != nil else {
-                showAlert(title: title, body: body)
-                return
-            }
-            let center = UNUserNotificationCenter.current()
-            center.getNotificationSettings { settings in
-                let allowed = settings.authorizationStatus == .authorized
-                    || settings.authorizationStatus == .provisional
-                guard allowed else {
-                    DispatchQueue.main.async { showAlert(title: title, body: body) }
-                    return
-                }
-                let content = UNMutableNotificationContent()
-                content.title = title
-                content.body = body
-                center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
-            }
-        }
-    }
-
-    private static func showAlert(title: String, body: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = body
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
+        if outcome != .couldNotLaunch { openFindMy() }
+        SystemProvider.tellUser(title: "Could not ping \(term)", body: failureMessage(outcome, term: term))
     }
 }
