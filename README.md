@@ -74,7 +74,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Snippets**: `snip add addr 123 Main Street` saves a canned-text snippet, `snip` lists them (Return copies one to the clipboard, Cmd+Return deletes it), `snip rm addr` deletes by keyword, and typing a snippet's keyword on its own surfaces it directly
 - **Drag and drop**: drop files onto the panel to open them, reveal them, copy them, or copy their paths; dropped files are also recorded into clipboard history
 - **Site logos**: web rows show the real favicon of the site (Netflix, Crunchyroll, Disney+, ...), fetched once and cached locally
-- **Hero themes**: Spider-Man (black and deep red) and Batman (black and silver grey), switchable in Preferences along with the menu bar emblem. Typing a hero's name switches themes with a full screen entrance: the Spidey mask swings in on a web line, or the bat signal lights up the sky
+- **Spider-Man theme**: black and deep red, with a Spidey mask emblem in the menu bar. Typing "spidey" plays a full screen entrance: the mask swings in on a web line
 
 Everything that opens a website prefers [Brave](https://brave.com/); if Brave is not installed, your default browser is used.
 
@@ -122,7 +122,7 @@ Center: today's weather where you are (from the free Open-Meteo forecast; the
 last forecast is saved, so it shows instantly and refreshes in the background
 every 30 minutes), a Keep Mac Awake switch, and the automatic Light and Dark
 switch with its two times. While the Mac is being kept awake, the emblem itself
-turns the theme's color in the menu bar (red for Spider-Man, white for Batman).
+turns red in the menu bar.
 Preferences and Quit are at the bottom.
 
 Weather uses Core Location. If the Mac cannot give a fix (or access is denied)
@@ -134,7 +134,7 @@ location from your IP address via ipwho.is; no key or account is involved.
 Click the emblem > Preferences. Everything is on one page, grouped like System
 Settings:
 
-- **Appearance**: hero theme (Spider-Man, Batman) and the automatic Light and Dark schedule
+- **Appearance**: the automatic Light and Dark schedule
 - **Shortcut & Startup**: the hotkey that opens Spidey, and launch at login
 - **Media Sites**: which streaming services and custom sites appear for show searches. Each has a health dot (green reachable, orange not responding, grey not checked), a summary line names any site that is down, plus Add Site and Check Now. Drag or right-click to reorder
 - **Clipboard**: history size, keeping recent screenshots, and clearing history
@@ -256,13 +256,9 @@ Only one Sidekick runs at a time: a launching copy terminates any older one, bec
 
 Dev flags: `Spidey --show "query"` opens the panel on launch; `Spidey --snapshot <dir>` renders sample panels to PNGs and exits.
 
-## Themes
+## Theme
 
-<p align="center">
-  <img src="docs/screenshots/theme-batman.png" width="600" alt="The Batman theme in black and silver grey">
-</p>
-
-Type a hero's name to switch themes, or pick one in Preferences. Each theme sets the panel colours and the menu bar emblem, and switching plays a full screen entrance.
+Sidekick wears a Spider-Man theme: black and deep red panels and a Spidey mask emblem in the menu bar. Type "spidey" to replay its full screen entrance.
 
 ## Contributing
 
@@ -279,7 +275,7 @@ Every change that reaches the app is recorded in [SHIPLOG.md](SHIPLOG.md), newes
 
 ## Disclaimer
 
-Spidey is a fan-made open source tool. It is not affiliated with, endorsed by, or connected to Marvel, DC, Alfred, or any of the trademark holders whose characters inspired its themes.
+Spidey is a fan-made open source tool. It is not affiliated with, endorsed by, or connected to Marvel or any of the trademark holders whose characters inspired its themes.
 
 ## License
 

@@ -8,7 +8,6 @@ enum StatusIcons {
     static func awakeTint(for theme: HeroTheme) -> NSColor {
         switch theme {
         case .spiderman: NSColor(srgbRed: 0.878, green: 0.141, blue: 0.184, alpha: 1)
-        case .batman: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
         }
     }
 
@@ -17,22 +16,7 @@ enum StatusIcons {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             if awake {
                 tint.setFill()
-                if theme == .batman {
-                    // Thin dark rim so the white bat still shows on a light menu bar.
-                    let rim = batSymbolPath()
-                    NSColor(white: 0, alpha: 0.85).setStroke()
-                    rim.lineWidth = 1.6
-                    rim.lineJoinStyle = .round
-                    rim.stroke()
-                }
                 draw(theme, color: tint)
-            } else if theme == .batman {
-                // Idle bat is a hollow outline so filling in reads as "awake".
-                let outline = batSymbolPath()
-                NSColor.black.setStroke()
-                outline.lineWidth = 1.3
-                outline.lineJoinStyle = .round
-                outline.stroke()
             } else {
                 NSColor.black.setFill()
                 draw(theme, color: .black)
@@ -61,14 +45,6 @@ enum StatusIcons {
         switch theme {
         case .spiderman:
             drawSpideyMask(color: color)
-        case .batman:
-            let bat = batSymbolPath()
-            bat.fill()
-            // A hairline in the fill color makes the wings bolder at small sizes.
-            color.setStroke()
-            bat.lineWidth = 0.7
-            bat.lineJoinStyle = .round
-            bat.stroke()
         }
     }
 
@@ -134,39 +110,5 @@ enum StatusIcons {
         eye.curve(to: point(2.8, 13.0), controlPoint1: point(10.2, 8.8), controlPoint2: point(6.2, 11.8))
         eye.close()
         return eye
-    }
-
-    // Classic wide bat: high wing tips, ears, scalloped bottom, center tail point.
-    static func batSymbolPath() -> NSBezierPath {
-        func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x, y: y) }
-        let path = NSBezierPath()
-        // Left wing tip, then the top edge dipping into the notch before the ear.
-        path.move(to: point(0.6, 13.6))
-        path.curve(to: point(6.2, 11.8), controlPoint1: point(1.6, 12.0), controlPoint2: point(4.4, 11.4))
-        // Left ear.
-        path.line(to: point(6.9, 14.4))
-        path.line(to: point(7.6, 12.2))
-        // Head with a slight dip in the middle.
-        path.curve(to: point(10.4, 12.2), controlPoint1: point(8.7, 11.8), controlPoint2: point(9.3, 11.8))
-        // Right ear.
-        path.line(to: point(11.1, 14.4))
-        path.line(to: point(11.8, 11.8))
-        // Top edge out to the high right wing tip.
-        path.curve(to: point(17.4, 13.6), controlPoint1: point(13.6, 11.4), controlPoint2: point(16.4, 12.0))
-        // Bottom edge: two scallops per wing, then the tail point, mirrored back.
-        path.curve(to: point(12.2, 9.4), controlPoint1: point(15.8, 11.0), controlPoint2: point(13.6, 9.8))
-        path.curve(to: point(10.0, 8.9), controlPoint1: point(11.5, 10.2), controlPoint2: point(10.5, 9.6))
-        path.curve(to: point(9.0, 6.6), controlPoint1: point(9.6, 8.0), controlPoint2: point(9.2, 7.2))
-        path.curve(to: point(8.0, 8.9), controlPoint1: point(8.8, 7.2), controlPoint2: point(8.4, 8.0))
-        path.curve(to: point(5.8, 9.4), controlPoint1: point(7.5, 9.6), controlPoint2: point(6.5, 10.2))
-        path.curve(to: point(0.6, 13.6), controlPoint1: point(4.4, 9.8), controlPoint2: point(2.2, 11.0))
-        path.close()
-        // Stretch to fill more of the 18x18 box so it reads at menu bar size.
-        var transform = AffineTransform.identity
-        transform.translate(x: 9, y: 9.4)
-        transform.scale(x: 1.0, y: 1.55)
-        transform.translate(x: -9, y: -10.5)
-        path.transform(using: transform)
-        return path
     }
 }

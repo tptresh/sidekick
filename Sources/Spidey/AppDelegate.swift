@@ -124,7 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let cases: [(query: String, theme: HeroTheme, file: String)] = [
             ("", .spiderman, "empty.png"),
-            ("", .batman, "empty-batman.png"),
             ("saf", .spiderman, "apps.png"),
             ("youtube lofi beats", .spiderman, "youtube.png"),
             ("death note", .spiderman, "streaming.png"),
@@ -133,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             ("clip", .spiderman, "clipboard.png"),
             ("vinted", .spiderman, "sites.png"),
             ("netflix", .spiderman, "netflix.png"),
-            ("grand seiko", .batman, "batman.png"),
+            ("grand seiko", .spiderman, "sites-watches.png"),
             ("100 usd to gbp", .spiderman, "convert.png"),
             ("5km in miles", .spiderman, "units.png"),
             ("time in tokyo", .spiderman, "worldclock.png"),

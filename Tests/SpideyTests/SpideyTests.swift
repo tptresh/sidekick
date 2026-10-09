@@ -1127,17 +1127,9 @@ final class ThemeProviderTests: XCTestCase {
         }
     }
 
-    func testBatTriggersBatmanTheme() {
-        for query in ["the bat", "batman", "bat", "gotham", "dark knight"] {
-            XCTAssertTrue(
-                ThemeProvider.results(for: query).contains { $0.title.contains("Batman") },
-                "expected a Batman theme row for \(query)"
-            )
-        }
-    }
-
     func testRetiredThemesOfferNothing() {
-        for query in ["sharingan", "itachi", "sasuke", "rinnegan", "uchiha"] {
+        for query in ["sharingan", "itachi", "sasuke", "rinnegan", "uchiha",
+                      "the bat", "batman", "gotham", "dark knight"] {
             XCTAssertTrue(
                 ThemeProvider.results(for: query).isEmpty,
                 "did not expect a theme row for \(query)"
@@ -1145,8 +1137,10 @@ final class ThemeProviderTests: XCTestCase {
         }
     }
 
-    func testOnlySpiderManAndBatmanThemesRemain() {
-        XCTAssertEqual(HeroTheme.allCases, [.spiderman, .batman])
+    func testOnlySpiderManThemeRemains() {
+        XCTAssertEqual(HeroTheme.allCases, [.spiderman])
+        // A saved "batman" setting must not decode, so it falls back to Spider-Man.
+        XCTAssertNil(HeroTheme(rawValue: "batman"))
     }
 
     func testOrdinaryQueriesDoNotOfferThemes() {

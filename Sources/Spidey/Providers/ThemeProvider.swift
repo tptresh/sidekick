@@ -1,7 +1,7 @@
 import AppKit
 
 // Typing a hero's name offers a theme switch with a full screen entrance:
-// "spidey" swings the mask in on a web line, "the bat" lights the signal.
+// "spidey" swings the mask in on a web line.
 enum ThemeProvider {
     static func results(for query: String) -> [ResultItem] {
         let lowered = query.lowercased().trimmingCharacters(in: .whitespaces)
@@ -12,14 +12,11 @@ enum ThemeProvider {
         if matches(lowered, ["spidey", "spiderman", "spider-man", "spider man", "spidey theme"]) {
             items.append(item(for: .spiderman))
         }
-        if matches(lowered, ["the bat", "batman", "bat man", "batman theme", "dark knight", "gotham"]) {
-            items.append(item(for: .batman))
-        }
         return items
     }
 
     // Progressive prefix match: every keystroke on the way to a trigger keeps
-    // the row visible, but typing past it ("batman movie") drops it.
+    // the row visible, but typing past it ("spider solitaire") drops it.
     private static func matches(_ query: String, _ triggers: [String]) -> Bool {
         triggers.contains { $0.hasPrefix(query) }
     }
@@ -34,8 +31,6 @@ enum ThemeProvider {
             switch theme {
             case .spiderman:
                 subtitle = "Thwip. The mask swings in from the top of the screen"
-            case .batman:
-                subtitle = "Lights the signal and summons the Dark Knight"
             }
         }
         return ResultItem(
