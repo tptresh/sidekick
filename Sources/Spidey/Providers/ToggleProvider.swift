@@ -147,8 +147,8 @@ enum ToggleProvider {
                 onTitle: "Keep Mac Awake", offTitle: "Stop Keeping Mac Awake",
                 settledTitle: active ? "Mac is already staying awake" : "Mac already sleeps normally",
                 subtitle: active
-                    ? "Caffeinate is running, sleep works normally again after this"
-                    : "Stops the Mac and display from sleeping until turned off",
+                    ? "Sleep works normally again after this, lid included"
+                    : "No sleep until turned off, even on battery or with the lid closed",
                 symbol: active ? "cup.and.saucer" : "cup.and.saucer.fill",
                 apply: { _ in CaffeinateManager.shared.toggle() }
             ))
@@ -293,7 +293,10 @@ enum Bluetooth {
     static var blueutilPath: String? { SetupCenter.binaryPath(for: "blueutil") }
 }
 
-// Keeps a caffeinate child process alive while "keep awake" is on.
+// Keeps the Mac awake while "keep awake" is on: a caffeinate child process
+// holds off idle and display sleep (on battery as much as on power, since it
+// runs without -s), and the system "disablesleep" power setting holds off the
+// sleep that closing the lid would otherwise force.
 final class CaffeinateManager: ObservableObject {
     static let shared = CaffeinateManager()
 
@@ -301,6 +304,16 @@ final class CaffeinateManager: ObservableObject {
 
     // Published so the menu bar can show that the Mac is being kept awake.
     @Published private(set) var isActive = false
+    // Whether closing the lid is held off right now.
+    @Published private(set) var lidHeld = false
+    // Whether pmset disablesleep runs without a password prompt (a sudoers
+    // rule the user set up); shown in Preferences so the prompt is explained.
+    @Published private(set) var hasAdminRule = false
+
+    // Set while the lid setting is on, so a crash or force quit that skipped
+    // stop() is undone at the next launch instead of leaving a Mac that
+    // never sleeps.
+    private static let lidLeftOnKey = "keepAwakeLidLeftOn"
 
     func toggle() {
         if isActive {
@@ -314,6 +327,7 @@ final class CaffeinateManager: ObservableObject {
                     guard let self, self.process === ended else { return }
                     self.process = nil
                     self.isActive = false
+                    self.setLidSleep(disabled: false)
                 }
             }
             guard (try? caffeinate.run()) != nil else {
@@ -322,6 +336,7 @@ final class CaffeinateManager: ObservableObject {
             }
             process = caffeinate
             isActive = true
+            setLidSleep(disabled: true)
         }
     }
 
@@ -329,5 +344,67 @@ final class CaffeinateManager: ObservableObject {
         process?.terminate()
         process = nil
         isActive = false
+        setLidSleep(disabled: false)
+    }
+
+    // Called once at launch: learns whether the silent path exists and undoes
+    // a lid setting left on by a crash or force quit.
+    func runAtLaunch() {
+        DispatchQueue.global(qos: .utility).async {
+            let allowed = Self.sudoAllowed()
+            DispatchQueue.main.async { self.hasAdminRule = allowed }
+            if UserDefaults.standard.bool(forKey: Self.lidLeftOnKey) {
+                let reset = Shell.runStatus("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "disablesleep", "0"])
+                if reset.status == 0 { UserDefaults.standard.set(false, forKey: Self.lidLeftOnKey) }
+            }
+        }
+    }
+
+    // MARK: - Lid sleep
+
+    private static func sudoAllowed() -> Bool {
+        Shell.runStatus("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset", "disablesleep", "1"]).status == 0
+    }
+
+    // Changing the sleep setting needs root. sudo -n is silent when the user
+    // has a sudoers rule for these commands; otherwise macOS asks for the
+    // admin password through the standard prompt.
+    private func setLidSleep(disabled: Bool) {
+        let value = disabled ? "1" : "0"
+        DispatchQueue.global(qos: .userInitiated).async {
+            var ok = Shell.runStatus("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "disablesleep", value]).status == 0
+            var cancelled = false
+            if !ok {
+                // Nothing to undo when the lid was never held.
+                if !disabled && !self.lidHeld { return }
+                let result = Shell.runStatus("/usr/bin/osascript", ["-e", Self.adminScript(value: value)], timeout: 120)
+                ok = result.status == 0
+                // -128 is AppleScript's "user cancelled".
+                cancelled = result.error.contains("-128")
+            }
+            let allowed = Self.sudoAllowed()
+            DispatchQueue.main.async {
+                self.hasAdminRule = allowed
+                if ok {
+                    self.lidHeld = disabled
+                    UserDefaults.standard.set(disabled, forKey: Self.lidLeftOnKey)
+                } else if disabled {
+                    self.lidHeld = false
+                    SystemProvider.tellUser(
+                        title: "Closing the lid will still sleep the Mac",
+                        body: cancelled
+                            ? "Keep Awake is on, but holding off lid sleep needs your password. Turn it off and on again to be asked."
+                            : "Keep Awake is on, but the sleep setting could not be changed.")
+                } else {
+                    SystemProvider.tellUser(
+                        title: "The Mac may still refuse to sleep",
+                        body: "Lid sleep could not be turned back on. Run \"sudo pmset disablesleep 0\" in Terminal.")
+                }
+            }
+        }
+    }
+
+    static func adminScript(value: String) -> String {
+        "do shell script \"/usr/bin/pmset disablesleep \(value)\" with administrator privileges"
     }
 }

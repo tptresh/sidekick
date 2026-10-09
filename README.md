@@ -48,7 +48,7 @@ Native Swift + SwiftUI. No Electron, no dependencies, one small menu bar agent.
 - **Menu search**: `menu export` searches the front app's menu bar and runs the matching item (Accessibility permission)
 - **Window switcher**: `win mail` lists on-screen windows across apps and raises the one you pick; strong title matches also appear on plain queries
 - **Tab switcher**: `tab gmail` jumps to an open Brave (or Chrome) tab; first use shows the standard Automation consent
-- **Toggles**: `dark mode`, `wifi`, `bluetooth` (via blueutil, which Sidekick installs automatically at launch), and `caffeinate` to keep the Mac awake until you turn it off
+- **Toggles**: `dark mode`, `wifi`, `bluetooth` (via blueutil, which Sidekick installs automatically at launch), and `caffeinate` to keep the Mac awake until you turn it off, on battery and with the lid closed too (the lid part changes a system power setting, so macOS asks for your admin password unless a sudo rule for `pmset disablesleep` already allows it silently)
 - **Scheduled appearance**: switches the Mac to Light Mode in the morning and Dark Mode in the evening (6:00 and 16:30 by default, editable in Settings)
 - **Ping your Apple devices**: `ping my iphone`, `ping airpods`, or `find my keys` plays a sound on the device through the Find My app; any name from your Find My list works (`ping tanush's macbook`), with or without the apostrophe. A device type like `my iphone` picks your own device over a family member's. Uses the same one-time Accessibility permission as window snapping, and if a step cannot be automated Spidey says what went wrong and leaves Find My open on the device so finishing is one click
 - **Timers**: `timer 10m tea` rings with a notification and a sound; `timers` lists running ones and Return cancels
@@ -120,7 +120,8 @@ Until then, Spidey automatically falls back to Option+Space. You can record any 
 Click the emblem in the menu bar for a small panel in the style of Control
 Center: today's weather where you are (from the free Open-Meteo forecast; the
 last forecast is saved, so it shows instantly and refreshes in the background
-every 30 minutes), a Keep Mac Awake switch, and the automatic Light and Dark
+every 30 minutes), a Keep Mac Awake switch that also holds off sleep on battery
+and with the lid closed, and the automatic Light and Dark
 switch with its two times. While the Mac is being kept awake, the emblem itself
 turns red in the menu bar.
 Preferences and Quit are at the bottom.

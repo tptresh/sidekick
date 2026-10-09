@@ -319,6 +319,16 @@ final class SetupCenter: ObservableObject {
             detail: "today's weather in the menu bar panel",
             state: location, settingsAnchor: "Privacy_LocationServices"
         ))
+        // Not a privacy grant: the lid part of Keep Mac Awake needs root, so
+        // without a sudo rule for pmset the switch asks for the admin password.
+        rows.append(PermissionRow(
+            id: "lid", name: "Administrator",
+            detail: CaffeinateManager.shared.hasAdminRule
+                ? "Keep Mac Awake holds off lid sleep without a prompt"
+                : "Keep Mac Awake asks for your password to hold off lid sleep",
+            state: CaffeinateManager.shared.hasAdminRule ? .granted : .pending,
+            settingsAnchor: "Privacy_Accessibility"
+        ))
         return rows
     }
 

@@ -662,7 +662,7 @@ private struct SettingsPage: View {
         case .granted:
             Chip("Allowed", tone: .success, symbol: "checkmark.circle.fill")
         case .pending:
-            Chip("Not asked yet", tone: .neutral)
+            Chip(row.id == "lid" ? "Asks each time" : "Not asked yet", tone: .neutral)
         case .denied:
             PillButton("Open Settings") { setup.openPrivacySettings(anchor: row.settingsAnchor) }
         }

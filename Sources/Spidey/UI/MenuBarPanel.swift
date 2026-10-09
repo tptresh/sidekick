@@ -33,7 +33,9 @@ struct MenuBarPanel: View {
                 SwitchRow(
                     symbol: "cup.and.saucer.fill",
                     title: "Keep Mac Awake",
-                    subtitle: caffeinate.isActive ? "On, sleep is paused" : "Off",
+                    subtitle: caffeinate.isActive
+                        ? (caffeinate.lidHeld ? "On, even on battery or with the lid closed" : "On, but closing the lid still sleeps")
+                        : "Off",
                     isOn: Binding(
                         get: { caffeinate.isActive },
                         set: { on in if on != caffeinate.isActive { caffeinate.toggle() } }

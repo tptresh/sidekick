@@ -90,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // would hang them.
         if snapshotDirectory == nil, entranceDirectory == nil {
             SetupCenter.shared.runAtLaunch()
+            CaffeinateManager.shared.runAtLaunch()
         }
 
         if let query = showOnLaunchQuery {
