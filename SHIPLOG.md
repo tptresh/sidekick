@@ -508,3 +508,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 0273a79 (build succeeded, app relaunched)
+
+## 2026-10-18 21:57 - OK - main
+- "Search tests accept the No battery answer on Macs without a battery, so GitHub CI can pass"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: dffff7f (build succeeded, app relaunched)
