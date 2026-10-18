@@ -496,3 +496,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 252cccd (build succeeded, app relaunched)
+
+## 2026-10-18 21:49 - OK - main
+- "Tests pass on machines that have not fetched exchange rates yet, so GitHub CI is green again; README names the real download file"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 10356a9 (build succeeded, app relaunched)
