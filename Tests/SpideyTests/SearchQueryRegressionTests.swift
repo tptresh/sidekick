@@ -98,7 +98,8 @@ final class SearchQueryRegressionTests: XCTestCase {
             ("wifi", { WifiControl.device == nil || $0.title.contains("Wi-Fi") }, "wifi toggle"),
             ("volume 50", contains("Volume"), "volume"),
             ("mute", titled("Mute"), "mute"),
-            ("battery", contains("%"), "battery"),
+            // Desktop Macs and CI machines answer "No battery" instead of a percentage.
+            ("battery", { $0.title.contains("%") || $0.title == "No battery" }, "battery"),
             ("play", { !$0.title.localizedCaseInsensitiveContains("playstation") }, "music command over site prefix"),
             ("today", contains("event"), "calendar today"),
             ("amazon death note manga", contains("Search Amazon"), "amazon keyword"),
