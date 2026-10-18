@@ -502,3 +502,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 10356a9 (build succeeded, app relaunched)
+
+## 2026-10-18 21:53 - OK - main
+- "Search tests no longer expect a Wi-Fi switch on Macs without Wi-Fi, so GitHub CI can pass"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 0273a79 (build succeeded, app relaunched)
