@@ -79,7 +79,8 @@ final class SearchQueryRegressionTests: XCTestCase {
             ("do not disturb", contains("Do Not Disturb"), "Focus"),
             ("left half", contains("Left Half"), "window snap"),
             ("maximize", contains("Maximize"), "window snap"),
-            ("100 usd to gbp", contains("GBP"), "currency"),
+            // A machine with no cached rates (CI) shows the pending row first instead.
+            ("100 usd to gbp", { $0.title.contains("GBP") || $0.title.contains("exchange rates") }, "currency"),
             ("5km in miles", contains("miles"), "units"),
             ("72f to c", contains("°C"), "temperature"),
             ("2+2*5", titled("= 12"), "calculator"),

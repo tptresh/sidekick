@@ -82,7 +82,7 @@ Everything that opens a website prefers [Brave](https://brave.com/); if Brave is
 
 ### Download a build
 
-Grab the latest `Sidekick.zip` from [Releases](https://github.com/tptresh/sidekick/releases/latest), unzip it, and move `Sidekick.app` to /Applications.
+Grab the latest `Sidekick-<version>.zip` from [Releases](https://github.com/tptresh/sidekick/releases/latest), unzip it, and move `Sidekick.app` to /Applications.
 
 Builds are ad-hoc signed rather than notarized, so macOS quarantines the download and refuses to open it until you clear that flag once:
 
