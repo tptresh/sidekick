@@ -520,3 +520,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: 13f333e (build succeeded, app relaunched)
+
+## 2026-10-22 18:12 - OK - main
+- "auto-ship: session stopped with unshipped changes"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: e9eb0c4 (build succeeded, app relaunched)
