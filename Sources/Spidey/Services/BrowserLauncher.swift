@@ -18,8 +18,7 @@ enum BrowserLauncher {
                 configuration: NSWorkspace.OpenConfiguration()
             )
         } else {
-            let app = NSWorkspace.shared.urlForApplication(toOpen: url)
-            ScreenFollow.shared.expect(bundleID: app.flatMap { Bundle(url: $0)?.bundleIdentifier })
+            ScreenFollow.shared.expect(opening: url)
             NSWorkspace.shared.open(url)
         }
     }

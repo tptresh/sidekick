@@ -176,7 +176,7 @@ final class AppProvider {
                 dragFileURL: url,
                 secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
                 action: {
-                    ScreenFollow.shared.expect(bundleID: Bundle(url: url)?.bundleIdentifier)
+                    ScreenFollow.shared.expect(opening: url)
                     NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
                 }
             ))

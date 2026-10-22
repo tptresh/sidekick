@@ -225,7 +225,10 @@ enum FileProvider {
                     score: baseScore + match * spread,
                     dragFileURL: url,
                     secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
-                    action: { NSWorkspace.shared.open(url) }
+                    action: {
+                        ScreenFollow.shared.expect(opening: url)
+                        NSWorkspace.shared.open(url)
+                    }
                 )
             }
             DispatchQueue.main.async { completion(items) }

@@ -98,7 +98,6 @@ enum WindowSwitcherProvider {
     }
 
     static func raise(_ window: WindowInfo) {
-        ScreenFollow.shared.leaveWindowsAlone()
         NSWorkspace.shared.runningApplications
             .first { $0.processIdentifier == window.pid }?
             .activate(options: [.activateIgnoringOtherApps])

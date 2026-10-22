@@ -39,6 +39,7 @@ enum ClaudeProvider {
         // handles the claude:// scheme.
         if let url = deepLinkURL(prompt: prompt, directory: directory),
            NSWorkspace.shared.urlForApplication(toOpen: URL(string: "claude://")!) != nil {
+            ScreenFollow.shared.expect(opening: url)
             NSWorkspace.shared.open(url)
             return
         }

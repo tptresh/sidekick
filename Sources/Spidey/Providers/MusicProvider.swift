@@ -186,6 +186,7 @@ enum MusicProvider {
                 icon: icon(for: player, running: nil),
                 score: launchScore - Double(index),
                 action: {
+                    ScreenFollow.shared.expect(opening: url)
                     NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
                 }
             )

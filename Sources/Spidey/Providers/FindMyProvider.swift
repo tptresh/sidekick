@@ -328,6 +328,7 @@ enum FindMyProvider {
             return
         }
         let url = URL(fileURLWithPath: "/System/Applications/FindMy.app")
+        ScreenFollow.shared.expect(opening: url)
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         NSWorkspace.shared.openApplication(at: url, configuration: configuration) { app, error in

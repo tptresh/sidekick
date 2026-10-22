@@ -37,4 +37,23 @@ final class ScreenFollowTests: XCTestCase {
         XCTAssertFalse(ScreenFollow.needsMove(window, target: wide))
         XCTAssertTrue(ScreenFollow.needsMove(window, target: laptop))
     }
+
+    func testNamedAppMovesOnlyOnceItIsInFront() {
+        XCTAssertFalse(ScreenFollow.isOpenedWindow(
+            frontBundleID: "com.other", expected: "com.brave.Browser", changed: true, elapsed: 2))
+        XCTAssertTrue(ScreenFollow.isOpenedWindow(
+            frontBundleID: "com.brave.Browser", expected: "com.brave.Browser", changed: true, elapsed: 0.2))
+    }
+
+    func testAlreadyFrontWindowWaitsBrieflyForANewOne() {
+        XCTAssertFalse(ScreenFollow.isOpenedWindow(
+            frontBundleID: "com.brave.Browser", expected: "com.brave.Browser", changed: false, elapsed: 0.3))
+        XCTAssertTrue(ScreenFollow.isOpenedWindow(
+            frontBundleID: "com.brave.Browser", expected: "com.brave.Browser", changed: false, elapsed: 1))
+    }
+
+    func testUnknownAppNeedsAChangedWindow() {
+        XCTAssertFalse(ScreenFollow.isOpenedWindow(frontBundleID: "x", expected: nil, changed: false, elapsed: 5))
+        XCTAssertTrue(ScreenFollow.isOpenedWindow(frontBundleID: "x", expected: nil, changed: true, elapsed: 0.2))
+    }
 }

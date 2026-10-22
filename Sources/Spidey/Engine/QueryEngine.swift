@@ -467,6 +467,7 @@ final class SpideyViewModel: ObservableObject {
                 icon: .appIcon(firstIcon),
                 score: 500,
                 action: {
+                    if let first = urls.first { ScreenFollow.shared.expect(opening: first) }
                     urls.forEach { NSWorkspace.shared.open($0) }
                     finish()
                 }

@@ -506,6 +506,7 @@ enum ContactsProvider {
     private static func openCard(_ person: ContactCard) {
         let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
         let escaped = person.id.addingPercentEncoding(withAllowedCharacters: unreserved) ?? person.id
+        ScreenFollow.shared.expect(bundleID: "com.apple.AddressBook")
         if let url = URL(string: "addressbook://\(escaped)"), NSWorkspace.shared.open(url) { return }
         if let contacts = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.AddressBook") {
             NSWorkspace.shared.openApplication(at: contacts, configuration: NSWorkspace.OpenConfiguration())

@@ -390,6 +390,7 @@ enum CalendarProvider {
 
     private static func openCalendarApp() {
         let url = URL(fileURLWithPath: "/System/Applications/Calendar.app")
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 

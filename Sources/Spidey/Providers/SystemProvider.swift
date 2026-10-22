@@ -35,6 +35,7 @@ enum SystemProvider {
             symbol: "sparkles.tv", destructive: false,
             run: {
                 let url = URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app")
+                ScreenFollow.shared.expect(opening: url)
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             }
         ),

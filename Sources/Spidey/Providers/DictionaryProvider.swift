@@ -55,6 +55,7 @@ enum DictionaryProvider {
     static func openDictionary(_ word: String) {
         let encoded = word.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? word
         if let url = URL(string: "dict://\(encoded)") {
+            ScreenFollow.shared.expect(opening: url)
             NSWorkspace.shared.open(url)
         }
     }

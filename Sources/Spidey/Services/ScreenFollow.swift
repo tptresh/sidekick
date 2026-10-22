@@ -4,18 +4,24 @@ import ApplicationServices
 // With more than one display, Sidekick opens on the screen the user last
 // clicked on, and whatever a result opens is pulled onto that same screen.
 // Moving another app's window needs Accessibility; without it only the panel
-// follows. Only a window that changed during the action (a new app in front,
-// a new window) or the app a launch row named is moved, so toggles and copies
-// never shuffle the user's windows around.
+// follows. Only rows that open something say so (expect), and only the app
+// they named is moved, so toggles, copies, minimizing and jumping to an
+// existing window never shuffle the user's windows around.
 final class ScreenFollow {
     static let shared = ScreenFollow()
 
     private var lastClick: NSPoint?
     private var monitors: [Any] = []
     private var target: NSRect?
-    private var expectedBundleID: String?
-    private var stayPut = false
+    private var expectation: Expectation?
+    private var inAction = false
     private var generation = 0
+
+    // bundleID nil means "something opens, app unknown": then a new front
+    // app or window is taken as the one it opened.
+    private struct Expectation {
+        let bundleID: String?
+    }
 
     func start() {
         guard monitors.isEmpty else { return }
@@ -48,30 +54,52 @@ final class ScreenFollow {
         target = screen.visibleFrame
     }
 
-    // Launch rows name the app they open, so it is moved even when it was
-    // already in front with the same window (a link opening in Brave).
+    // Rows that open an app, file or page call this just before opening, so
+    // the window it lands in is pulled onto the panel's screen, even when the
+    // app was already in front with the same window (a link opening in Brave).
+    // Called after the action has returned (a page opened once a lookup
+    // finishes), it starts its own watch.
     func expect(bundleID: String?) {
-        expectedBundleID = bundleID
+        expectation = Expectation(bundleID: bundleID)
+        if !inAction { follow(before: Self.frontWindow()) }
     }
 
-    // For actions that go to an existing window on purpose (window switcher).
-    func leaveWindowsAlone() {
-        stayPut = true
+    func expect(opening url: URL) {
+        let app = url.pathExtension == "app" ? url : NSWorkspace.shared.urlForApplication(toOpen: url)
+        expect(bundleID: app.flatMap { Bundle(url: $0)?.bundleIdentifier })
     }
 
     func run(_ action: () -> Void) {
-        expectedBundleID = nil
-        stayPut = false
+        expectation = nil
         let before = Self.frontWindow()
+        inAction = true
         action()
-        guard NSScreen.screens.count > 1, let target, !stayPut, AXIsProcessTrusted() else { return }
+        inAction = false
+        follow(before: before)
+    }
+
+    private func follow(before: FrontWindow?) {
+        guard let expectation else { return }
+        self.expectation = nil
+        guard NSScreen.screens.count > 1, let target, AXIsProcessTrusted() else { return }
         generation += 1
         let watch = Watch(
-            generation: generation, target: target, expected: expectedBundleID,
+            generation: generation, target: target, expected: expectation.bundleID,
             beforePID: before?.pid, beforeWindow: before?.window,
-            deadline: Date().addingTimeInterval(expectedBundleID == nil ? 3 : 8)
+            started: Date(), deadline: Date().addingTimeInterval(10)
         )
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.poll(watch) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.poll(watch) }
+    }
+
+    // Whether the front window is the one the row opened. A named app counts
+    // once it is in front, but its old window only after a short grace, in
+    // case the app is about to open a new window for the page.
+    static func isOpenedWindow(
+        frontBundleID: String?, expected: String?, changed: Bool, elapsed: TimeInterval
+    ) -> Bool {
+        guard let expected else { return changed }
+        guard frontBundleID == expected else { return false }
+        return changed || elapsed > 0.7
     }
 
     // MARK: - Following the opened window
@@ -82,6 +110,7 @@ final class ScreenFollow {
         let expected: String?
         let beforePID: pid_t?
         let beforeWindow: AXUIElement?
+        let started: Date
         let deadline: Date
     }
 
@@ -94,13 +123,14 @@ final class ScreenFollow {
               front.pid != ProcessInfo.processInfo.processIdentifier else { return again() }
         let changed = front.pid != watch.beforePID
             || watch.beforeWindow.map { !CFEqual($0, front.window) } ?? true
-        let isExpected = watch.expected != nil && front.bundleID == watch.expected
-        if watch.expected != nil ? !isExpected : !changed { return again() }
+        guard Self.isOpenedWindow(
+            frontBundleID: front.bundleID, expected: watch.expected,
+            changed: changed, elapsed: Date().timeIntervalSince(watch.started)
+        ) else { return again() }
 
         guard !Self.isFullScreen(front.window), let frame = Self.frame(of: front.window) else { return }
         if Self.needsMove(frame, target: watch.target) {
-            let from = Self.screenFrame(containing: frame)
-            Self.setFrame(Self.relocate(frame, from: from, to: watch.target), of: front.window)
+            Self.place(front.window, from: Self.screenFrame(containing: frame), to: watch.target, current: frame)
         }
         // Some apps restore their saved window position a moment after showing
         // the window, so check once more and pull it back if it jumped.
@@ -108,8 +138,7 @@ final class ScreenFollow {
             guard let self, watch.generation == self.generation,
                   let frame = Self.frame(of: front.window),
                   Self.needsMove(frame, target: watch.target) else { return }
-            let from = Self.screenFrame(containing: frame)
-            Self.setFrame(Self.relocate(frame, from: from, to: watch.target), of: front.window)
+            Self.place(front.window, from: Self.screenFrame(containing: frame), to: watch.target, current: frame)
         }
     }
 
@@ -168,10 +197,10 @@ final class ScreenFollow {
             var ref: CFTypeRef?
             if AXUIElementCopyAttributeValue(axApp, attribute as CFString, &ref) == .success,
                let ref, CFGetTypeID(ref) == AXUIElementGetTypeID() {
-                return FrontWindow(
-                    pid: app.processIdentifier, bundleID: app.bundleIdentifier,
-                    window: ref as! AXUIElement
-                )
+                let window = ref as! AXUIElement
+                // A hung app must not freeze Sidekick for the default six seconds.
+                AXUIElementSetMessagingTimeout(window, 0.5)
+                return FrontWindow(pid: app.processIdentifier, bundleID: app.bundleIdentifier, window: window)
             }
         }
         return nil
@@ -197,6 +226,17 @@ final class ScreenFollow {
         AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
         guard let primary = NSScreen.screens.first?.frame else { return nil }
         return NSRect(x: position.x, y: primary.maxY - position.y - size.height, width: size.width, height: size.height)
+    }
+
+    // Apps that refuse the smaller size are pushed back inside the screen's
+    // top-left corner instead of hanging off its edge.
+    private static func place(_ window: AXUIElement, from: NSRect, to target: NSRect, current: NSRect) {
+        let wanted = relocate(current, from: from, to: target)
+        setFrame(wanted, of: window)
+        guard let actual = frame(of: window), actual.width > target.width + 1 || actual.height > target.height + 1
+        else { return }
+        let x = max(target.minX, min(wanted.minX, target.maxX - actual.width))
+        setFrame(NSRect(x: x, y: target.maxY - actual.height, width: actual.width, height: actual.height), of: window)
     }
 
     private static func setFrame(_ frame: NSRect, of window: AXUIElement) {
