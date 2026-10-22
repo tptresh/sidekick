@@ -12,11 +12,14 @@ enum BrowserLauncher {
     // Opens in Brave when installed, otherwise falls back to the default browser.
     static func open(_ url: URL) {
         if let brave = braveURL {
+            ScreenFollow.shared.expect(bundleID: braveBundleID)
             NSWorkspace.shared.open(
                 [url], withApplicationAt: brave,
                 configuration: NSWorkspace.OpenConfiguration()
             )
         } else {
+            let app = NSWorkspace.shared.urlForApplication(toOpen: url)
+            ScreenFollow.shared.expect(bundleID: app.flatMap { Bundle(url: $0)?.bundleIdentifier })
             NSWorkspace.shared.open(url)
         }
     }

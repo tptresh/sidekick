@@ -175,7 +175,10 @@ final class AppProvider {
                 rankingKey: app.rankingKey,
                 dragFileURL: url,
                 secondaryAction: { NSWorkspace.shared.activateFileViewerSelecting([url]) },
-                action: { NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) }
+                action: {
+                    ScreenFollow.shared.expect(bundleID: Bundle(url: url)?.bundleIdentifier)
+                    NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+                }
             ))
         }
         return items.sorted { $0.score > $1.score }.prefix(6).map { $0 }

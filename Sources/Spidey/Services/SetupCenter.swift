@@ -283,7 +283,7 @@ final class SetupCenter: ObservableObject {
         var rows: [PermissionRow] = []
         rows.append(PermissionRow(
             id: "ax", name: "Accessibility",
-            detail: "window switching, menu search, window layout, Find My",
+            detail: "window switching, menu search, window layout, Find My, opening apps on your current screen",
             state: AXIsProcessTrusted() ? .granted : .pending,
             settingsAnchor: "Privacy_Accessibility"
         ))

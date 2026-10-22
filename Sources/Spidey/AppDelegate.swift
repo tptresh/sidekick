@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setUpStatusItem()
         setUpPanel()
         ClipboardStore.shared.start()
+        ScreenFollow.shared.start()
         ScreenshotWatcher.shared.start()
         registerHotKey()
         // Timers left running at the last quit are restored now, so they ring
@@ -349,7 +350,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func positionPanel(resultCount: Int) {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = ScreenFollow.shared.activeScreen() ?? NSScreen.main else { return }
+        ScreenFollow.shared.pinTarget(screen)
         let height = SearchView.panelHeight(resultCount: resultCount)
         let frame = screen.visibleFrame
         let x = frame.midX - SearchView.panelWidth / 2

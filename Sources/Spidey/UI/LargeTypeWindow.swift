@@ -1,13 +1,13 @@
 import AppKit
 
 // A borderless dark glass card that shows one line of text as big as fits,
-// centered on the main screen. Any key press or click dismisses it.
+// centered on the screen the user is working on. Any key press or click dismisses it.
 final class LargeTypeWindow: NSWindow {
     private static var current: LargeTypeWindow?
 
     static func show(_ text: String) {
         dismiss()
-        guard let screen = NSScreen.main else { return }
+        guard let screen = ScreenFollow.shared.activeScreen() ?? NSScreen.main else { return }
         let maxWidth = screen.visibleFrame.width * 0.85
 
         let label = NSTextField(labelWithString: text)

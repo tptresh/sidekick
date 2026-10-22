@@ -520,11 +520,13 @@ final class SpideyViewModel: ObservableObject {
         let item = results[selectedIndex]
         let wasArmed = armedCommand
         var ranSecondary = false
-        if commandModifier, let secondary = item.secondaryAction {
-            secondary()
-            ranSecondary = true
-        } else {
-            item.action()
+        ScreenFollow.shared.run {
+            if commandModifier, let secondary = item.secondaryAction {
+                secondary()
+                ranSecondary = true
+            } else {
+                item.action()
+            }
         }
         // Learn from the pick: rows without a rankingKey opted out.
         if let key = item.rankingKey {
