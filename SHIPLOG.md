@@ -514,3 +514,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: dffff7f (build succeeded, app relaunched)
+
+## 2026-10-22 18:05 - OK - main
+- "With two screens, Sidekick opens on the screen you last clicked and pulls the app or page you open onto that screen"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: 13f333e (build succeeded, app relaunched)
