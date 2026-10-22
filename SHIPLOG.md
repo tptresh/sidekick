@@ -526,3 +526,9 @@ last worked, and inspect its listed commit hashes with `git show`.
 - merged commits:
   - (none - rebuild/relaunch only)
 - main is now at: e9eb0c4 (build succeeded, app relaunched)
+
+## 2026-10-22 18:14 - OK - main
+- "Only rows that open something pull its window to your screen; settings, contacts and script opens follow too"
+- merged commits:
+  - (none - rebuild/relaunch only)
+- main is now at: b4ecc09 (build succeeded, app relaunched)
