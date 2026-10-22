@@ -333,6 +333,7 @@ enum CalendarProvider {
     private static func openPrivacySettings(_ type: EKEntityType) {
         let pane = type == .event ? "Privacy_Calendars" : "Privacy_Reminders"
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+            ScreenFollow.shared.expect(opening: url)
             NSWorkspace.shared.open(url)
         }
     }

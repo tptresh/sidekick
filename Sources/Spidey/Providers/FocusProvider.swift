@@ -210,6 +210,7 @@ enum FocusProvider {
                 }
 
                 DispatchQueue.main.async {
+                    ScreenFollow.shared.expect(opening: signed)
                     NSWorkspace.shared.open(signed)
                 }
                 // Poll until the user clicks Add (or give up after a minute).

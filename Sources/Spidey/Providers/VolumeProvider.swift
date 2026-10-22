@@ -102,6 +102,7 @@ enum VolumeProvider {
                 icon: .symbol("sun.max"), score: 950,
                 action: {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.Displays-Settings.extension") {
+                        ScreenFollow.shared.expect(opening: url)
                         NSWorkspace.shared.open(url)
                     }
                 }

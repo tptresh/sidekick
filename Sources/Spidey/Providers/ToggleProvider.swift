@@ -133,6 +133,7 @@ enum ToggleProvider {
                     score: 950,
                     action: {
                         if let url = URL(string: "x-apple.systempreferences:com.apple.BluetoothSettings") {
+                            ScreenFollow.shared.expect(opening: url)
                             NSWorkspace.shared.open(url)
                         }
                     }

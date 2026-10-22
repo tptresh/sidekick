@@ -238,6 +238,7 @@ enum ContactsProvider {
 
     private static func openPrivacySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts") {
+            ScreenFollow.shared.expect(opening: url)
             NSWorkspace.shared.open(url)
         }
     }
@@ -453,6 +454,7 @@ enum ContactsProvider {
     private static func call(_ number: String) {
         let digits = number.filter { "0123456789+".contains($0) }
         guard !digits.isEmpty, let url = URL(string: "tel://\(digits)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 
@@ -468,30 +470,35 @@ enum ContactsProvider {
     private static func message(_ recipient: String) {
         guard let target = urlTarget(for: recipient),
               let url = URL(string: "imessage://\(target)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 
     private static func faceTime(_ recipient: String) {
         guard let target = urlTarget(for: recipient),
               let url = URL(string: "facetime://\(target)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 
     private static func faceTimeAudio(_ recipient: String) {
         guard let target = urlTarget(for: recipient),
               let url = URL(string: "facetime-audio://\(target)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 
     private static func compose(_ email: String) {
         let escaped = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email
         guard let url = URL(string: "mailto:\(escaped)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 
     private static func openMap(_ address: String) {
         let escaped = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? address
         guard let url = URL(string: "maps://?q=\(escaped)") else { return }
+        ScreenFollow.shared.expect(opening: url)
         NSWorkspace.shared.open(url)
     }
 

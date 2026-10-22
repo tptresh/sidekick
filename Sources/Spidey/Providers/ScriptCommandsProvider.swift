@@ -127,11 +127,13 @@ enum ScriptCommandsProvider {
             if scheme == "http" || scheme == "https" {
                 BrowserLauncher.open(url)
             } else {
+                ScreenFollow.shared.expect(opening: url)
                 NSWorkspace.shared.open(url)
             }
             return
         }
         let path = (arg as NSString).expandingTildeInPath
+        ScreenFollow.shared.expect(opening: URL(fileURLWithPath: path))
         NSWorkspace.shared.open(URL(fileURLWithPath: path))
     }
 
